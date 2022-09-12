@@ -1,0 +1,825 @@
+# qpy:kivy
+# -*-coding:utf8;-*-
+# qpy:2
+# ts=4:sw=4:expandtab
+'''
+Created on 01.07.2014
+
+@author: rkoraschnigg
+'''
+
+import time, sys, os
+import math
+from math import sin, cos, sqrt, atan2, radians
+from kivy.clock import Clock
+from functools import partial
+from ThreadBase import StoppableThread
+from LinkedListGenerator import DoubleLinkedListNodes
+from Logger import Logger
+from CalculatorThreads import RectangleCalculatorThread
+
+
+class SpeedCamWarnerThread(StoppableThread, Logger):
+    def __init__(self, cv_voice, cv_speedcam, voice_prompt_queue, speedcamqueue, osm_wrapper,
+                 calculator, ms, g, cond):
+        StoppableThread.__init__(self)
+        Logger.__init__(self, self.__class__.__name__)
+        self.cv_voice = cv_voice
+        self.cv_speedcam = cv_speedcam
+        self.voice_prompt_queue = voice_prompt_queue
+        self.speedcamqueue = speedcamqueue
+        self.osm_wrapper = osm_wrapper
+        self.calculator = calculator
+        self.ms = ms
+        self.g = g
+        self.cond = cond
+
+        self.cam_coordinates = (None, None)
+        self.ccp_node_coordinates = (None, None)
+        self.ITEMQUEUE = {}
+        self.start_times = {}
+        self.INSERTED_SPEEDCAMS = []
+        self.longitude = float(0.0)
+        self.latitude = float(0.0)
+
+        self.set_configs()
+
+        # delete obsolete cameras every 30 seconds
+        Clock.schedule_interval(lambda *x: self.delete_passed_cameras(),
+                                self.traversed_cameras_interval)
+
+    def set_configs(self):
+        # report only cames in driving direction, cams outside the defined angles relative to CCP will be ignored
+        self.enable_inside_relevant_angle_feature = False
+        # angle boundaries of angles between CCP and Cam.
+        # Relevant if enable_inside_relevant_angle_feature is enabled
+        self.angle1 = 45
+        self.angle2 = 90
+        self.angle3 = 135
+        self.angle4 = 180
+        self.angle5 = 225
+        self.angle6 = 270
+        self.angle7 = 315
+        self.angle8 = 360
+        # Max absolute distance between the car and the camera.
+        # If the calculated absolute distance of traversed cameras is reached,
+        # those cameras will be deleted
+        self.max_absolute_distance = 5000
+        # Initial max storage time. If this time has passed,
+        # cameras which have been traversed by the car
+        # and which have never been initialized once (last_distance = -1) will be deleted
+        # The value increases by 600 units if the ccp is UNSTABLE assuming the driver makes a
+        # UTURN and cameras behind are still relevant
+        self.max_storage_time = 600
+        # Traversed cameras will be checked every X seconds
+        self.traversed_cameras_interval = 3
+
+        # SpeedLimits Base URL example##
+        self.baseurl = 'http://overpass-api.de/api/interpreter?'
+        self.querystring1 = 'data=[out:json];'
+        self.querystring2 = 'way["highway"~"."](around:5,'
+        self.querystring3 = '50.7528080,2.0377858'
+        self.querystring4 = ');out geom;'
+
+    def run(self):
+
+        while not self.cond.terminate:
+            status = self.process()
+            if status == 'EXIT':
+                break
+        self.print_log_line("Terminated")
+        self.stop()
+
+    def process(self):
+        item = self.speedcamqueue.consume(self.cv_speedcam)
+        self.cv_speedcam.release()
+
+        if 'stable_ccp' in item:
+            isCCPStable = item['stable_ccp']
+            if isCCPStable is not None:
+                if isCCPStable == "UNSTABLE":
+                    if self.max_storage_time < 1200:
+                        self.max_storage_time += 600
+                elif isCCPStable == "STABLE":
+                    if self.max_storage_time > 600:
+                        self.max_storage_time -= 600
+
+        if item['ccp'][0] == 'EXIT' or item['ccp'][1] == 'EXIT':
+            self.print_log_line(' Speedcamwarner thread got a termination item')
+            return 'EXIT'
+
+        if item['ccp'][0] == 'IGNORE' or item['ccp'][1] == 'IGNORE':
+            self.print_log_line(' Got a camera from the POI Reader ')
+        else:
+            # back the updated ccp in case cameras originating from the POI Reader arrive
+            self.longitude = item['ccp'][0]
+            self.latitude = item['ccp'][1]
+
+        if item['fix_cam'][0]:
+
+            enforcement = item['fix_cam'][3]
+            if not enforcement:
+                return False
+
+            if self.is_already_added((item['fix_cam'][1], item['fix_cam'][2])):
+                self.print_log_line(' Cam with %f %f already added' % (
+                    item['fix_cam'][1], item['fix_cam'][2]))
+            else:
+                self.print_log_line(' Add new fix cam (%f, %f)'
+                                    % (item['fix_cam'][1], item['fix_cam'][2]))
+
+                self.cam_coordinates = (item['fix_cam'][1], item['fix_cam'][2])
+                self.ccp_node_coordinates = (item['ccp_node'][0], item['ccp_node'][1])
+                dismiss = False
+
+                linked_list = item['list_tree'][0]
+                tree = item['list_tree'][1]
+                last_distance = -1
+                last_calc_distance = 0
+                start_time = time.time()
+                roadname = None
+                self.start_times[self.cam_coordinates] = start_time
+
+                self.ITEMQUEUE[self.cam_coordinates] = ['fix',
+                                                        dismiss,
+                                                        self.ccp_node_coordinates,
+                                                        linked_list,
+                                                        tree,
+                                                        last_distance,
+                                                        start_time,
+                                                        roadname,
+                                                        last_calc_distance]
+                self.INSERTED_SPEEDCAMS.append((item['fix_cam'][1], item['fix_cam'][2]))
+
+        if item['traffic_cam'][0]:
+
+            enforcement = item['traffic_cam'][3]
+            if not enforcement:
+                return False
+
+            if self.is_already_added((item['traffic_cam'][1], item['traffic_cam'][2])):
+                self.print_log_line(' Cam with %f %f already added' % (
+                    item['traffic_cam'][1], item['traffic_cam'][2]))
+            else:
+                self.print_log_line(' Add new traffic cam (%f, %f)'
+                                    % (item['traffic_cam'][1], item['traffic_cam'][2]))
+
+                self.cam_coordinates = (item['traffic_cam'][1], item['traffic_cam'][2])
+                self.ccp_node_coordinates = (item['ccp_node'][0], item['ccp_node'][1])
+                dismiss = False
+
+                linked_list = item['list_tree'][0]
+                tree = item['list_tree'][1]
+                last_distance = -1
+                last_calc_distance = 0
+                start_time = time.time()
+                roadname = None
+                self.start_times[self.cam_coordinates] = start_time
+
+                self.ITEMQUEUE[self.cam_coordinates] = ['traffic',
+                                                        dismiss,
+                                                        self.ccp_node_coordinates,
+                                                        linked_list,
+                                                        tree,
+                                                        last_distance,
+                                                        start_time,
+                                                        roadname,
+                                                        last_calc_distance]
+                self.INSERTED_SPEEDCAMS.append((item['traffic_cam'][1], item['traffic_cam'][2]))
+
+        if item['distance_cam'][0]:
+
+            enforcement = item['distance_cam'][3]
+            if not enforcement:
+                return False
+
+            if self.is_already_added((item['distance_cam'][1], item['distance_cam'][2])):
+                self.print_log_line(' Cam with %f %f already added' % (
+                    item['distance_cam'][1], item['distance_cam'][2]))
+            else:
+                self.print_log_line(' Add new distance cam (%f, %f)'
+                                    % (item['distance_cam'][1], item['distance_cam'][2]))
+
+                self.cam_coordinates = (item['distance_cam'][1], item['distance_cam'][2])
+                self.ccp_node_coordinates = (item['ccp_node'][0], item['ccp_node'][1])
+                dismiss = False
+
+                linked_list = item['list_tree'][0]
+                tree = item['list_tree'][1]
+                last_distance = -1
+                last_calc_distance = 0
+                start_time = time.time()
+                roadname = None
+                self.start_times[self.cam_coordinates] = start_time
+
+                self.ITEMQUEUE[self.cam_coordinates] = ['distance',
+                                                        dismiss,
+                                                        self.ccp_node_coordinates,
+                                                        linked_list,
+                                                        tree,
+                                                        last_distance,
+                                                        start_time,
+                                                        roadname,
+                                                        last_calc_distance]
+                self.INSERTED_SPEEDCAMS.append((item['distance_cam'][1], item['distance_cam'][2]))
+
+        if item['mobile_cam'][0]:
+
+            enforcement = item['mobile_cam'][3]
+            if not enforcement:
+                return False
+
+            if self.is_already_added((item['mobile_cam'][1], item['mobile_cam'][2])):
+                self.print_log_line(' Cam with %f %f already added' % (
+                    item['mobile_cam'][1], item['mobile_cam'][2]))
+            else:
+                self.print_log_line(' Add new mobile cam (%f, %f)'
+                                    % (item['mobile_cam'][1], item['mobile_cam'][2]))
+
+                self.cam_coordinates = (item['mobile_cam'][1], item['mobile_cam'][2])
+                self.ccp_node_coordinates = (item['ccp_node'][0], item['ccp_node'][1])
+                dismiss = False
+
+                linked_list = item['list_tree'][0]
+                tree = item['list_tree'][1]
+                last_distance = -1
+                last_calc_distance = 0
+                start_time = time.time()
+                roadname = None
+                self.start_times[self.cam_coordinates] = start_time
+
+                self.ITEMQUEUE[self.cam_coordinates] = ['mobile',
+                                                        dismiss,
+                                                        self.ccp_node_coordinates,
+                                                        linked_list,
+                                                        tree,
+                                                        last_distance,
+                                                        start_time,
+                                                        roadname,
+                                                        last_calc_distance]
+                self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
+
+        cams_to_delete = []
+
+        # sort the cams based on distance
+        cam_list = []
+        distance = 0
+
+        for cam, cam_attributes in self.ITEMQUEUE.copy().items():
+            if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
+                distance = self.check_distance_between_two_points(cam,
+                                                                  (self.longitude,
+                                                                   self.latitude))
+            else:
+                '''distance = self.check_distance_between_two_points(cam, cam_attributes[
+                    2]) - self.check_distance_between_two_points((item['ccp'][0],
+                                                                  item['ccp'][1]),
+                                                                 cam_attributes[2])'''
+                distance = self.check_distance_between_two_points(cam,
+                                                                  (self.longitude,
+                                                                   self.latitude))
+                self.print_log_line(" Initial Distance to speed cam (%f, %f, %s): "
+                                    "%f meters , last distance: %s, storage_time: %f seconds"
+                                    % (cam[0], cam[1], cam_attributes[0],
+                                       distance, str(cam_attributes[5]), cam_attributes[6]))
+
+            if distance < 0 or cam_attributes[1]:
+                cams_to_delete.append(cam)
+                self.remove_cached_camera(cam)
+                self.update_kivi_speedcam('FREEFLOW')
+                self.update_bar_widget_1000m(color=2)
+                self.update_bar_widget_500m(color=2)
+                self.update_bar_widget_300m(color=2)
+                self.update_bar_widget_100m(color=2)
+                self.update_bar_widget_meters('')
+                self.update_cam_text(reset=True)
+                self.update_cam_road(reset=True)
+                self.update_calculator_cams(cam_attributes)
+            else:
+                entry = (cam, distance)
+                cam_list.append(entry)
+                start_time = time.time() - self.start_times[cam]
+                try:
+                    self.ITEMQUEUE[cam][6] = start_time
+                except:
+                    pass
+
+        self.delete_cameras(cams_to_delete)
+
+        cam = self.sort_pois(cam_list)
+        cam_attributes = None
+
+        if cam is None:
+            return False
+
+        try:
+            cam_attributes = self.ITEMQUEUE[cam]
+        except KeyError:
+            return False
+
+        if self.enable_inside_relevant_angle_feature:
+            ccp = (0, 0)
+            if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
+                ccp = (self.longitude, self.latitude)
+            else:
+                ccp = (item['ccp'][0], item['ccp'][1])
+
+            if not self.inside_relevant_angle(ccp, (cam[0], cam[1])):
+                self.update_kivi_speedcam('FREEFLOW')
+                self.update_bar_widget_1000m(color=2)
+                self.update_bar_widget_500m(color=2)
+                self.update_bar_widget_300m(color=2)
+                self.update_bar_widget_100m(color=2)
+                self.update_bar_widget_meters('')
+                self.print_log_line(" Leaving Speed cam with coordinates: "
+                                    "%s %s because of angle" % (cam[0], cam[1]))
+                return False
+
+        # check speed cam distance to updated ccp position
+        # if we already found a speed cam previously
+        if not cam_attributes[1]:
+            if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
+                distance = self.check_distance_between_two_points(cam,
+                                                                  (self.longitude, self.latitude))
+            else:
+                '''distance = self.check_distance_between_two_points(cam, cam_attributes[
+                    2]) - self.check_distance_between_two_points((item['ccp'][0],
+                                                                  item['ccp'][1]),
+                                                                 cam_attributes[2])'''
+                distance = self.check_distance_between_two_points(cam,
+                                                                  (self.longitude,
+                                                                   self.latitude))
+            self.print_log_line(" Followup Distance to speed cam (%f, %f, %s): %f meters , "
+                                "last distance: %s, storage_time: %f seconds"
+                                % (cam[0], cam[1], cam_attributes[0],
+                                   distance, str(cam_attributes[5]), cam_attributes[6]))
+
+            self.trigger_speed_cam_update(round(distance),
+                                          cam,
+                                          cam_attributes[0],
+                                          cam_attributes[2],
+                                          cam_attributes[3],
+                                          cam_attributes[4],
+                                          cam_attributes[5])
+
+        else:
+            self.print_log_line(" Removed %s speed cam with cam coordinates %f %f" % (
+                cam_attributes[0], cam[0], cam[1]))
+            self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'SPEEDCAM_REMOVED')
+            cams_to_delete.append(cam)
+            self.delete_cameras(cams_to_delete)
+            self.remove_cached_camera(cam)
+
+        if len(self.ITEMQUEUE) == 0:
+            self.update_kivi_speedcam('FREEFLOW')
+            self.update_bar_widget_1000m(color=2)
+            self.update_bar_widget_500m(color=2)
+            self.update_bar_widget_300m(color=2)
+            self.update_bar_widget_100m(color=2)
+            self.update_bar_widget_meters('')
+            self.update_cam_text(reset=True)
+            self.update_cam_road(reset=True)
+            del self.INSERTED_SPEEDCAMS[:]
+
+        return True
+
+    def delete_cameras(self, cams_to_delete):
+        if len(cams_to_delete) > 0:
+            self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'SPEEDCAM_REMOVED')
+        # delete cams
+        for cam in cams_to_delete:
+            self.ITEMQUEUE.pop(cam)
+            self.start_times.pop(cam)
+        del cams_to_delete[:]
+
+    def remove_cached_camera(self, cam):
+        try:
+            cam_index = self.INSERTED_SPEEDCAMS.index(cam)
+            self.print_log_line(" Removing cached speed camera %s at index %d"
+                                % (str(cam), cam_index))
+            self.INSERTED_SPEEDCAMS.pop(cam_index)
+        except ValueError:
+            pass
+
+    def is_already_added(self, cam_coordinates=(0, 0)):
+        return cam_coordinates in self.INSERTED_SPEEDCAMS
+
+    def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
+                                 ccp_node=(0, 0), linked_list=None, tree=None, last_distance=-1):
+
+        if 0 <= distance <= 100:
+
+            if last_distance == -1 or last_distance > 100:
+                if distance < 50:
+                    if speedcam == 'fix':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_NOW')
+                    elif speedcam == 'traffic':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_NOW')
+                    elif speedcam == 'mobile':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_NOW')
+                    else:
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_NOW')
+                else:
+                    if speedcam == 'fix':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_100')
+                    elif speedcam == 'traffic':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_100')
+                    elif speedcam == 'mobile':
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_100')
+                    else:
+                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_100')
+
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m()
+                self.update_bar_widget_300m()
+                self.update_bar_widget_500m()
+                self.update_bar_widget_1000m()
+                self.update_bar_widget_meters(distance)
+                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+
+            if last_distance == 100:
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m()
+                self.update_bar_widget_300m()
+                self.update_bar_widget_500m()
+                self.update_bar_widget_1000m()
+                self.update_bar_widget_meters(distance)
+                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+
+            last_distance = 100
+            dismiss = False
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+        elif 100 < distance <= 300:
+            dismiss = False
+            if last_distance == -1 or last_distance > 300:
+                if speedcam == 'fix':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_300')
+                elif speedcam == 'traffic':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_300')
+                elif speedcam == 'mobile':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_300')
+                else:
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_300')
+
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m(color=2)
+                self.update_bar_widget_300m()
+                self.update_bar_widget_500m()
+                self.update_bar_widget_1000m()
+                self.update_bar_widget_meters(distance)
+                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+            else:
+
+                if last_distance == 300:
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m()
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                else:
+                    self.update_kivi_speedcam('FREEFLOW')
+                    self.update_bar_widget_1000m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_meters('')
+                    self.update_cam_text(reset=True)
+                    self.update_cam_road(reset=True)
+                    dismiss = True
+
+            last_distance = 300
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+        elif 300 < distance <= 500:
+            dismiss = False
+            if last_distance == -1 or last_distance > 500:
+                if speedcam == 'fix':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_500')
+                elif speedcam == 'traffic':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_500')
+                elif speedcam == 'mobile':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_500')
+                else:
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_500')
+
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m(color=2)
+                self.update_bar_widget_300m(color=2)
+                self.update_bar_widget_500m()
+                self.update_bar_widget_1000m()
+                self.update_bar_widget_meters(distance)
+                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+            else:
+
+                if last_distance == 500:
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                else:
+                    self.update_kivi_speedcam('FREEFLOW')
+                    self.update_bar_widget_1000m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_meters('')
+                    self.update_cam_text(reset=True)
+                    self.update_cam_road(reset=True)
+                    dismiss = True
+
+            last_distance = 500
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+        elif 500 < distance <= 1000:
+            dismiss = False
+            if last_distance == -1 or last_distance > 1000:
+                if speedcam == 'fix':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_1000')
+                elif speedcam == 'traffic':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_1000')
+                elif speedcam == 'mobile':
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_1000')
+                else:
+                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_1000')
+
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m(color=2)
+                self.update_bar_widget_300m(color=2)
+                self.update_bar_widget_500m(color=2)
+                self.update_bar_widget_1000m()
+                self.update_bar_widget_meters(distance)
+                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+            else:
+
+                if last_distance == 1000:
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                else:
+                    self.update_kivi_speedcam('FREEFLOW')
+                    self.update_bar_widget_1000m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_meters('')
+                    self.update_cam_text(reset=True)
+                    self.update_cam_road(reset=True)
+                    dismiss = True
+
+            last_distance = 1000
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+        elif 1000 < distance <= 1500:
+            dismiss = False
+            if last_distance == -1 or last_distance > 1001:
+                self.print_log_line(" %s speed cam ahead with distance %d m" % (
+                    speedcam, int(distance)))
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'CAMERA_AHEAD')
+                self.update_kivi_speedcam('CAMERA_AHEAD')
+                self.update_bar_widget_meters(distance)
+            else:
+                if last_distance == 1001:
+                    self.update_kivi_speedcam('CAMERA_AHEAD')
+                    self.update_bar_widget_meters(distance)
+                else:
+                    self.update_kivi_speedcam('FREEFLOW')
+                    self.update_bar_widget_1000m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_meters('')
+                    self.update_cam_text(reset=True)
+                    self.update_cam_road(reset=True)
+                    dismiss = True
+
+            last_distance = 1001
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+        else:
+            if last_distance == -1 and distance < 5000:
+                return
+            self.print_log_line(" %s speed cam OUTSIDE relevant radius -> distance %d m" % (
+                speedcam, int(distance)))
+
+            self.update_kivi_speedcam('FREEFLOW')
+            self.update_bar_widget_1000m(color=2)
+            self.update_bar_widget_500m(color=2)
+            self.update_bar_widget_300m(color=2)
+            self.update_bar_widget_100m(color=2)
+            self.update_bar_widget_meters('')
+            self.update_cam_text(reset=True)
+            self.update_cam_road(reset=True)
+
+            last_distance = 10000
+            dismiss = True
+            self.ITEMQUEUE[cam_coordinates][0] = speedcam
+            self.ITEMQUEUE[cam_coordinates][1] = dismiss
+            self.ITEMQUEUE[cam_coordinates][2] = ccp_node
+            self.ITEMQUEUE[cam_coordinates][3] = linked_list
+            self.ITEMQUEUE[cam_coordinates][4] = tree
+            self.ITEMQUEUE[cam_coordinates][5] = last_distance
+            self.ITEMQUEUE[cam_coordinates][8] = distance
+
+    def sort_pois(self, cam_list):
+        if len(cam_list) > 0:
+            attributes = min(cam_list, key=lambda c: c[1])
+            return attributes[0]
+        return None
+
+    def check_road_name(self, *args):
+        linked_list = args[0]
+        tree = args[1]
+        cam_coordinates = args[2]
+
+        if linked_list is not None and tree is not None:
+
+            if not isinstance(linked_list, DoubleLinkedListNodes):
+                return
+
+            try:
+                self.ITEMQUEUE[cam_coordinates][7]
+            except KeyError:
+                return
+
+            if self.ITEMQUEUE[cam_coordinates][7] is None:
+                node_id = linked_list.match_node((cam_coordinates[1], cam_coordinates[0]))
+                if node_id:
+                    if node_id in tree:
+                        self.print_log_line(
+                            ' Found node_id %s in list and tree' % (str(node_id)))
+                        way = tree[node_id]
+                        # get the way attributes
+                        if tree.hasRoadNameAttribute(way):
+                            self.print_log_line(' road name in tree')
+                            road_name = tree.getRoadNameValue(way)
+                            try:
+                                self.ITEMQUEUE[cam_coordinates][7] = road_name
+                            except KeyError:
+                                return
+
+    def update_kivi_speedcam(self, speedcam):
+        self.g.update_speed_camera(speedcam)
+
+    def update_bar_widget_1000m(self, color=1):
+        self.ms.update_bar_widget_1000m(color)
+
+    def update_bar_widget_500m(self, color=1):
+        self.ms.update_bar_widget_500m(color)
+
+    def update_bar_widget_300m(self, color=1):
+        self.ms.update_bar_widget_300m(color)
+
+    def update_bar_widget_100m(self, color=1):
+        self.ms.update_bar_widget_100m(color)
+
+    def update_bar_widget_meters(self, meter):
+        self.ms.update_bar_widget_meters(meter)
+
+    def update_cam_text(self, distance=0, reset=False):
+        self.ms.update_cam_text(distance, reset)
+
+    def update_cam_road(self, road=None, reset=False):
+        self.ms.update_cam_road(road, reset)
+
+    # beeline distance between 2 points (lon,lat) in meters.
+    def check_beeline_distance(self, pt1, pt2):
+        lon1, lat1 = pt1[0], pt1[1]
+        lon2, lat2 = pt2[0], pt2[1]
+        radius = 6371  # km
+
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2) * math.sin(dlat / 2) + math.cos(math.radians(lat1)) \
+            * math.cos(math.radians(lat2)) * math.sin(dlon / 2) * math.sin(dlon / 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        d = radius * c
+        return int(d) * 1000
+
+    # distance between 2 points (lon (x),lat (y)) in meters.
+    def check_distance_between_two_points(self, pt1, pt2):
+        # approximate radius of earth in km
+        R = 6373.0
+
+        try:
+            lat1 = radians(float(pt1[1]))
+            lon1 = radians(float(pt1[0]))
+            lat2 = radians(float(pt2[1]))
+            lon2 = radians(float(pt2[0]))
+        except ValueError:
+            return -1
+
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        distance = R * c
+
+        return round(distance * 1000, 3)
+
+    def inside_relevant_angle(self, pt1, pt2):
+        angle = self.calculate_angle(pt1, pt2)
+
+        return self.angle1 <= angle <= self.angle2 or self.angle2 <= angle <= self.angle3 or \
+               self.angle4 <= angle <= self.angle5 or self.angle5 <= angle <= self.angle6 or \
+               self.angle6 <= angle <= self.angle7 or self.angle7 <= angle <= self.angle8
+
+    def calculate_angle(self, pt1, pt2):
+        lon1, lat1 = pt1, pt1
+        lon2, lat2 = pt2, pt2
+
+        x_diff = lon2 - lon1
+        y_diff = lat2 - lat1
+        angle = abs(math.atan2(y_diff, x_diff) * (180 / math.pi))
+        return angle
+
+    def delete_passed_cameras(self):
+        copy_dict = self.ITEMQUEUE.copy()
+        for cam, cam_attributes in copy_dict.items():
+            if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
+                return
+            else:
+                distance = self.check_distance_between_two_points(cam, cam_attributes[2]) \
+                           - self.check_distance_between_two_points((self.longitude,
+                                                                     self.latitude),
+                                                                    cam_attributes[2])
+                if distance < 0 and abs(distance) >= self.max_absolute_distance:
+                    self.print_log_line(" Deleting obsolete camera: %s "
+                                        "(max distance %d m > current distance %d m)"
+                                        % (str(cam), self.max_absolute_distance, abs(distance)))
+                    self.ITEMQUEUE.pop(cam)
+                    self.update_calculator_cams(cam_attributes)
+                else:
+                    if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
+                            self.max_storage_time:
+                        try:
+                            self.print_log_line(" Deleting obsolete camera: %s "
+                                                "because of storage time (max %d seconds)"
+                                                % (str(cam), self.max_storage_time))
+                            self.ITEMQUEUE.pop(cam)
+
+                        except:
+                            pass
+
+    def update_calculator_cams(self, cam_attributes):
+        if self.calculator is not None and isinstance(self.calculator, RectangleCalculatorThread):
+            if cam_attributes[0] == 'fix' and self.calculator.fix_cams > 0:
+                self.calculator.fix_cams -= 1
+            elif cam_attributes[0] == 'traffic' and self.calculator.traffic_cams > 0:
+                self.calculator.traffic_cams -= 1
+            elif cam_attributes[0] == 'distance' and self.calculator.distance_cams > 0:
+                self.calculator.distance_cams -= 1
+            elif cam_attributes[0] == 'mobile' and self.calculator.mobile_cams > 0:
+                self.calculator.mobile_cams -= 1

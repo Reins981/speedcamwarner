@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leaflet mobile example</title>
+	<meta http-equiv="cache-control" content="no-cache" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" integrity="sha512-hoalWLoI8r4UszCkZ5kL8vayOGVae1oxXe/2A4AO6J9+580uKHDO3JdHb7NzwwzK5xr/Fs0W40kiNHxM9vyTtQ==" crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js" integrity="sha512-BB3hKbKWOc9Ez/TAwyWxNXeoV9c1v6FIeYiBieIWkpLjauysF18NzgR1MBNBXf8/KABdlkX68nAhlwcDFLGPCQ==" crossorigin=""></script>
+	<script language="Javascript" type="text/javascript" src="https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/leaflet.markercluster.js"></script>
+	<link href='https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.css' rel='stylesheet' />
+	<link href='https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.Default.css' rel='stylesheet' />
+	<link rel="stylesheet" href="css/leaf.css" type="text/css">
+</head>
+<body>
+	<div class="textbox">
+	<h2>OSM Map Data</h2>
+	<div id="info"></div>
+	</div>
+	<div id="map" style="width: 600px; height: 400px;"></div>
+	<script>
+		//globals
+		var baseLayers;
+		var zoom = 18;
+		var marker;
+		var markers;
+		var circle;
+
+		var osm = new L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+				'Imagery  <a href="http://mapbox.com">Mapbox</a>',
+			id: 'examples.map-i875mjb7'
+		});
+
+		var markers = new L.layerGroup();
+		var map = L.map('map', { center: new L.LatLng(51.538465, -0.117806),
+			zoom: zoom, minZoom: 4, maxZoom: 18, layers: [osm]});
+
+		// define layers
+		definelayers()
+
+		onLocationInit()
+
+		function onLocationInit() {
+			var radius = 1.000000 / 2;
+
+			// add layers
+			//L.control.layers(baseLayers,overlays).addTo(map);
+			//L.control.scale().addTo(map);
+
+			marker = L.marker([51.538465,-0.117806]);
+			marker.bindPopup("CCP within " + radius + " meters from " + 51.538465 + "," + -0.117806 + ", Heading: N").openPopup();
+
+			//define gps cycle
+			circle = L.circle([51.538465,-0.117806], radius);
+
+			markers.addLayer(marker);
+			markers.addLayer(circle);
+			markers.addTo(map);
+			map.setView(new L.LatLng(51.538465,-0.117806), 16);
+
+			// define rectangle geographical bounds
+			var bounds_CURRENT = [[51.514449, -0.121784], [51.505280, -0.114400]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT, {color: "#ff7800", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT based on Heading: N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT);
+			// define rectangle geographical bounds
+			var bounds_CURRENT0 = [[51.512223, -0.128155], [51.507506, -0.113522]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT0, {color: "#1100ff", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT0 based on Heading: W");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT0);
+			// define rectangle geographical bounds
+			var bounds_CURRENT1 = [[51.512223, -0.122662], [51.507506, -0.108029]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT1, {color: "#00ff11", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT1 based on Heading: O");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT1);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_1 = [[51.522684, -0.120152], [51.514993, -0.116032]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_1, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_1 Rectangle N-2");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_1);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_3 = [[51.527492, -0.120027], [51.521340, -0.115907]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_3, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_3 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_3);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_5 = [[51.532291, -0.119979], [51.526140, -0.115859]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_5, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_5 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_5);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_7 = [[51.538799, -0.120618], [51.530598, -0.115124]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_7, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_7 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_7);
+		}
+
+		function updateLocation() {
+			markers.clearLayers();
+			var radius = 1.000000 / 2;
+
+			marker = L.marker([51.538465,-0.117806]);
+			marker.bindPopup("CCP within " + radius + " meters from " + 51.538465 + "," + -0.117806 + ", Heading: N").openPopup();
+
+			//define gps cycle
+			circle = L.circle([51.538465,-0.117806], radius);
+
+			markers.addLayer(marker);
+			markers.addLayer(circle);
+			markers.addTo(map);
+			map.setView(new L.LatLng(51.538465,-0.117806), 16);
+			setInterval("updateLocation()",5000);
+
+			// define rectangle geographical bounds
+			var bounds_CURRENT = [[51.514449, -0.121784], [51.505280, -0.114400]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT, {color: "#ff7800", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT based on Heading: N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT);
+			// define rectangle geographical bounds
+			var bounds_CURRENT0 = [[51.512223, -0.128155], [51.507506, -0.113522]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT0, {color: "#1100ff", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT0 based on Heading: W");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT0);
+			// define rectangle geographical bounds
+			var bounds_CURRENT1 = [[51.512223, -0.122662], [51.507506, -0.108029]];
+
+			// create a rectangle
+			L.rectangle(bounds_CURRENT1, {color: "#00ff11", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, calculated Rectangle CURRENT1 based on Heading: O");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_CURRENT1);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_1 = [[51.522684, -0.120152], [51.514993, -0.116032]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_1, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_1 Rectangle N-2");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_1);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_3 = [[51.527492, -0.120027], [51.521340, -0.115907]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_3, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_3 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_3);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_5 = [[51.532291, -0.119979], [51.526140, -0.115859]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_5, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_5 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_5);
+			// define rectangle geographical bounds
+			var bounds_EXTRAPOLATED_7 = [[51.538799, -0.120618], [51.530598, -0.115124]];
+
+			// create a rectangle
+			L.rectangle(bounds_EXTRAPOLATED_7, {color: "#b30c00", weight: 1}).addTo(map)
+				.bindPopup("Speed Cam Alert Zone, EXTRAPOLATED_7 Rectangle N");
+
+			// zoom the map to the rectangle bounds
+			//map.fitBounds(bounds_EXTRAPOLATED_7);
+		}
+
+
+			var FixCamIcon = L.icon({
+			iconUrl: 'images/fixcamera.png',
+			iconSize:     [38, 38], // size of the icon
+			});
+			var DistanceCamIcon = L.icon({
+			iconUrl: 'images/distancecamera.png',
+			iconSize:     [38, 38], // size of the icon
+			});
+			var TrafficCamIcon = L.icon({
+			iconUrl: 'images/trafficlightcamera.png',
+			iconSize:     [38, 38], // size of the icon
+			});
+			L.marker([51.510233,-0.116721], {icon: FixCamIcon}).addTo(map).bindPopup("Fix Speed Cam: ");
+			var HospitalIcon = L.icon({
+			iconUrl: 'images/hospital.png',
+			iconSize:     [38, 38], // size of the icon
+			});
+			var FuelIcon = L.icon({
+			iconUrl: 'images/fuel.png',
+			iconSize:     [38, 38], // size of the icon
+			});
+		function onLocationError(e) {
+			alert(e.message);
+		}
+
+
+		map.on('locationfound', onLocationInit);
+		map.on('locationerror', onLocationError);
+
+		map.locate({setView: true, maxZoom: 17});
+
+		function definelayers() {
+			var baseLayers = {
+				"Mapnik": osm
+			}
+		}
+	</script>
+</body>
+</html>
