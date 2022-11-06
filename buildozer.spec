@@ -284,7 +284,7 @@ android.allow_backup = True
 # android.no-compile-pyo = True
 
 # (str) The format used to package the app for release mode (aab or apk or aar).
-# android.release_artifact = aab
+android.release_artifact = aab
 
 # (str) The format used to package the app for debug mode (apk or aar).
 # android.debug_artifact = apk

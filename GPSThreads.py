@@ -231,7 +231,7 @@ class GPSThread(StoppableThread, Logger):
 
         if event:
             if 'gps' in event['data'] and 'accuracy' in event['data']['gps']:
-                if int(event['data']['gps']['accuracy']) <= 500:
+                if int(event['data']['gps']['accuracy']) <= 1500:
 
                     self.callback_gps(event)
                     speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
@@ -290,7 +290,7 @@ class GPSThread(StoppableThread, Logger):
                     return
 
                 else:
-                    gps_accuracy = 'GPS_LOW'
+                    gps_accuracy = str(event['data']['gps']['accuracy'])
                     self.process_offroute(gps_accuracy)
 
     def process_offroute(self, gps_accuracy):

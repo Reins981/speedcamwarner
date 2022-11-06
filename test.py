@@ -1,14 +1,6 @@
+from geopy.geocoders import Nominatim
 
-
-class A:
-    web = None
-
-def test1():
-    A.web = 333
-
-def test2():
-    A.web = 444
-
-test1()
-test2()
-print(A.web)
+geolocator = Nominatim(user_agent="mozilla")
+location = geolocator.reverse("52.36584558119477, 9.707620046994666")
+print(location.address.split(","))
+print((location.latitude, location.longitude))

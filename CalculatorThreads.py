@@ -530,14 +530,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     # create an object for the fallback location lookup
 
     def set_configs(self):
+        # Report slow downloads if this time has been reached
+        # Also the rect size will be constantly reduced in case of high delays (> this time)
+        self.max_download_time = 15
         # download time timeout for osm data (use a larger timeout for
         # motorways since rects are larger)
-        self.osm_timeout = 22
-        self.osm_timeout_motorway = 25
+        self.osm_timeout = 20
+        self.osm_timeout_motorway = 20
         # initial rect distance in km after app startup
-        self.initial_rect_distance = 3
+        self.initial_rect_distance = 2
         # increasing the rect boundaries if this defined speed limit is exceeded
-        self.speed_influence_on_rect_boundary = 100
+        self.speed_influence_on_rect_boundary = 80
         # angle paramter used for current rect in degrees (only for initial rect calculation)
         self.current_rect_angle = 90
         # angle paramter used for fallback rect in degrees (only for initial rect calculation)
@@ -547,20 +550,22 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.zoom = 17
         # maximum number of cross roads to be displayed (reasonable value is 2 or 3)
         self.max_cross_roads = 3
+        # disable road lookup
+        self.disable_road_lookup = True
         # instead of two extrapolated rects, only one can be used (increases performance
         # but might lead to less speed cameras found)
         # if we are on a motorway only one extrapolated rect larger in size will be used
         # regardless of parameter self.use_only_one_extrapolated_rect
         self.use_only_one_extrapolated_rect = True
         # calculate a small rectangle in opposite driving direction as fallback
-        # instead of a larger exrapolated rect
+        # instead of a larger extrapolated rect
         # the feature applies for the next calculation cycle in case condition of CCP was
         # outside all rectangle borders
-        self.consider_backup_rects = True
+        self.consider_backup_rects = False
         # enable most probable road feature (stick to road in case of GPS inaccuracies)
         self.enable_mpr = False
         # dismiss POIS
-        self.dismiss_pois = False
+        self.dismiss_pois = True
         # enable an algorithm for faster rectangle lookup applying to extrapolated rects
         self.enable_ordered_rects_extrapolated = True
         # max number of extrapolated rects to keep.
@@ -3279,7 +3284,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         if mode == 'LOWER_CLASS' and self.cspeed <= self.speed_influence_on_rect_boundary:
             # make sure the rect size is constantly reduced in case of high delays
-            if self.download_time >= 10:
+            if self.download_time >= self.max_download_time:
                 self.rectangle_periphery = self.rectangle_periphery_fallback_lower_roadclass
             else:
                 self.rectangle_periphery = self.rectangle_periphery_lower_roadclass
@@ -3289,7 +3294,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.motorway_flag = False
         else:
             # make sure the rect size is constantly reduced in case of high delays
-            if self.download_time >= 10:
+            if self.download_time >= self.max_download_time:
                 self.rectangle_periphery = self.rectangle_periphery_motorway_fallback
             else:
                 self.print_log_line(
@@ -3784,7 +3789,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.update_kivi_info_page()
 
         # do a cleanup if the speed cam struture increases this limit
-        if len(self.speed_cam_dict) >= 500:
+        if len(self.speed_cam_dict) >= 100:
             self.print_log_line(" Limit %d reached! Deleting all speed cameras")
             del self.speed_cam_dict[:]
 
@@ -3910,7 +3915,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.update_maxspeed_status(status, internal_error)
 
     def report_download_time(self):
-        if self.download_time >= 10:
+        if self.download_time >= self.max_download_time:
             self.update_maxspeed_status('SLOW', None)
             # if the delay is so high that the CCP is constantly
             # outside ALL rectangle borders we have to reduce the rect size here
