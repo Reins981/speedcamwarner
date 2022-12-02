@@ -505,8 +505,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.osm_error_reported = False
         self.slow_data_reported = False
         self.internet_connection = True
-        self.maxspeed_available = False
-        self.roadname_available = False
         self.was_speed0 = True
         self.motorway_flag = False
         self.hazards_on_road = False
@@ -2583,7 +2581,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if treeGenerator.hasMaxspeedAttribute(way):
             # self.print_log_line(' maxspeed in tree')
             found_maxspeed = True
-            self.maxspeed_available = found_maxspeed
 
             if treeGenerator.hasMaxspeedConditionalAttribute(way):
                 maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
@@ -2622,8 +2619,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             # self.print_log_line(' maxspeed in tree')
             found_road_name = True
             found_maxspeed = True
-            self.maxspeed_available = found_maxspeed
-            self.roadname_available = found_road_name
 
             # Are we on a Highway?
             if treeGenerator.hasHighwayAttribute(way):
@@ -2668,7 +2663,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         elif treeGenerator.hasRoadNameAttribute(way):
             # self.print_log_line(' road name in tree')
             found_road_name = True
-            self.roadname_available = found_road_name
 
             if treeGenerator.hasHighwayAttribute(way):
                 road_class = treeGenerator.getHighwayValue(way)
@@ -2705,7 +2699,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         elif treeGenerator.hasMaxspeedAttribute(way):
             # self.print_log_line(' maxspeed in tree')
             found_maxspeed = True
-            self.maxspeed_available = found_maxspeed
 
             if treeGenerator.hasMaxspeedConditionalAttribute(way):
                 maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
@@ -2723,7 +2716,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if treeGenerator.hasRefAttribute(way):
                 # self.print_log_line(' ref road_name in tree')
                 found_road_name = True
-                self.roadname_available = found_road_name
                 road_name = treeGenerator.getRefValue(way)
 
                 if treeGenerator.hasHighwayAttribute(way):
@@ -2742,7 +2734,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if treeGenerator.hasRefAttribute(way):
                 # self.print_log_line(' ref road_name in tree')
                 found_road_name = True
-                self.roadname_available = found_road_name
                 road_name = treeGenerator.getRefValue(way)
 
                 if treeGenerator.hasHighwayAttribute(way):
@@ -2845,13 +2836,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                              treeGenerator=None,
                              current_rect=None):
 
-        self.maxspeed_available = False
-        self.roadname_available = False
+        if current_rect is not None:
+            self.print_log_line(f"Trigger Cache lookup from current Rect {str(current_rect)}")
 
         if not isinstance(linkedListGenerator, DoubleLinkedListNodes):
             self.print_log_line(
                 ' trigger_cache_lookup: linkedListGenerator instance not created!')
-            return
+            return False
 
         linkedListGenerator.set_treegenerator_instance(treeGenerator)
 
@@ -2898,6 +2889,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.retrieve_speed_cam_attributes_on_the_way(way,
                                                               treeGenerator,
                                                               linkedListGenerator)
+        return True
 
     # check if at least 4 subsequent position updates resulted in the same road class
     def is_road_class_stable(self, road_candidates, road_class_value):
