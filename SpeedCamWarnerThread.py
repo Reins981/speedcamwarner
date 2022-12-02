@@ -122,8 +122,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 return False
 
             if self.is_already_added((item['fix_cam'][1], item['fix_cam'][2])):
-                self.print_log_line(' Cam with %f %f already added' % (
+                self.print_log_line(' Cam with %f %f already added. Skip processing..' % (
                     item['fix_cam'][1], item['fix_cam'][2]))
+                return False
             else:
                 self.print_log_line(' Add new fix cam (%f, %f)'
                                     % (item['fix_cam'][1], item['fix_cam'][2]))
@@ -158,8 +159,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 return False
 
             if self.is_already_added((item['traffic_cam'][1], item['traffic_cam'][2])):
-                self.print_log_line(' Cam with %f %f already added' % (
+                self.print_log_line(' Cam with %f %f already added. Skip processing..' % (
                     item['traffic_cam'][1], item['traffic_cam'][2]))
+                return False
             else:
                 self.print_log_line(' Add new traffic cam (%f, %f)'
                                     % (item['traffic_cam'][1], item['traffic_cam'][2]))
@@ -194,8 +196,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 return False
 
             if self.is_already_added((item['distance_cam'][1], item['distance_cam'][2])):
-                self.print_log_line(' Cam with %f %f already added' % (
+                self.print_log_line(' Cam with %f %f already added. Skip processing..' % (
                     item['distance_cam'][1], item['distance_cam'][2]))
+                return False
             else:
                 self.print_log_line(' Add new distance cam (%f, %f)'
                                     % (item['distance_cam'][1], item['distance_cam'][2]))
@@ -230,8 +233,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 return False
 
             if self.is_already_added((item['mobile_cam'][1], item['mobile_cam'][2])):
-                self.print_log_line(' Cam with %f %f already added' % (
+                self.print_log_line(' Cam with %f %f already added. Skip processing..' % (
                     item['mobile_cam'][1], item['mobile_cam'][2]))
+                return False
             else:
                 self.print_log_line(' Add new mobile cam (%f, %f)'
                                     % (item['mobile_cam'][1], item['mobile_cam'][2]))

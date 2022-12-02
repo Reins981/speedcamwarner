@@ -24,6 +24,7 @@ from OSMWrapper import maps
 from LinkedListGenerator import DoubleLinkedListNodes
 from TreeGenerator import BinarySearchTree
 from enum import Enum
+from collections import defaultdict
 
 
 class FilteredRoadClasses(Enum):
@@ -3710,7 +3711,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         if type(value) is dict:
                             way_tags = value
                             # these cameras are part of a way, not a node.
-                            self.getNumberOfDistanceCameras(way_tags)
+                            self.update_number_of_distance_cameras(way_tags)
                     elif (key == "nodes" and typedef == "way"):
                         if type(value) is list:
                             nodes = value
@@ -3777,13 +3778,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # prepare osm cam updates
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
-            # self.print_log_line(" Speed cameras before duplicate filtering: %d"
-            # % len(self.speed_cam_dict))
-            # Filter duplicate cameras
-            self.speed_cam_dict = [n for i, n in enumerate(self.speed_cam_dict)
-                                   if n not in self.speed_cam_dict[i + 1:]]
-        # self.print_log_line(" Speed cameras after duplicate filtering: %d"
-        # % len(self.speed_cam_dict))
+
+        self.remove_duplicate_cameras()
 
         # update specific cams per rect (sum of all rects)
         self.update_kivi_info_page()
@@ -3795,7 +3791,28 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     # self.print_log_line(' Looking up speed cams FINISHED')
 
-    def getNumberOfDistanceCameras(self, way_tags={}):
+    def remove_duplicate_cameras(self):
+        # Remove duplicate cameras for Map Renderer
+        duplicates = defaultdict(lambda: defaultdict(list))
+        for speed_cam_d in self.speed_cam_dict:
+            for key, entry in speed_cam_d.items():
+                coords = (entry[2], entry[3])
+                if coords in duplicates:
+                    self.print_log_line(
+                        f"Coordinates {coords} for Camera {key} are duplicate. "
+                        f"-> Camera will be removed"
+                    )
+                    duplicates[(entry[2], entry[3])][key].append("DUPLICATE")
+                else:
+                    duplicates[(entry[2], entry[3])][key].append("UNIQUE")
+
+        for dup_indexes in duplicates.values():
+            for key, value in dup_indexes.items():
+                if value[0] == "DUPLICATE":
+                    for n in self.speed_cam_dict:
+                        del n[key]
+
+    def update_number_of_distance_cameras(self, way_tags={}):
         if 'role' in way_tags.keys():
             if way_tags['role'] == 'device':
                 self.print_log_line(' Distance camera found')
