@@ -388,7 +388,6 @@ class Rect(object):
 
 
 class RectangleCalculatorThread(StoppableThread, Logger):
-
     thread_lock = False
 
     def __init__(self,
@@ -563,8 +562,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # the feature applies for the next calculation cycle in case condition of CCP was
         # outside all rectangle borders
         self.consider_backup_rects = False
-        # enable most probable road feature (stick to road in case of GPS inaccuracies)
-        self.enable_mpr = False
         # dismiss POIS
         self.dismiss_pois = True
         # enable an algorithm for faster rectangle lookup applying to extrapolated rects
@@ -576,7 +573,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # defaut speed limits per country, 'motorway' is the default for
         # all countries except Germany and Austria
         self.MAXSPEED_COUNTRIES = {'AT:motorway': 130,
-                                   'DE:motorway': 'UNLIMITED', 'motorway': 130}
+                                   'DE:motorway': 'UNLIMITED',
+                                   'motorway_general': 130}
         # speed per road class in OSM
         self.ROAD_CLASSES_TO_SPEED = {'trunk': 100,
                                       'primary': 100,
@@ -2513,18 +2511,100 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     " Linked list and Binary Search tree not yet "
                     "created for rect %s\n" % rect)
 
-    def trigger_cache_lookup(self, latitude=0,
-                             longitude=0,
-                             linkedListGenerator=None,
-                             treeGenerator=None,
-                             current_rect=None):
+    def resolve_dangers_on_the_road(self, way, treeGenerator):
+        # any dangers on the road?
+        if treeGenerator.hasHazardAttribute(way):
+            self.hazards_on_road = True
+            hazard = treeGenerator.getHazardValue(way)
+            hazard = unicodedata.normalize('NFKD',
+                                           hazard.replace(u'\xdf',
+                                                          'ss')).encode(
+                'utf-8', 'ignore')
+            hazard = hazard.decode()
+            self.print_log_line(' Hazard %s found!' % hazard.upper())
 
+            if not self.hazard_voice:
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'HAZARD')
+                self.hazard_voice = True
+            self.ms.update_cam_road(hazard.upper(), m_type="HAZARD")
+        else:
+            if self.hazards_on_road:
+                self.ms.update_cam_road(reset=True)
+                self.hazards_on_road = False
+                self.hazard_voice = False
+
+        if treeGenerator.hasWaterwayAttribute(way):
+            self.waterway = True
+            water = treeGenerator.getWaterwayValue(way)
+            water = unicodedata.normalize('NFKD',
+                                          water.replace(u'\xdf',
+                                                        'ss')).encode(
+                'utf-8', 'ignore')
+            water = water.decode()
+            self.print_log_line(' %s found' % water.upper())
+            if not self.water_voice:
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'WATER')
+                self.water_voice = True
+            self.ms.update_cam_road(water.upper(), m_type="WATER")
+        else:
+            if self.waterway:
+                self.ms.update_cam_road(reset=True)
+                self.waterway = False
+                self.water_voice = False
+
+        if treeGenerator.hasAccessConditionalAttribute(way):
+            self.access_control = True
+            access = treeGenerator.getAccessConditionalValue(way)
+            access = unicodedata.normalize('NFKD',
+                                           access.replace(u'\xdf',
+                                                          'ss')).encode(
+                'utf-8', 'ignore')
+            access = access.decode()
+            boundary_result = treeGenerator.hasBoundaryAttribute(way)
+            access = access + ": " + treeGenerator.getBoundaryValue(way) \
+                if boundary_result else access
+            self.print_log_line(' %s found' % access)
+            if not self.access_control_voice:
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ACCESS_CONTROL')
+                self.access_control_voice = True
+            self.ms.update_cam_road(access, m_type="ACCESS_CONTROL")
+        else:
+            if self.access_control:
+                self.ms.update_cam_road(reset=True)
+                self.access_control = False
+                self.access_control_voice = False
+
+    def resolve_max_speed(self, way,treeGenerator ):
+        maxspeed = ""
+        maxspeed_conditional = ""
+        maxspeed_lanes = ""
+        found_maxspeed = False
+
+        if treeGenerator.hasMaxspeedAttribute(way):
+            # self.print_log_line(' maxspeed in tree')
+            found_maxspeed = True
+            self.maxspeed_available = found_maxspeed
+
+            if treeGenerator.hasMaxspeedConditionalAttribute(way):
+                maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
+                    way)
+            elif treeGenerator.hasMaxspeedLaneAttribute(way):
+                maxspeed_lanes = treeGenerator.getMaxspeedLaneValue(
+                    way)
+            else:
+                maxspeed = treeGenerator.getMaxspeedValue(way)
+
+            maxspeed = str(maxspeed) + u" " + str(
+                maxspeed_conditional) + str(maxspeed_lanes)
+
+        return found_maxspeed, maxspeed
+
+    def resolve_roadname_and_max_speed(self, way, treeGenerator):
         road_name = ""
         maxspeed = ""
         maxspeed_conditional = ""
         maxspeed_lanes = ""
         road_class = ""
-        way = None
         found_road_name = False
         found_maxspeed = False
         reset_maxspeed = False
@@ -2534,279 +2614,197 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         urban = False
         facility = None
         ramp = False
-        self.maxspeed_available = found_maxspeed
-        self.roadname_available = found_road_name
 
-        if not isinstance(linkedListGenerator, DoubleLinkedListNodes):
-            self.print_log_line(
-                ' trigger_cache_lookup: linkedListGenerator instance not created!')
-            return
+        # Do we have a road name and a max speed attribute?
+        if (treeGenerator.hasRoadNameAttribute(
+                way) and treeGenerator.hasMaxspeedAttribute(way)):
+            # self.print_log_line(' road name in tree')
+            # self.print_log_line(' maxspeed in tree')
+            found_road_name = True
+            found_maxspeed = True
+            self.maxspeed_available = found_maxspeed
+            self.roadname_available = found_road_name
 
-        linkedListGenerator.set_treegenerator_instance(treeGenerator)
+            # Are we on a Highway?
+            if treeGenerator.hasHighwayAttribute(way):
+                road_class = treeGenerator.getHighwayValue(way)
+                if '_link' in road_class:
+                    ramp = True
+            else:
+                reset_maxspeed = True
+                poi = True
+                if treeGenerator.hasAmenityAttribute(
+                        way) and treeGenerator.is_fuel_station(way):
+                    facility = 'GASSTATION'
 
-        node_id = linkedListGenerator.match_node((latitude, longitude))
-        if node_id:
-            if node_id in treeGenerator:
-                # self.print_log_line(' Found node_id %s in list and tree' % (str(node_id)))
-                way = treeGenerator[node_id]
-                # any dangers on the road?
-                if treeGenerator.hasHazardAttribute(way):
-                    self.hazards_on_road = True
-                    hazard = treeGenerator.getHazardValue(way)
-                    hazard = unicodedata.normalize('NFKD',
-                                                   hazard.replace(u'\xdf',
-                                                                  'ss')).encode(
-                        'utf-8', 'ignore')
-                    hazard = hazard.decode()
-                    self.print_log_line(' Hazard %s found!' % hazard.upper())
+            # Get the actual road name value
+            road_name = treeGenerator.getRoadNameValue(way)
+            # Get additional attributes
+            if treeGenerator.hasMaxspeedConditionalAttribute(way):
+                maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
+                    way)
+            elif treeGenerator.hasMaxspeedLaneAttribute(way):
+                maxspeed_lanes = treeGenerator.getMaxspeedLaneValue(
+                    way)
+            else:
+                maxspeed = treeGenerator.getMaxspeedValue(way)
 
-                    if not self.hazard_voice:
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'HAZARD')
-                        self.hazard_voice = True
-                    self.ms.update_cam_road(hazard.upper(), m_type="HAZARD")
+            # Assemble maxspeed
+            maxspeed = str(maxspeed) + u" " + str(
+                maxspeed_conditional) + str(maxspeed_lanes)
+
+            # Combined tags?
+            if treeGenerator.hasCombinedTags(way):
+                found_combined_tags = True
+                combined_tags = treeGenerator.getCombinedTags(way)
+                road_name, motorway = self.check_combined_tags(road_name,
+                                                               combined_tags)
+
+            # Is it a Tunnel?
+            if treeGenerator.hasTunnelAttribute(way):
+                road_name = 'Tunnel: ' + road_name
+
+        # Do we have only a road name attribute?
+        elif treeGenerator.hasRoadNameAttribute(way):
+            # self.print_log_line(' road name in tree')
+            found_road_name = True
+            self.roadname_available = found_road_name
+
+            if treeGenerator.hasHighwayAttribute(way):
+                road_class = treeGenerator.getHighwayValue(way)
+                if '_link' in road_class:
+                    ramp = True
+            else:
+                reset_maxspeed = True
+                poi = True
+                if treeGenerator.hasAmenityAttribute(
+                        way) and treeGenerator.is_fuel_station(way):
+                    facility = 'GASSTATION'
+
+            if treeGenerator.hasExtendedRoadNameAttribute(way):
+                name = treeGenerator.getRoadNameValue(way)
+                road_name = treeGenerator.getExtendedRoadNameValue(way)
+                road_name = ": ".join((name, road_name))
+            else:
+                road_name = treeGenerator.getRoadNameValue(way)
+
+                if treeGenerator.hasCombinedTags(way):
+                    found_combined_tags = True
+                    combined_tags = treeGenerator.getCombinedTags(way)
+                    road_name, motorway = self.check_combined_tags(road_name,
+                                                                   combined_tags)
+
+            if treeGenerator.hasTunnelAttribute(way):
+                road_name = 'Tunnel: ' + road_name
+
+            if treeGenerator.hasBoundaryAttribute(
+                    way) and treeGenerator.is_urban(way):
+                urban = True
+
+        # Do we have a max speed attribute?
+        elif treeGenerator.hasMaxspeedAttribute(way):
+            # self.print_log_line(' maxspeed in tree')
+            found_maxspeed = True
+            self.maxspeed_available = found_maxspeed
+
+            if treeGenerator.hasMaxspeedConditionalAttribute(way):
+                maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
+                    way)
+            elif treeGenerator.hasMaxspeedLaneAttribute(way):
+                maxspeed_lanes = treeGenerator.getMaxspeedLaneValue(
+                    way)
+            else:
+                maxspeed = treeGenerator.getMaxspeedValue(way)
+
+            maxspeed = str(maxspeed) + u" " + str(
+                maxspeed_conditional) + str(maxspeed_lanes)
+
+            # We found also a Ref Attribute
+            if treeGenerator.hasRefAttribute(way):
+                # self.print_log_line(' ref road_name in tree')
+                found_road_name = True
+                self.roadname_available = found_road_name
+                road_name = treeGenerator.getRefValue(way)
+
+                if treeGenerator.hasHighwayAttribute(way):
+                    road_class = treeGenerator.getHighwayValue(way)
+                    if '_link' in road_class:
+                        ramp = True
                 else:
-                    if self.hazards_on_road:
-                        self.ms.update_cam_road(reset=True)
-                        self.hazards_on_road = False
-                        self.hazard_voice = False
+                    reset_maxspeed = True
+                    poi = True
+                    if treeGenerator.hasAmenityAttribute(
+                            way) and treeGenerator.is_fuel_station(way):
+                        facility = 'GASSTATION'
 
-                if treeGenerator.hasWaterwayAttribute(way):
-                    self.waterway = True
-                    water = treeGenerator.getWaterwayValue(way)
-                    water = unicodedata.normalize('NFKD',
-                                                  water.replace(u'\xdf',
-                                                                'ss')).encode(
-                        'utf-8', 'ignore')
-                    water = water.decode()
-                    self.print_log_line(' %s found' % water.upper())
-                    if not self.water_voice:
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'WATER')
-                        self.water_voice = True
-                    self.ms.update_cam_road(water.upper(), m_type="WATER")
+        else:
+            # Do we only have a Ref attribute?
+            if treeGenerator.hasRefAttribute(way):
+                # self.print_log_line(' ref road_name in tree')
+                found_road_name = True
+                self.roadname_available = found_road_name
+                road_name = treeGenerator.getRefValue(way)
+
+                if treeGenerator.hasHighwayAttribute(way):
+                    road_class = treeGenerator.getHighwayValue(way)
+                    if '_link' in road_class:
+                        ramp = True
                 else:
-                    if self.waterway:
-                        self.ms.update_cam_road(reset=True)
-                        self.waterway = False
-                        self.water_voice = False
+                    reset_maxspeed = True
+                    poi = True
+                    if treeGenerator.hasAmenityAttribute(
+                            way) and treeGenerator.is_fuel_station(way):
+                        facility = 'GASSTATION'
 
-                if treeGenerator.hasAccessConditionalAttribute(way):
-                    self.access_control = True
-                    access = treeGenerator.getAccessConditionalValue(way)
-                    access = unicodedata.normalize('NFKD',
-                                                   access.replace(u'\xdf',
-                                                                  'ss')).encode(
-                        'utf-8', 'ignore')
-                    access = access.decode()
-                    boundary_result = treeGenerator.hasBoundaryAttribute(way)
-                    access = access + ": " + treeGenerator.getBoundaryValue(way) \
-                        if boundary_result else access
-                    self.print_log_line(' %s found' % access)
-                    if not self.access_control_voice:
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ACCESS_CONTROL')
-                        self.access_control_voice = True
-                    self.ms.update_cam_road(access, m_type="ACCESS_CONTROL")
-                else:
-                    if self.access_control:
-                        self.ms.update_cam_road(reset=True)
-                        self.access_control = False
-                        self.access_control_voice = False
+                if treeGenerator.hasBoundaryAttribute(
+                        way) and treeGenerator.is_urban(way):
+                    urban = True
 
-                # get the way attributes in gps and offline mode
-                if (treeGenerator.hasRoadNameAttribute(
-                        way) and treeGenerator.hasMaxspeedAttribute(way)):
-                    # self.print_log_line(' road name in tree')
-                    # self.print_log_line(' maxspeed in tree')
-                    found_road_name = True
-                    found_maxspeed = True
-                    self.maxspeed_available = found_maxspeed
-                    self.roadname_available = found_road_name
+        return found_road_name, road_name, maxspeed, reset_maxspeed, found_maxspeed, \
+            found_combined_tags, road_class, poi, urban, facility, motorway, ramp
 
-                    if treeGenerator.hasHighwayAttribute(way):
-                        road_class = treeGenerator.getHighwayValue(way)
-                        if '_link' in road_class:
-                            ramp = True
-                    else:
-                        reset_maxspeed = True
-                        poi = True
-                        if treeGenerator.hasAmenityAttribute(
-                                way) and treeGenerator.is_fuel_station(way):
-                            facility = 'GASSTATION'
-
-                    road_name = treeGenerator.getRoadNameValue(way)
-                    if treeGenerator.hasMaxspeedConditionalAttribute(way):
-                        maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
-                            way)
-                    elif treeGenerator.hasMaxspeedLaneAttribute(way):
-                        maxspeed_lanes = treeGenerator.getMaxspeedLaneValue(
-                            way)
-                    else:
-                        maxspeed = treeGenerator.getMaxspeedValue(way)
-
-                    maxspeed = str(maxspeed) + u" " + str(
-                        maxspeed_conditional) + str(maxspeed_lanes)
-
-                    if (treeGenerator.hasCombinedTags(way)):
-                        found_combined_tags = True
-                        combined_tags = treeGenerator.getCombinedTags(way)
-                        road_name, maxspeed, motorway = self.check_combined_tags(
-                            road_name,
-                            maxspeed,
-                            motorway,
-                            combined_tags)
-                    else:
-                        pass
-
-                    if treeGenerator.hasTunnelAttribute(way):
-                        road_name = 'Tunnel: ' + road_name
-
-                elif (treeGenerator.hasRoadNameAttribute(way)):
-                    # self.print_log_line(' road name in tree')
-                    found_road_name = True
-                    self.roadname_available = found_road_name
-
-                    if treeGenerator.hasHighwayAttribute(way):
-                        road_class = treeGenerator.getHighwayValue(way)
-                        if '_link' in road_class:
-                            ramp = True
-                    else:
-                        reset_maxspeed = True
-                        poi = True
-                        if treeGenerator.hasAmenityAttribute(
-                                way) and treeGenerator.is_fuel_station(way):
-                            facility = 'GASSTATION'
-
-                    if treeGenerator.hasExtendedRoadNameAttribute(way):
-                        name = treeGenerator.getRoadNameValue(way)
-                        road_name = treeGenerator.getExtendedRoadNameValue(way)
-                        road_name = ": ".join((name, road_name))
-                    else:
-                        road_name = treeGenerator.getRoadNameValue(way)
-
-                        if (treeGenerator.hasCombinedTags(way)):
-                            found_combined_tags = True
-                            combined_tags = treeGenerator.getCombinedTags(way)
-                            road_name, maxspeed, motorway = self.check_combined_tags(
-                                road_name,
-                                maxspeed,
-                                motorway,
-                                combined_tags)
-
-                    if treeGenerator.hasTunnelAttribute(way):
-                        road_name = 'Tunnel: ' + road_name
-
-                    if treeGenerator.hasBoundaryAttribute(
-                            way) and treeGenerator.is_urban(way):
-                        urban = True
-
-                elif (treeGenerator.hasMaxspeedAttribute(way)):
-                    # self.print_log_line(' maxspeed in tree')
-                    found_maxspeed = True
-                    self.maxspeed_available = found_maxspeed
-
-                    if treeGenerator.hasMaxspeedConditionalAttribute(way):
-                        maxspeed_conditional = treeGenerator.getMaxspeedConditionalValue(
-                            way)
-                    elif treeGenerator.hasMaxspeedLaneAttribute(way):
-                        maxspeed_lanes = treeGenerator.getMaxspeedLaneValue(
-                            way)
-                    else:
-                        maxspeed = treeGenerator.getMaxspeedValue(way)
-
-                    maxspeed = str(maxspeed) + u" " + str(
-                        maxspeed_conditional) + str(maxspeed_lanes)
-
-                    if treeGenerator.hasRefAttribute(way):
-                        # self.print_log_line(' ref road_name in tree')
-                        found_road_name = True
-                        self.roadname_available = found_road_name
-                        road_name = treeGenerator.getRefValue(way)
-
-                        if treeGenerator.hasHighwayAttribute(way):
-                            road_class = treeGenerator.getHighwayValue(way)
-                            if '_link' in road_class:
-                                ramp = True
-                        else:
-                            reset_maxspeed = True
-                            poi = True
-                            if treeGenerator.hasAmenityAttribute(
-                                    way) and treeGenerator.is_fuel_station(
-                                way):
-                                facility = 'GASSTATION'
-
-                else:
-                    if treeGenerator.hasRefAttribute(way):
-                        # self.print_log_line(' ref road_name in tree')
-                        found_road_name = True
-                        self.roadname_available = found_road_name
-                        road_name = treeGenerator.getRefValue(way)
-
-                        if treeGenerator.hasHighwayAttribute(way):
-                            road_class = treeGenerator.getHighwayValue(way)
-                            if '_link' in road_class:
-                                ramp = True
-                        else:
-                            reset_maxspeed = True
-                            poi = True
-                            if treeGenerator.hasAmenityAttribute(
-                                    way) and treeGenerator.is_fuel_station(
-                                way):
-                                facility = 'GASSTATION'
-
-                        if treeGenerator.hasBoundaryAttribute(
-                                way) and treeGenerator.is_urban(way):
-                            urban = True
-
-                    else:
-                        pass
-
-            # get the speed cams in gps and offline mode with a lookahead.
-            self.retrieve_speed_cam_attributes_on_the_way(way, treeGenerator,
-                                                          linkedListGenerator)
-
+    def process_road_name(self, found_road_name,
+                          road_name,
+                          found_combined_tags,
+                          road_class,
+                          poi,
+                          facility):
         if found_road_name:
             road_name = unicodedata.normalize('NFKD',
                                               road_name.replace(u'\xdf',
                                                                 'ss')).encode(
                 'utf-8', 'ignore')
 
-            if self.enable_mpr:
-                road_name, maxspeed, found_combined_tags, status = \
-                    self.get_most_probable_road_elements(
-                        road_name,
-                        str(maxspeed),
-                        found_combined_tags,
-                        road_class,
-                        poi,
-                        urban,
-                        facility,
-                        motorway
-                    )
-                if status == 'DISMISS':
-                    return
-            else:
-                road_name = road_name.decode()
-                # current functional road class
-                current_fr = self.get_road_class_value(road_class)
+            road_name = road_name.decode()
+            # current functional road class
+            current_fr = self.get_road_class_value(road_class)
 
-                # apply filter
-                if FilteredRoadClasses.has_value(current_fr):
-                    self.print_log_line(' Filtering out road class %s' % str(
-                        road_class))
-                    return
-
+            # apply filters
+            if FilteredRoadClasses.has_value(current_fr):
+                self.print_log_line(' Filtering out road class %s' % str(
+                    road_class))
+                return False
             if poi and self.dismiss_pois:
-                pass
-            else:
-                road_name = facility + ": " + road_name if facility == "GASSTATION" else road_name
-                self.update_kivi_roadname(road_name, found_combined_tags)
-                self.last_road_name = road_name
-                self.found_combined_tags = found_combined_tags
-                # self.print_log_line(" Roadname is: %s" % road_name)
+                return False
+
+            road_name = facility + ": " + road_name if facility == "GASSTATION" else road_name
+            self.update_kivi_roadname(road_name, found_combined_tags)
+            self.last_road_name = road_name
+            self.found_combined_tags = found_combined_tags
+            # self.print_log_line(" Roadname is: %s" % road_name)
         else:
             if self.last_road_name is not None:
                 # self.print_log_line(" using last roadname: %s" % self.last_road_name)
                 self.update_kivi_roadname(self.last_road_name, self.found_combined_tags)
 
+    def process_max_speed(self,
+                          maxspeed,
+                          found_maxspeed,
+                          road_name=None,
+                          motorway=False,
+                          reset_maxspeed=None,
+                          ramp=None,
+                          poi=None):
         if reset_maxspeed:
             if poi and not self.dismiss_pois:
                 self.overspeed_queue.clear(self.cv_overspeed)
@@ -2830,9 +2828,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': overspeed})
                 self.update_kivi_maxspeed(maxspeed)
                 self.last_max_speed = maxspeed
-                if maxspeed:
-                    # self.print_log_line(" Final Maxspeed value is %s" % str(maxspeed))
-                    pass
         else:
             # default
             if self.last_max_speed is not None and self.last_road_name == road_name:
@@ -2844,221 +2839,65 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 1000})
                 self.last_max_speed = None
 
-        return
+    def trigger_cache_lookup(self, latitude=0,
+                             longitude=0,
+                             linkedListGenerator=None,
+                             treeGenerator=None,
+                             current_rect=None):
 
-    def get_most_probable_road_elements(self,
-                                        roadname,
-                                        maxspeed,
-                                        found_combined_tags,
-                                        road_class,
-                                        poi,
-                                        urban,
-                                        facility,
-                                        motorway,
-                                        max_road_candidates=20):
+        self.maxspeed_available = False
+        self.roadname_available = False
 
-        # FRs:
-        # 'motorway':0
-        # '_link':0
-        # 'trunk':1
-        # 'primary':2
-        # 'unclassified':3
-        # 'secondary':4
-        # 'tertiary':5
-        # 'service':6
-        # 'residential':7
-        # 'living_street':8
-        # 'track':9
-        # 'bridleway':10
-        # Filtered list ...
+        if not isinstance(linkedListGenerator, DoubleLinkedListNodes):
+            self.print_log_line(
+                ' trigger_cache_lookup: linkedListGenerator instance not created!')
+            return
 
-        roadname = roadname.decode()
+        linkedListGenerator.set_treegenerator_instance(treeGenerator)
 
-        # reset
-        if len(self.road_candidates) > max_road_candidates:
-            self.print_log_line(' Resetting road candidate list due to size')
-            del self.road_candidates[:]
+        node_id = linkedListGenerator.match_node((latitude, longitude))
+        if node_id:
+            if node_id in treeGenerator:
+                # Get the way attributes in gps and offline mode
+                way = treeGenerator[node_id]
+                self.resolve_dangers_on_the_road(way, treeGenerator)
 
-        replaced_mpr = False
+                if self.disable_road_lookup is False:
+                    found_road_name, \
+                        road_name, \
+                        maxspeed, \
+                        reset_maxspeed, \
+                        found_maxspeed, \
+                        found_combined_tags, \
+                        road_class, \
+                        poi, \
+                        urban, \
+                        facility, \
+                        motorway, \
+                        ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
 
-        self.print_log_line(' Road candidate list length is now %d' % len(
-            self.road_candidates))
-
-        # current functional road class
-        current_fr = self.get_road_class_value(road_class)
-        self.print_log_line(' Got a new road class %s' % str(road_class))
-
-        # apply filter
-        if FilteredRoadClasses.has_value(current_fr):
-            self.print_log_line(' Filtering out road class %s' % str(
-                road_class))
-            return None, None, None, 'DISMISS'
-
-        # Gasstation POIs pass through
-        if not poi:
-            if len(self.road_candidates) > 0:
-                # depending on the queue lenght, check how much a quarter of all entries is.
-                min_limit = int(len(self.road_candidates) / 2)
-                # road class distribution
-                road_classes = Counter(self.road_candidates)
-                # get the most probable road class
-                most_probable_road_class_attr = max(road_classes.items(),
-                                                    key=operator.itemgetter(1))
-                most_probable_road_class = most_probable_road_class_attr[0]
-                road_class_occurences = most_probable_road_class_attr[1]
-                road_class_txt = self.get_road_class_txt(
-                    most_probable_road_class)
-                current_road_class_txt = self.get_road_class_txt(current_fr)
-                self.print_log_line(
-                    ' Most probable road class is %s' % road_class_txt)
-
-                # if more than a quarter of all previous roads had that rc,
-                # than we most likely be on that rc
-                if road_class_occurences > min_limit or self.is_road_class_stable(
-                        self.road_candidates,
-                        most_probable_road_class):
-
-                    self.print_log_line(
-                        ' Most probable road class %s is stable' % road_class_txt)
-                    # filter out all other rc classes which are not of type most probable
-                    self.road_candidates = [rc for rc in self.road_candidates
-                                            if rc == most_probable_road_class]
-
-                    is_lower = current_fr > most_probable_road_class
-                    is_higher = current_fr < most_probable_road_class
-                    is_equal = current_fr == most_probable_road_class
-
-                    # RULE 1
-                    if is_lower or is_higher:
-                        # switch to new MPR as soon as possible,
-                        # switch to motorways and trunks almost immediately
-                        # RULE 1.1
-                        if most_probable_road_class > current_fr \
-                                or most_probable_road_class < current_fr:
-
-                            if self.mpw.get_unstable_counter() >= road_class_occurences:
-                                self.mpw.reset_unstable_counter()
-
-                                self.print_log_line(
-                                    ' Switching to new most probable road class %s'
-                                    % current_road_class_txt)
-                                del self.road_candidates[:]
-                                # Fill the new MPR list by at least min_limit occurences
-                                if min_limit == 0:
-                                    min_limit = 1
-                                self.road_candidates = [current_fr] * min_limit
-                                self.print_log_line(
-                                    ' MPR changed to %s' % roadname)
-                                pass
-                            else:
-                                self.mpw.increase_unstable_counter()
-                                return None, None, None, 'DISMISS'
-                        # RULE 1.2
-                        # check for false positives (which occurs in rare cases)
-                        elif roadname in self.mpw.get_last_roadname_list():
-                            road_name_list = self.mpw.get_last_roadname_list()
-                            road_name_occurences = Counter(road_name_list)
-                            # RULE 1.2.1
-                            # we found a false positive road, replace it by the correct one
-                            if roadname == \
-                                    max(road_name_occurences.items(),
-                                        key=operator.itemgetter(1))[0]:
-                                if self.mpw.get_previous_road() != roadname:
-                                    self.print_log_line(
-                                        ' Correcting road from %s to %s' % (
-                                            self.mpw.get_previous_road(),
-                                            roadname))
-                                    rc_index = self.road_candidates.index(
-                                        most_probable_road_class)
-                                    self.road_candidates[rc_index] = current_fr
-                                    replaced_mpr = True
-                                    pass
-                                else:
-                                    self.print_log_line(
-                                        ' Roadname is the same %s' % (
-                                            roadname))
-                                    # get the first index of the rc and replace it
-                                    # by the new functional road class
-                                    rc_index = self.road_candidates.index(
-                                        most_probable_road_class)
-                                    self.road_candidates[rc_index] = current_fr
-                                    replaced_mpr = True
-                                    pass
-                        # RULE 1.3
-                        else:
-                            self.print_log_line(
-                                ' Sticking to %s, dismissing road %s' % (
-                                    self.mpw.get_previous_road(), roadname))
-                            # get the first index of the rc and replace it
-                            # by the new functional road class
-                            rc_index = self.road_candidates.index(
-                                most_probable_road_class)
-                            self.road_candidates[rc_index] = current_fr
-
-                            return None, None, None, 'DISMISS'
-                    # RULE 2
-                    elif is_equal and self.mpw.get_previous_road() == roadname:
-                        self.print_log_line(' Stable MPR %s' % roadname)
-                        pass
-                    # RULE 3
-                    else:
-                        if len(self.road_candidates) > 0:
-                            del self.road_candidates[-1]
-                        self.print_log_line(
-                            ' Dismiss unstable MPR %s' % roadname)
-                        return None, None, None, 'DISMISS'
-
+                    self.process_road_name(found_road_name,
+                                           road_name,
+                                           found_combined_tags,
+                                           road_class,
+                                           poi,
+                                           facility)
+                    self.process_max_speed(maxspeed,
+                                           found_maxspeed,
+                                           road_name,
+                                           motorway,
+                                           reset_maxspeed,
+                                           ramp,
+                                           poi)
                 else:
-                    if motorway or current_fr == 0:
-                        self.road_candidates.append(current_fr)
-                    else:
-                        self.road_candidates.append(current_fr)
-                    self.print_log_line(' Waiting for stable MPR..')
-                    return None, None, None, 'DISMISS'
+                    found_maxspeed, maxspeed = self.resolve_max_speed()
 
-            if not replaced_mpr:
-                # add the road to our queue depending on the FR
-                if motorway or current_fr == 0:
-                    self.road_candidates.append(current_fr)
-                else:
-                    self.road_candidates.append(current_fr)
+                    self.process_max_speed(maxspeed, found_maxspeed)
 
-            # RULE 4
-            # in case of a crossroad match, use the speed of the previous road
-            # if it was not a cross road and the previous road is now part of the crossroad
-            if (not self.mpw.get_previous_tags() and found_combined_tags) and (
-                    self.mpw.get_previous_road() in roadname):
-                self.print_log_line(
-                    ' MPR crossroad found, previous was None using '
-                    'previous speed %s and roadname %s'
-                    % (str(self.mpw.get_previous_speed()), roadname))
-
-                return roadname, self.mpw.get_previous_speed(), found_combined_tags, \
-                       'CROSSROAD SPEED ADAPTATION'
-
-            previous_speed = self.mpw.get_previous_speed()
-            no_maxspeed = len(maxspeed) == 0 or maxspeed == None
-            # motorways are an exception see: Germany
-            if no_maxspeed and current_fr > 0:
-                if urban:
-                    maxspeed = self.get_road_class_speed('urban')
-                    self.print_log_line(
-                        ' Correcting maxspeed to 50, urban = True')
-                elif self.mpw.get_previous_road() == roadname and len(
-                        previous_speed) > 0:
-                    maxspeed = previous_speed
-                else:
-                    maxspeed = self.get_road_class_speed(road_class)
-
-            self.mpw.set_previous_speed(maxspeed)
-            self.mpw.set_previous_road(roadname)
-            self.mpw.set_previous_tags(found_combined_tags)
-            self.mpw.add_roadname_to_roadname_list(roadname)
-        else:
-            if facility != 'GASSTATION':
-                return None, None, None, 'DISMISS'
-
-        return roadname, maxspeed, found_combined_tags, 'MPR'
+                # get the speed cams in gps and offline mode with a lookahead.
+                self.retrieve_speed_cam_attributes_on_the_way(way,
+                                                              treeGenerator,
+                                                              linkedListGenerator)
 
     # check if at least 4 subsequent position updates resulted in the same road class
     def is_road_class_stable(self, road_candidates, road_class_value):
@@ -3174,14 +3013,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         return speed_cam_dict
 
-    def check_combined_tags(self, road_name, maxspeed, motorway,
-                            combined_tags):
-        maxspeed_local = maxspeed
-        road_name_local = road_name
-        motorway_local = motorway
+    def check_combined_tags(self, road_name, combined_tags):
+        is_motorway = False
 
         self.clear_combined_tags()
-        self.add_combined_tags(road_name_local)
+        self.add_combined_tags(road_name)
 
         combined_length = len(combined_tags)
 
@@ -3190,28 +3026,27 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         for i in range(0, self.max_cross_roads):
             for key, value in combined_tags[i].items():
-                if (key == 'name' and not self.inside_combined_tags(value)):
-                    road_name_local = "/".join((road_name_local, value))
+                if key == 'name' and not self.inside_combined_tags(value):
+                    road_name = "/".join((road_name, value))
 
                 elif (
-                        key == 'destination:ref' and not self.inside_combined_tags(
-                    value)):
-                    road_name_local = "/".join((road_name_local, value))
+                        key == 'destination:ref' and not self.inside_combined_tags(value)):
+                    road_name = "/".join((road_name, value))
 
                 elif (key == 'destination' and not self.inside_combined_tags(
                         value)):
-                    road_name_local = "/direction".join(
-                        (road_name_local, value))
+                    road_name = "/direction".join(
+                        (road_name, value))
 
                 elif key == 'highway' and value.find('motorway') != -1:
                     self.print_log_line(' Found a motorway link')
-                    motorway_local = True
+                    is_motorway = True
                 else:
                     pass
 
                 self.add_combined_tags(value)
 
-        return road_name_local, maxspeed_local, motorway_local
+        return road_name, is_motorway
 
     def clear_combined_tags(self):
         self.combined_tags_array = []
@@ -3250,7 +3085,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     overspeed_reset = True
 
                 elif motorway:
-                    speed = self.MAXSPEED_COUNTRIES['motorway']
+                    speed = self.MAXSPEED_COUNTRIES['motorway_general']
                     self.print_log_line(
                         ' using motorway speed %d for overspeed check' % speed)
                     self.update_rectangle_periphery(mode='MOTORWAY',
@@ -3949,20 +3784,27 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.slow_data_reported = False
 
     def update_kivi_maxspeed(self, maxspeed=None):
-        if maxspeed is not None:
+        if maxspeed:
+            if self.disable_road_lookup:
+                font_size = 150
+                font_size_alternative = 100
+            else:
+                font_size = 100
+                font_size_alternative = 80
+
             if isinstance(maxspeed, str) and len(maxspeed) >= 10:
                 self.ms.maxspeed.text = maxspeed
                 self.ms.maxspeed.color = (0, 1, .3, .8)
-                self.ms.maxspeed.font_size = 80
+                self.ms.maxspeed.font_size = font_size_alternative
             else:
                 self.ms.maxspeed.text = str(maxspeed)
                 self.ms.maxspeed.color = (0, 1, .3, .8)
-                self.ms.maxspeed.font_size = 100
+                self.ms.maxspeed.font_size = font_size
 
         Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     def update_kivi_roadname(self, roadname=None, found_combined_tags=False):
-        if roadname is not None:
+        if roadname:
             roadname = str(roadname)
             num_cross_roads = roadname.split('/')
             num_cross_roads = list(filter(None, num_cross_roads))
