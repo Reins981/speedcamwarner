@@ -548,7 +548,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.zoom = 17
         # maximum number of cross roads to be displayed (reasonable value is 2 or 3)
         self.max_cross_roads = 3
-        # disable road lookup
+        # disable road lookup in case the performance on your phone is not good
         self.disable_road_lookup = True
         # instead of two extrapolated rects, only one can be used (increases performance
         # but might lead to less speed cameras found)
@@ -2572,7 +2572,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.access_control = False
                 self.access_control_voice = False
 
-    def resolve_max_speed(self, way,treeGenerator ):
+    def resolve_max_speed(self, way, treeGenerator):
         maxspeed = ""
         maxspeed_conditional = ""
         maxspeed_lanes = ""
@@ -2852,7 +2852,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 # Get the way attributes in gps and offline mode
                 way = treeGenerator[node_id]
                 self.resolve_dangers_on_the_road(way, treeGenerator)
-
+                # Resolve both: road name and max speed (Note: More Performance intensive)
                 if self.disable_road_lookup is False:
                     found_road_name, \
                         road_name, \
@@ -2881,7 +2881,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            ramp,
                                            poi)
                 else:
-                    found_maxspeed, maxspeed = self.resolve_max_speed()
+                    # Only resolve max speed
+                    found_maxspeed, maxspeed = self.resolve_max_speed(way, treeGenerator)
 
                     self.process_max_speed(maxspeed, found_maxspeed)
 
