@@ -3785,7 +3785,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.update_kivi_info_page()
 
         # do a cleanup if the speed cam struture increases this limit
-        if len(self.speed_cam_dict) >= 100:
+        if len(self.speed_cam_dict) >= 10:
             self.print_log_line(" Limit %d reached! Deleting all speed cameras")
             del self.speed_cam_dict[:]
 
