@@ -238,10 +238,23 @@ class GPSThread(StoppableThread, Logger):
                 if int(accuracy) <= self.gps_treshold:
 
                     # Set members
-                    speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
-                    speed_vector = round((float(event['data']['gps']['speed'])), 2)
-                    lat = float(event['data']['gps']['latitude'])
-                    lon = float(event['data']['gps']['longitude'])
+                    success_speed = False
+                    success_coords = False
+                    speed = None
+                    speed_vector = None
+                    lon, lat = None, None
+                    if 'speed' in event['data']['gps']:
+                        speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
+                        speed_vector = round((float(event['data']['gps']['speed'])), 2)
+                        success_speed = True
+                    if 'latitude' in event['data']['gps']:
+                        lat = float(event['data']['gps']['latitude'])
+                        lon = float(event['data']['gps']['longitude'])
+                        success_coords = True
+                    if success_speed is False or success_coords is False:
+                        self.print_log_line("Could not retrieve speed or coordinates from event!. "
+                                            "Skipping..")
+                        return
 
                     self.callback_gps(lon, lat)
                     # Update our bot
@@ -253,6 +266,8 @@ class GPSThread(StoppableThread, Logger):
 
                     direction, bearing = self.calculate_direction(event)
                     if direction is None:
+                        self.print_log_line("Could not calculate direction from event!. "
+                                            "Skipping..")
                         return
 
                     # trigger calculation only if speed >= 0 km/h and
