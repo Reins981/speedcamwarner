@@ -51,7 +51,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                 if list(overspeed_entry.keys())[0] == 'EXIT':
                     return 'TERMINATE'
             except AttributeError:
-                return 0
+                return 1
 
             if current_speed is None:
                 return 0
