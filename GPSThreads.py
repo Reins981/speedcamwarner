@@ -179,7 +179,9 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = False
+        self.gps_test_data = True
+        # GPS treshold which is considered as a Weak GPS Signal
+        self.gps_treshold = 5000
 
     def run(self):
 
@@ -231,40 +233,44 @@ class GPSThread(StoppableThread, Logger):
 
         if event:
             if 'gps' in event['data'] and 'accuracy' in event['data']['gps']:
-                if int(event['data']['gps']['accuracy']) <= 1500:
+                # Set accuracy
+                accuracy = event['data']['gps']['accuracy']
+                if int(accuracy) <= self.gps_treshold:
 
-                    self.callback_gps(event)
+                    # Set members
                     speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
-                    ## update our bot
-                    self.set_lon_lat_bot(float(event['data']['gps']['latitude']),
-                                         float(event['data']['gps']['longitude']))
+                    speed_vector = round((float(event['data']['gps']['speed'])), 2)
+                    lat = float(event['data']['gps']['latitude'])
+                    lon = float(event['data']['gps']['longitude'])
+
+                    self.callback_gps(lon, lat)
+                    # Update our bot
+                    self.set_lon_lat_bot(lat, lon)
 
                     self.gpsqueue.produce(self.cv, {speed: 3})
                     self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
-                    self.gpsqueue.produce(self.cv, {
-                        str(int(event['data']['gps']['accuracy'])): 5
-                    })
+                    self.gpsqueue.produce(self.cv, {str(accuracy): 5})
 
                     direction, bearing = self.calculate_direction(event)
-                    ## trigger calculation only if speed >= 4 km/h and
+                    if direction is None:
+                        return
+
+                    # trigger calculation only if speed >= 0 km/h and
                     # initiate deviation checker thread##
-                    if round((float(event['data']['gps']['speed'])), 1) > 0:
+                    if speed_vector > 0:
                         self.vdata.set_vector_data(self.cv_vector, 'vector_data',
-                                                   float(event['data']['gps']['longitude']),
-                                                   float(event['data']['gps']['latitude']),
-                                                   round(
-                                                       (float(event['data']['gps']['speed'])),
-                                                       2),
-                                                   round(
-                                                       float(event['data']['gps']['bearing'])),
-                                                   direction, 'CALCULATE',
-                                                   int(event['data']['gps']['accuracy']))
+                                                   lon,
+                                                   lat,
+                                                   speed_vector,
+                                                   bearing,
+                                                   direction,
+                                                   'CALCULATE',
+                                                   int(accuracy))
                         if self.calculator.thread_lock:
                             '''self.print_log_line("Thread lock active, "
                                                 "update speedcamwarner position")'''
                             self.speed_cam_queue.produce(self.cv_speedcam, {
-                                'ccp': (float(event['data']['gps']['longitude']),
-                                        float(event['data']['gps']['latitude'])),
+                                'ccp': (lon, lat),
                                 'fix_cam': (False, 0, 0),
                                 'traffic_cam': (False, 0, 0),
                                 'distance_cam': (False, 0, 0),
@@ -273,24 +279,18 @@ class GPSThread(StoppableThread, Logger):
                                 'list_tree': (None, None),
                                 'stable_ccp': None})
 
-                    self.gpsqueue.produce(self.cv, {str(
-                        round(float(event['data']['gps']['bearing']),
-                              2)) + ' ' + direction: 4})
-                    self.produce_bearing_set(round(float(event['data']['gps']['bearing'])))
-                    self.set_accuracy(event['data']['gps']['accuracy'])
+                    self.gpsqueue.produce(self.cv, {str(bearing) + ' ' + direction: 4})
+                    self.produce_bearing_set(bearing)
+                    self.set_accuracy(accuracy)
 
                     self.osm_wrapper.osm_update_heading(direction)
-                    self.osm_wrapper.osm_update_bearing(bearing)
-                    self.osm_wrapper.osm_update_center(float(event['data']['gps']['latitude']),
-                                                       float(
-                                                           event['data']['gps']['longitude']))
+                    self.osm_wrapper.osm_update_bearing(int(bearing))
+                    self.osm_wrapper.osm_update_center(lat, lon)
                     self.osm_wrapper.osm_update_accuracy(self.accuracy)
                     self.osm_data_isFilled()
                     self.update_map_queue()
-                    return
-
                 else:
-                    gps_accuracy = str(event['data']['gps']['accuracy'])
+                    gps_accuracy = str(accuracy)
                     self.process_offroute(gps_accuracy)
 
     def process_offroute(self, gps_accuracy):
@@ -313,7 +313,13 @@ class GPSThread(StoppableThread, Logger):
                                    float(0.0), float(0.0), '-', 'OFFLINE', 0)
         self.reset_osm_data_state()
 
-    def callback_gps(self, event):
+    def callback_gps(self, lon, lat):
+        """
+        Set the GPS state to online
+        :param lon:
+        :param lat:
+        :return:
+        """
         if self.already_on():
             pass
         else:
@@ -322,8 +328,7 @@ class GPSThread(StoppableThread, Logger):
             self.on_state = True
             self.off_state = False
 
-            self.set_lon_lat(float(event['data']['gps']['latitude']),
-                             float(event['data']['gps']['longitude']))
+            self.set_lon_lat(lat, lon)
             # update the maxspeed widget only once in case we receive a gps position immediately
             if self.startup:
                 self.startup = False
@@ -341,83 +346,89 @@ class GPSThread(StoppableThread, Logger):
         return self.curr_driving_direction
 
     def calculate_direction(self, event):
-        bearing = int(round(float(event['data']['gps']['bearing'])))
+        direction = None
+        bearing = None
 
-        if 0 <= bearing <= 11:
-            direction = 'TOP-N'
-            self.last_bearing = bearing
-        elif 11 < bearing < 22:
-            direction = 'N'
-            self.last_bearing = bearing
-        elif 22 <= bearing < 45:
-            direction = 'NNO'
-            self.last_bearing = bearing
-        elif 45 <= bearing < 67:
-            direction = 'NO'
-            self.last_bearing = bearing
-        elif 67 <= bearing < 78:
-            direction = 'ONO'
-            self.last_bearing = bearing
-        elif 78 <= bearing <= 101:
-            direction = 'TOP-O'
-            self.last_bearing = bearing
-        elif 101 < bearing < 112:
-            direction = 'O'
-            self.last_bearing = bearing
-        elif 112 <= bearing < 135:
-            direction = 'OSO'
-            self.last_bearing = bearing
-        elif 135 <= bearing < 157:
-            direction = 'SO'
-            self.last_bearing = bearing
-        elif 157 <= bearing < 168:
-            direction = 'SSO'
-        elif 168 <= bearing < 191:
-            direction = 'TOP-S'
-            self.last_bearing = bearing
-        elif 191 <= bearing < 202:
-            direction = 'S'
-            self.last_bearing = bearing
-        elif 202 <= bearing < 225:
-            direction = 'SSW'
-            self.last_bearing = bearing
-        elif 225 <= bearing < 247:
-            direction = 'SW'
-            self.last_bearing = bearing
-        elif 247 <= bearing < 258:
-            direction = 'WSW'
-            self.last_bearing = bearing
-        elif 258 <= bearing < 281:
-            direction = 'TOP-W'
-        elif 281 <= bearing < 292:
-            direction = 'W'
-            self.last_bearing = bearing
-        elif 292 <= bearing < 315:
-            direction = 'WNW'
-            self.last_bearing = bearing
-        elif 315 <= bearing < 337:
-            direction = 'NW'
-            self.last_bearing = bearing
-        elif 337 <= bearing < 348:
-            direction = 'NNW'
-            self.last_bearing = bearing
-        elif 348 <= bearing < 355:
-            direction = 'N'
-            self.last_bearing = bearing
-        elif 355 <= bearing <= 360:
-            direction = 'TOP-N'
-            self.last_bearing = bearing
-        else:
-            self.print_log_line('Something bad happened here, direction = -')
-            # this should not happen, but currently it occurs for bearing values in range 45 - 70
-            direction = self.calculate_bearing_deviation(bearing, self.last_bearing)
-            self.print_log_line(direction)
+        if 'bearing' in event['data']['gps']['bearing']:
+            bearing = round(float(event['data']['gps']['bearing']), 2)
 
-        self.curr_driving_direction = direction
+            if 0 <= bearing <= 11:
+                direction = 'TOP-N'
+                self.last_bearing = bearing
+            elif 11 < bearing < 22:
+                direction = 'N'
+                self.last_bearing = bearing
+            elif 22 <= bearing < 45:
+                direction = 'NNO'
+                self.last_bearing = bearing
+            elif 45 <= bearing < 67:
+                direction = 'NO'
+                self.last_bearing = bearing
+            elif 67 <= bearing < 78:
+                direction = 'ONO'
+                self.last_bearing = bearing
+            elif 78 <= bearing <= 101:
+                direction = 'TOP-O'
+                self.last_bearing = bearing
+            elif 101 < bearing < 112:
+                direction = 'O'
+                self.last_bearing = bearing
+            elif 112 <= bearing < 135:
+                direction = 'OSO'
+                self.last_bearing = bearing
+            elif 135 <= bearing < 157:
+                direction = 'SO'
+                self.last_bearing = bearing
+            elif 157 <= bearing < 168:
+                direction = 'SSO'
+            elif 168 <= bearing < 191:
+                direction = 'TOP-S'
+                self.last_bearing = bearing
+            elif 191 <= bearing < 202:
+                direction = 'S'
+                self.last_bearing = bearing
+            elif 202 <= bearing < 225:
+                direction = 'SSW'
+                self.last_bearing = bearing
+            elif 225 <= bearing < 247:
+                direction = 'SW'
+                self.last_bearing = bearing
+            elif 247 <= bearing < 258:
+                direction = 'WSW'
+                self.last_bearing = bearing
+            elif 258 <= bearing < 281:
+                direction = 'TOP-W'
+            elif 281 <= bearing < 292:
+                direction = 'W'
+                self.last_bearing = bearing
+            elif 292 <= bearing < 315:
+                direction = 'WNW'
+                self.last_bearing = bearing
+            elif 315 <= bearing < 337:
+                direction = 'NW'
+                self.last_bearing = bearing
+            elif 337 <= bearing < 348:
+                direction = 'NNW'
+                self.last_bearing = bearing
+            elif 348 <= bearing < 355:
+                direction = 'N'
+                self.last_bearing = bearing
+            elif 355 <= bearing <= 360:
+                direction = 'TOP-N'
+                self.last_bearing = bearing
+            else:
+                self.print_log_line('Something bad happened here, direction = -')
+                # this should not happen,
+                # but currently it occurs for bearing values in range 45 - 70
+                direction = self.calculate_bearing_deviation(bearing, self.last_bearing)
+
+            self.curr_driving_direction = direction
+
         return direction, bearing
 
     # this is a hack!
-    def calculate_bearing_deviation(self, current_bearing, last_bearing):
+    @staticmethod
+    def calculate_bearing_deviation(current_bearing, last_bearing):
         if last_bearing is not None:
             if current_bearing >= last_bearing:
                 deviation = int(((current_bearing - last_bearing) / last_bearing) * 100)
@@ -458,7 +469,7 @@ class GPSThread(StoppableThread, Logger):
         self.latitude = lat
         self.longitude = lon
 
-    def set_lon_lat_bot(self, lat=0, lon=0):
+    def set_lon_lat_bot(self, lat=float(0), lon=float(0)):
         self.latitude_bot = lat
         self.longitude_bot = lon
 
@@ -468,11 +479,11 @@ class GPSThread(StoppableThread, Logger):
     def get_lon_lat_bot(self):
         return self.longitude_bot, self.latitude_bot
 
-    def set_accuracy(self, accuracy=0):
-        self.accuracy = accuracy
+    def set_accuracy(self, accuracy):
+        self.accuracy = float(accuracy)
 
     def get_current_gps_state(self):
-        return (self.already_on())
+        return self.already_on()
 
     def already_on(self):
         return self.on_state

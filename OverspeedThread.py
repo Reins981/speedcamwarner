@@ -72,12 +72,12 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                     self.speedlayout.overspeed.texture_update()
                     self.process_entry(current_speed - max_speed)
                 else:
-                    self.process_entry(1000)
+                    self.process_entry(10000)
             return 0
 
     def process_entry(self, value):
     
-            if value == 1000:
+            if value == 10000:
                 self.speedlayout.reset_overspeed()
             else:
                 self.speedlayout.update_overspeed(value)

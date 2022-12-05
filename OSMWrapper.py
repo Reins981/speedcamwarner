@@ -206,6 +206,8 @@ class maps(Logger):
         self.bearing = bearing
 
     def osm_update_accuracy(self, accuracy):
+        if not isinstance(accuracy, float):
+            accuracy = float(accuracy)
         self.accuracy = accuracy
 
     def update_speed_cams(self, speed_cams):

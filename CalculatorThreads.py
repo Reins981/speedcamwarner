@@ -530,7 +530,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def set_configs(self):
         # Report slow downloads if this time has been reached
         # Also the rect size will be constantly reduced in case of high delays (> this time)
-        self.max_download_time = 15
+        self.max_download_time = 20
         # download time timeout for osm data (use a larger timeout for
         # motorways since rects are larger)
         self.osm_timeout = 20
@@ -554,13 +554,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # but might lead to less speed cameras found)
         # if we are on a motorway only one extrapolated rect larger in size will be used
         # regardless of parameter self.use_only_one_extrapolated_rect
-        self.use_only_one_extrapolated_rect = True
+        self.use_only_one_extrapolated_rect = False
         # calculate a small rectangle in opposite driving direction as fallback
         # instead of a larger extrapolated rect
         # the feature applies for the next calculation cycle in case condition of CCP was
         # outside all rectangle borders
         self.consider_backup_rects = False
-        # dismiss POIS
+        # dismiss POIS if set to True. If set to False
+        # POIs will be displayed as following:
+        #   -> MaxSpeed: POI
+        #   -> RoadName: AMENITY: RoadName|| GASSTATION: RoadName
+        #
+        # Note this feature is only active
+        # if disable_road_lookup is set to False
         self.dismiss_pois = True
         # enable an algorithm for faster rectangle lookup applying to extrapolated rects
         self.enable_ordered_rects_extrapolated = True
@@ -1723,8 +1729,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.cv_voice, "INTERNET_CONN_FAILED")
                     self.ms.update_online_image_layout("INETFAILED")
                     self.osm_error_reported = True
-                    self.overspeed_queue.produce(self.cv_overspeed,
-                                                 {'maxspeed': 1000})
                 else:
                     if self.osm_error_reported:
                         pass
@@ -1733,8 +1737,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             self.cv_voice, "INTERNET_CONN_FAILED")
                         self.osm_error_reported = True
                         self.ms.update_online_image_layout("INETFAILED")
-                        self.overspeed_queue.produce(self.cv_overspeed,
-                                                     {'maxspeed': 1000})
             else:
                 self.osm_data_error = "NO_ERROR"
                 self.osm_error_reported = False
@@ -2631,6 +2633,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if treeGenerator.hasAmenityAttribute(
                         way) and treeGenerator.is_fuel_station(way):
                     facility = 'GASSTATION'
+                elif treeGenerator.hasAmenityAttribute(way):
+                    facility = "AMENITY"
 
             # Get the actual road name value
             road_name = treeGenerator.getRoadNameValue(way)
@@ -2674,6 +2678,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if treeGenerator.hasAmenityAttribute(
                         way) and treeGenerator.is_fuel_station(way):
                     facility = 'GASSTATION'
+                elif treeGenerator.hasAmenityAttribute(way):
+                    facility = "AMENITY"
 
             if treeGenerator.hasExtendedRoadNameAttribute(way):
                 name = treeGenerator.getRoadNameValue(way)
@@ -2728,6 +2734,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     if treeGenerator.hasAmenityAttribute(
                             way) and treeGenerator.is_fuel_station(way):
                         facility = 'GASSTATION'
+                    elif treeGenerator.hasAmenityAttribute(way):
+                        facility = "AMENITY"
 
         else:
             # Do we only have a Ref attribute?
@@ -2746,6 +2754,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     if treeGenerator.hasAmenityAttribute(
                             way) and treeGenerator.is_fuel_station(way):
                         facility = 'GASSTATION'
+                    elif treeGenerator.hasAmenityAttribute(way):
+                        facility = "AMENITY"
 
                 if treeGenerator.hasBoundaryAttribute(
                         way) and treeGenerator.is_urban(way):
@@ -2778,14 +2788,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if poi and self.dismiss_pois:
                 return False
 
-            road_name = facility + ": " + road_name if facility == "GASSTATION" else road_name
+            road_name = facility + ": " + road_name if facility else road_name
             self.update_kivi_roadname(road_name, found_combined_tags)
             self.last_road_name = road_name
             self.found_combined_tags = found_combined_tags
             # self.print_log_line(" Roadname is: %s" % road_name)
         else:
             if self.last_road_name is not None:
-                # self.print_log_line(" using last roadname: %s" % self.last_road_name)
+                self.print_log_line(f"Using last Road Name: {self.last_road_name}")
                 self.update_kivi_roadname(self.last_road_name, self.found_combined_tags)
 
     def process_max_speed(self,
@@ -2793,21 +2803,23 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                           found_maxspeed,
                           road_name=None,
                           motorway=False,
-                          reset_maxspeed=None,
-                          ramp=None,
-                          poi=None):
-        if reset_maxspeed:
-            if poi and not self.dismiss_pois:
-                self.overspeed_queue.clear(self.cv_overspeed)
-                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 1000})
-                self.update_kivi_maxspeed("POI")
-                return
+                          reset_maxspeed=False,
+                          ramp=False):
+        if reset_maxspeed and not self.dismiss_pois:
+            self.print_log_line("Resetting Overspeed to 10000")
+            # Clear the max speed in case it is a POI
+            self.overspeed_queue.clear(self.cv_overspeed)
+            self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
+            self.print_log_line("Final Maxspeed value is POI")
+            self.update_kivi_maxspeed("POI")
+            return "MAX_SPEED_IS_POI"
 
         if found_maxspeed or len(maxspeed) > 0:
             # maxspeed may get overwritten in prepare_data_for_speed_check()
+            return_string = "MAX_SPEED_FOUND"
             if ramp:
-                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 1000})
-                # self.print_log_line(" Final Maxspeed value is RAMP")
+                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
+                self.print_log_line("Final Maxspeed value is RAMP")
                 self.update_kivi_maxspeed("RAMP")
                 self.last_max_speed = "RAMP"
             else:
@@ -2815,20 +2827,23 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 overspeed = maxspeed
                 if overspeed_reset:
                     maxspeed = ""
-                    overspeed = 1000
+                    overspeed = 10000
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': overspeed})
                 self.update_kivi_maxspeed(maxspeed)
                 self.last_max_speed = maxspeed
         else:
             # default
             if self.last_max_speed is not None and self.last_road_name == road_name:
+                return_string = "LAST_MAX_SPEED_USED"
                 # self.print_log_line(" Using Last Maxspeed value %s" % str(self.last_max_speed))
                 self.update_kivi_maxspeed(self.last_max_speed)
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': self.last_max_speed})
-            else:
-                self.update_kivi_maxspeed("")
-                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 1000})
                 self.last_max_speed = None
+            else:
+                return_string = "MAX_SPEED_NOT_FOUND"
+                self.last_max_speed = None
+
+        return return_string
 
     def trigger_cache_lookup(self, latitude=0,
                              longitude=0,
@@ -2873,24 +2888,37 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            road_class,
                                            poi,
                                            facility)
-                    self.process_max_speed(maxspeed,
-                                           found_maxspeed,
-                                           road_name,
-                                           motorway,
-                                           reset_maxspeed,
-                                           ramp,
-                                           poi)
+                    status = self.process_max_speed(maxspeed,
+                                                    found_maxspeed,
+                                                    road_name,
+                                                    motorway,
+                                                    reset_maxspeed,
+                                                    ramp)
                 else:
                     # Only resolve max speed
                     found_maxspeed, maxspeed = self.resolve_max_speed(way, treeGenerator)
 
-                    self.process_max_speed(maxspeed, found_maxspeed)
+                    status = self.process_max_speed(maxspeed, found_maxspeed)
+                    if status == "MAX_SPEED_NOT_FOUND":
+                        self.process_max_speed_for_road_class(way, treeGenerator)
 
                 # get the speed cams in gps and offline mode with a lookahead.
-                self.retrieve_speed_cam_attributes_on_the_way(way,
-                                                              treeGenerator,
-                                                              linkedListGenerator)
+                self.process_speed_cameras_on_the_way(way,
+                                                      treeGenerator,
+                                                      linkedListGenerator)
         return True
+
+    def process_max_speed_for_road_class(self, way, treeGenerator):
+        self.print_log_line(f"Trying to get Speed from Road Class..")
+        if treeGenerator.hasHighwayAttribute(way):
+            road_class = treeGenerator.getHighwayValue(way)
+            speed = self.get_road_class_speed(road_class)
+            if speed:
+                self.print_log_line(f"Using speed {speed} "
+                                    f"from road class {road_class}")
+                self.update_kivi_maxspeed(speed)
+                self.overspeed_queue.produce(self.cv_overspeed,
+                                             {'maxspeed': speed})
 
     # check if at least 4 subsequent position updates resulted in the same road class
     def is_road_class_stable(self, road_candidates, road_class_value):
@@ -3135,11 +3163,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.url_timeout = self.osm_timeout_motorway
             self.motorway_flag = True
 
-    def retrieve_speed_cam_attributes_all(self, speed_cam_dict=None):
-        fix_cam = False
-        traffic_cam = False
-        mobile_cam = False
-
+    def process_all_speed_cameras(self, speed_cam_dict=None):
         for key, data in speed_cam_dict.items():
             # keep GUI alive
             self.ms.update_gui()
@@ -3171,19 +3195,15 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 'list_tree': (data[5], data[6]),
                 'stable_ccp': self.isCcpStable})
 
-    def retrieve_speed_cam_attributes_on_the_way(self, way=None,
-                                                 treeGenerator=None,
-                                                 linkedListGenerator=None):
+    def process_speed_cameras_on_the_way(self, way=None,
+                                         treeGenerator=None,
+                                         linkedListGenerator=None):
         node_map = []
         fix_cam = False
         traffic_cam = False
         distance_measure_cam = False
         mobile_cam = False
         enforcement = False
-        latitude_start_current_node = 0
-        longitude_start_current_node = 0
-        latitude_start_next_node = 0
-        longitude_start_next_node = 0
         speed_cam_dict = {}
         cam_index = 10000
         fix = None
@@ -3602,7 +3622,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             treeGenerator)
 
         # get ALL the speed cams found
-        self.retrieve_speed_cam_attributes_all(speed_cam_dict)
+        self.process_all_speed_cameras(speed_cam_dict)
         # prepare osm cam updates
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
@@ -3620,9 +3640,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     # self.print_log_line(' Looking up speed cams FINISHED')
 
     def remove_duplicate_cameras(self):
-        # Remove duplicate cameras for Map Renderer
-        duplicates = defaultdict(lambda: defaultdict(list))
+        # Remove duplicate cameras for Map Renderer per speed cam dict
+        duplicate_list = list()
         for speed_cam_d in self.speed_cam_dict:
+            duplicates = defaultdict(lambda: defaultdict(list))
+            duplicate_list.append(duplicates)
             for key, entry in speed_cam_d.items():
                 coords = (entry[2], entry[3])
                 if coords in duplicates:
@@ -3634,11 +3656,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 else:
                     duplicates[(entry[2], entry[3])][key].append("UNIQUE")
 
-        for dup_indexes in duplicates.values():
-            for key, value in dup_indexes.items():
-                if value[0] == "DUPLICATE":
-                    for n in self.speed_cam_dict:
-                        del n[key]
+        for i, dup in enumerate(duplicate_list):
+            speed_cam_dict = self.speed_cam_dict[i]
+            for dup_indexes in dup.values():
+                for key, value in dup_indexes.items():
+                    if value[0] == "DUPLICATE":
+                        if key in list(speed_cam_dict.keys()):
+                            del speed_cam_dict[key]
 
     def update_number_of_distance_cameras(self, way_tags={}):
         if 'role' in way_tags.keys():
@@ -3700,7 +3724,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if len(args) == 6:
             amenity = args[5]
         current_rect = kwargs['current_rect']
-        self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 1000})
 
         querystring = self.querystring1
         if amenity is not None:
