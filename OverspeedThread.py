@@ -53,31 +53,33 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                 return 0
 
             try:
-                if list(overspeed_entry.keys())[0] == 'EXIT':
-                    return 'TERMINATE'
+                condition = list(overspeed_entry.keys())[0]
             except AttributeError:
                 return 1
+
+            if condition == 'EXIT':
+                return 'TERMINATE'
 
             if current_speed is None:
                 return 0
 
             try:
-                condition = list(overspeed_entry.keys())[0]
                 max_speed = list(overspeed_entry.values())[0]
             except AttributeError:
                 return 1
 
-            if isinstance(max_speed, str) and "mph" in max_speed:
-                max_speed = int(max_speed.strip(" mph"))
+            if condition == "maxspeed":
+                if isinstance(max_speed, str) and "mph" in max_speed:
+                    max_speed = int(max_speed.strip(" mph"))
 
-            if isinstance(max_speed, int):
-                if current_speed > max_speed:
-                    s_color = (1, 0, 0, 3)
-                    self.speedlayout.overspeed.color = s_color
-                    self.speedlayout.overspeed.texture_update()
-                    self.process_entry(current_speed - max_speed)
-                else:
-                    self.process_entry(10000)
+                if isinstance(max_speed, int):
+                    if current_speed > max_speed:
+                        s_color = (1, 0, 0, 3)
+                        self.speedlayout.overspeed.color = s_color
+                        self.speedlayout.overspeed.texture_update()
+                        self.process_entry(current_speed - max_speed)
+                    else:
+                        self.process_entry(10000)
             return 0
 
     def process_entry(self, value):

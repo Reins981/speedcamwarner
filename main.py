@@ -2809,9 +2809,6 @@ class MainTApp(App):
             Clock.schedule_once(self.callback_night_auto)
             self.day_update_done = False
             self.night_update_done = True
-        # update colors based on night or day mode if color of
-        # current speed gui has to be reset in case speed < maxspeed
-        self.overspeed_queue.produce(self.cv_overspeed, {'daymode': self.day_update_done})
 
     def clear_voice_queue(self, cv):
         self.voice_prompt_queue.clear_gpssignalqueue(cv)
