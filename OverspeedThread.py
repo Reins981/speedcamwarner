@@ -29,7 +29,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                 self.overspeed_queue.clear(self.cv_overspeed)
             else:
                 status = self.process()
-
                 if status == 'TERMINATE':
                     break
 
