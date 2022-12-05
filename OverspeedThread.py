@@ -12,7 +12,13 @@ from Logger import Logger
 
 
 class OverspeedCheckerThread(StoppableThread, Logger):
-    def __init__(self, resume, cv_overspeed, overspeed_queue, cv_currentspeed, currentspeed_queue, s, cond):
+    def __init__(self, resume,
+                 cv_overspeed,
+                 overspeed_queue,
+                 cv_currentspeed,
+                 currentspeed_queue,
+                 s,
+                 cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
         self.resume = resume
