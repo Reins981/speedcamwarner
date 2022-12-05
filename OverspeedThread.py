@@ -76,7 +76,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             return 0
 
     def process_entry(self, value):
-    
             if value == 10000:
                 self.speedlayout.reset_overspeed()
             else:
