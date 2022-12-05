@@ -49,51 +49,59 @@ class GPSConsumerThread(StoppableThread, Logger):
         self.gpsqueue.clear_gpsqueue(self.cv)
         self.stop()
 
+    def calculate_av_speed_kivy_update(self, key):
+        """
+        Calculate the average speed and update the kivy UI
+        :param key:
+        :return:
+        """
+        av_speed = self.calculate_average_speed(key)
+        if av_speed != -1:
+            if self.display_miles:
+                av_speed = str(round(av_speed / 1.609344, 1))
+            if not isinstance(av_speed, str):
+                av_speed = str(av_speed)
+            self.curspeed.text = av_speed
+            Clock.schedule_once(self.curspeed.texture_update)
+
     def update_kivi(self):
 
         item = self.gpsqueue.consume(self.cv)
         for key, value in item.items():
             if value == 3:
-                if key is not None and key == '---.-':
-
+                if key == '---.-':
                     self.speedlayout.update_accel_layout()
                     self.curvelayout.check_speed_deviation(key, False)
-                elif key is not None and key != '---.-':
-                    if self.startup:
-                        self.speedlayout.update_accel_layout(int(round(float(key))), True, 'ONLINE')
-                        self.backup_speed = int(round(float(key)))
+                elif key != '---.-':
+                    int_key = int(round(float(key)))
+                    float_key = float(key)
+                    # Calculate average speed
+                    self.calculate_av_speed_kivy_update(float_key)
 
-                        if float(key) == 0.0:
+                    if self.startup:
+                        self.speedlayout.update_accel_layout(int_key, True, 'ONLINE')
+                        self.backup_speed = int_key
+
+                        if float_key == 0.0:
                             self.curvelayout.check_speed_deviation(float(0.1), True)
 
                         else:
-                            self.curvelayout.check_speed_deviation(float(key), True)
+                            self.curvelayout.check_speed_deviation(float_key, True)
                         self.startup = False
                     else:
-                        if int(round(float(key))) > self.backup_speed:
-                            self.speedlayout.update_accel_layout(int(round(float(key))), True, 'ONLINE')
+                        if int_key > self.backup_speed:
+                            self.speedlayout.update_accel_layout(int_key, True, 'ONLINE')
                         elif int(round(float(key))) < self.backup_speed:
-                            self.speedlayout.update_accel_layout(int(round(float(key))), False, 'ONLINE')
+                            self.speedlayout.update_accel_layout(int_key, False, 'ONLINE')
                         else:
                             # nothing to do
                             pass
 
-                        if float(key) == 0.0:
+                        if float_key == 0.0:
                             self.curvelayout.check_speed_deviation(float(0.1), False)
                         else:
-                            self.curvelayout.check_speed_deviation(float(key), False)
-                        self.backup_speed = int(round(float(key)))
-                else:
-                    continue
-
-                if key != '---.-':
-                    av_speed = self.calculate_average_speed(float(key))
-                    if av_speed != -1:
-                        if self.display_miles:
-                            av_speed = str(round(av_speed / 1.609344, 1))
-                        self.curspeed.text = str(av_speed)
-                        Clock.schedule_once(self.curspeed.texture_update)
-
+                            self.curvelayout.check_speed_deviation(float_key, False)
+                        self.backup_speed = float_key
             elif value == 4:
                 if key is not None:
                     self.bearing.text = key
@@ -101,13 +109,12 @@ class GPSConsumerThread(StoppableThread, Logger):
             elif value == 5:
                 self.speedlayout.update_gps_accuracy(key)
             elif value == 1:
-                if key is not None:
-                    self.curvelayout.check_speed_deviation('---.-', False)
-                    self.speedlayout.update_accel_layout()
-                    self.curspeed.text = '---.-'
-                    Clock.schedule_once(self.curspeed.texture_update)
+                self.curvelayout.check_speed_deviation('---.-', False)
+                self.speedlayout.update_accel_layout()
+                self.curspeed.text = '---.-'
+                Clock.schedule_once(self.curspeed.texture_update)
             else:
-                self.print_log_line('invalid value type received')
+                self.print_log_line(f"Invalid value {value} received!")
         self.cv.release()
 
     def calculate_average_speed(self, speed):
@@ -116,7 +123,7 @@ class GPSConsumerThread(StoppableThread, Logger):
             av_speed = round(
                 ((self.av_speed_queue[0] + self.av_speed_queue[1] + self.av_speed_queue[2]) / 3),
                 1)
-            self.av_speed_queue = []
+            self.av_speed_queue.clear()
             return av_speed
 
         self.av_speed_queue.append(speed)
