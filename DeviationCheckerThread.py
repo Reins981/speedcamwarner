@@ -102,5 +102,7 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
     def update_average_bearing(self, av_bearing=None):
         if av_bearing is not None:
-            self.av_bearing_value.text = str(av_bearing) + '°'
+            if not isinstance(av_bearing, str):
+                av_bearing = str(av_bearing)
+            self.av_bearing_value.text = av_bearing + '°'
             Clock.schedule_once(self.av_bearing_value.texture_update)
