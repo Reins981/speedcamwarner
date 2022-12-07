@@ -38,6 +38,10 @@ class DeviationCheckerThread(StoppableThread, Logger):
         self.print_log_line("Deviation Checker terminating")
         self.stop()
 
+    def cleanup(self):
+        self.first_bearing_set_available = False
+        self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)
+
     def process(self):
         current_bearing_queue = self.average_angle_queue.get_average_angle_data(
             self.cv_average_angle)
