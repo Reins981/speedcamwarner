@@ -46,7 +46,6 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
     def calculate_average_bearing(self, current_bearing_queue):
         self.av_bearing = float(0.0)
-        first_av_entry_current = 0
 
         if current_bearing_queue == 0.001:
             self.update_average_bearing('---.-')
@@ -70,18 +69,17 @@ class DeviationCheckerThread(StoppableThread, Logger):
             self.update_average_bearing(av_bearing_final)
 
             av_first_entry = current_bearing_queue[0]
+            first_av_entry_current = av_first_entry
 
             if not self.first_bearing_set_available:
                 self.first_bearing_set_available = True
                 self.av_bearing_current = av_bearing_final
-                first_av_entry_current = av_first_entry
             else:
                 self.av_bearing_prev = self.av_bearing_current
                 self.av_bearing_current = av_bearing_final
-                first_av_entry_prev = first_av_entry_current
-                first_av_entry_current = av_first_entry
 
-                '''Check first if we are inside a tolerance limit in degrees between 
+                '''
+                Check first if we are inside a tolerance limit in degrees between 
                 2 position pair lists consisting of 5 positions each.
                 If the difference between bearing of first position and average bearing 
                 is less or equal than 13 degrees, ccp is considered stable.
