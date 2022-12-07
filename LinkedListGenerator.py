@@ -7,7 +7,6 @@ Created on 01.07.2014
 @author: rkoraschnigg
 '''
 
-import time, sys, os, math
 from Logger import Logger
 from math import sin, cos, sqrt, atan2, radians
 
@@ -34,19 +33,19 @@ class DoubleLinkedListNodes(Logger):
         self.head = None
         self.tail = None
         self.node = None
-        self.treegenerator_instance = None
+        self.tree_generator_instance = None
         Logger.__init__(self, self.__class__.__name__)
 
-    def _is_roadname_available(self, node_id):
-        if self.treegenerator_instance is not None:
-            way = self.treegenerator_instance[node_id]
-            if self.treegenerator_instance.hasRoadNameAttribute(
-                    way) or self.treegenerator_instance.hasRefAttribute(way):
+    def _is_road_name_available(self, node_id):
+        if self.tree_generator_instance is not None:
+            way = self.tree_generator_instance[node_id]
+            if self.tree_generator_instance.hasRoadNameAttribute(
+                    way) or self.tree_generator_instance.hasRefAttribute(way):
                 return True
         return False
 
-    def set_treegenerator_instance(self, instance):
-        self.treegenerator_instance = instance
+    def set_tree_generator_instance(self, instance):
+        self.tree_generator_instance = instance
 
     def deleteLinkedList(self):
         del self
@@ -73,8 +72,7 @@ class DoubleLinkedListNodes(Logger):
 
         while current_node is not None:
             # consider only nodes for which the way is attached to a roadname
-            if self._is_roadname_available(current_node.id):
-                # self.print_log_line(' Found a roadname for a way attached to node id %s'%(str(current_node.id)))
+            if self._is_road_name_available(current_node.id):
                 node_list.append(current_node)
             current_node = current_node.next
 
@@ -422,7 +420,8 @@ class DoubleLinkedListNodes(Logger):
                     current_node.prev.next = current_node.next
                     current_node.next.prev = current_node.prev
                 else:
-                    # otherwise we have no prev (it's None), head is the next one, and prev becomes None
+                    # otherwise we have no prev (it's None),
+                    # head is the next one, and prev becomes None
                     self.head = current_node.next
                     current_node.next.prev = None
 

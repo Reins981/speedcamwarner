@@ -2859,7 +2859,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 ' trigger_cache_lookup: linkedListGenerator instance not created!')
             return False
 
-        linkedListGenerator.set_treegenerator_instance(treeGenerator)
+        linkedListGenerator.set_tree_generator_instance(treeGenerator)
 
         node_id = linkedListGenerator.match_node((latitude, longitude))
         if node_id:

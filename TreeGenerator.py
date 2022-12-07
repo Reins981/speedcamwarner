@@ -32,6 +32,18 @@ class BinarySearchTree(object):
     def __iter__(self):
         return self.root.__iter__()
 
+    def __getitem__(self, node_id):
+        return self.get(node_id)
+
+    def __contains__(self, node_id):
+        if self._get(node_id, self.root):
+            return True
+        else:
+            return False
+
+    def __delitem__(self, node_id):
+        self.delete(node_id)
+
     def insert(self, node_id, way_id, tags):
         if self.root:
             self._insert(node_id, way_id, tags, self.root)
@@ -57,8 +69,8 @@ class BinarySearchTree(object):
             current_node.additional_way_id.append(way_id)
 
     # execute get() or __contains()__ before hasCombinedTags(), hasHighwayAttribute(),
-    # hasMaxspeedAttribute, hasRoadNameAttribute(),
-    # getMaxspeedValue(), getRoadNameValue() and getHighwayValue()
+    # hasMaxSpeedAttribute, hasRoadNameAttribute(),
+    # getMaxSpeedValue(), getRoadNameValue() and getHighwayValue()
     def get(self, node_id):
         if self.root:
             res = self._get(node_id, self.root)
@@ -373,15 +385,6 @@ class BinarySearchTree(object):
     def getAccessConditionalValue(way):
         return way.tags['access:conditional']
 
-    def __getitem__(self, node_id):
-        return self.get(node_id)
-
-    def __contains__(self, node_id):
-        if self._get(node_id, self.root):
-            return True
-        else:
-            return False
-
     # remove the node_id
     def delete(self, node_id):
         if self.size > 1:
@@ -396,43 +399,6 @@ class BinarySearchTree(object):
             self.size = self.size - 1
         else:
             raise KeyError(' Error, key not in tree')
-
-    def __delitem__(self, node_id):
-        self.delete(node_id)
-
-    def spliceOut(self):
-        if self.isLeaf():
-            if self.isLeftChild():
-                self.parent.leftChild = None
-            else:
-                self.parent.rightChild = None
-        elif self.hasAnyChildren():
-            if self.hasLeftChild():
-                if self.isLeftChild():
-                    self.parent.leftChild = self.leftChild
-                else:
-                    self.parent.rightChild = self.leftChild
-                    self.leftChild.parent = self.parent
-            else:
-                if self.isLeftChild():
-                    self.parent.leftChild = self.rightChild
-                else:
-                    self.parent.rightChild = self.rightChild
-                    self.rightChild.parent = self.parent
-
-    def findSuccessor(self):
-        succ = None
-        if self.hasRightChild():
-            succ = self.rightChild.findMin()
-        else:
-            if self.parent:
-                if self.isLeftChild():
-                    succ = self.parent
-                else:
-                    self.parent.rightChild = None
-                    succ = self.parent.findSuccessor()
-                    self.parent.rightChild = self
-        return succ
 
     def findMin(self):
         current = self
@@ -531,3 +497,37 @@ class TreeNode(object):
             self.leftChild.parent = self
         if self.hasRightChild():
             self.rightChild.parent = self
+
+    def spliceOut(self):
+        if self.isLeaf():
+            if self.isLeftChild():
+                self.parent.leftChild = None
+            else:
+                self.parent.rightChild = None
+        elif self.hasAnyChildren():
+            if self.hasLeftChild():
+                if self.isLeftChild():
+                    self.parent.leftChild = self.leftChild
+                else:
+                    self.parent.rightChild = self.leftChild
+                    self.leftChild.parent = self.parent
+            else:
+                if self.isLeftChild():
+                    self.parent.leftChild = self.rightChild
+                else:
+                    self.parent.rightChild = self.rightChild
+                    self.rightChild.parent = self.parent
+
+    def findSuccessor(self):
+        succ = None
+        if self.hasRightChild():
+            succ = self.rightChild.findMin()
+        else:
+            if self.parent:
+                if self.isLeftChild():
+                    succ = self.parent
+                else:
+                    self.parent.rightChild = None
+                    succ = self.parent.findSuccessor()
+                    self.parent.rightChild = self
+        return succ
