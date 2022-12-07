@@ -97,7 +97,7 @@ class DeviationCheckerThread(StoppableThread, Logger):
                     self.interruptqueue.produce(self.cv_interrupt, 'STABLE')
                 else:
                     self.interruptqueue.produce(self.cv_interrupt, 'UNSTABLE')
-                    self.print_log_line(' waiting for CCP to become stable again')
+                    self.print_log_line(' Waiting for CCP to become STABLE again')
         return
 
     def update_average_bearing(self, av_bearing=None):
