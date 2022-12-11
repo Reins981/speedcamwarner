@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 14.8
+version = 14.9
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -37,7 +37,7 @@ version = 14.8
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,oscpy,sqlite3,requests,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview,urllib3,charset-normalizer,idna
+requirements = python3==3.9.9,kivy,oscpy,sqlite3,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview,urllib3,charset-normalizer,idna
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -63,7 +63,7 @@ orientation = portrait
 # author = © Copyright Info
 
 # change the major version of python used by the app
-osx.python_version = 3.7.2
+osx.python_version = 3.11
 
 # Kivy version to use
 osx.kivy_version = 2.1.0
