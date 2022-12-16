@@ -371,7 +371,7 @@ class GPSThread(StoppableThread, Logger):
         direction = None
         bearing = None
 
-        if 'bearing' in event['data']['gps']['bearing']:
+        if 'bearing' in event['data']['gps']:
             bearing = round(float(event['data']['gps']['bearing']), 2)
 
             if 0 <= bearing <= 11:
