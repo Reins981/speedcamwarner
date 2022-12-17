@@ -9,6 +9,7 @@ Created on 01.07.2014
 '''
 
 import time
+import os
 from kivy.clock import Clock
 from ThreadBase import StoppableThread
 from gps_data import GpsTestDataGenerator
@@ -180,13 +181,17 @@ class GPSThread(StoppableThread, Logger):
         # set config items
         self.set_configs()
         if self.gps_test_data:
-            self.gps_data = iter(GpsTestDataGenerator(50000))
+            self.gps_data = iter(GpsTestDataGenerator(self.max_gps_entries, self.gpx_file))
         else:
             pass
 
     def set_configs(self):
         # use gps test data
         self.gps_test_data = True
+        self.max_gps_entries = 50000
+        self.gpx_file = os.path.join(os.path.dirname(__file__),
+                                     "gpx",
+                                     "nordspange_tr2.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 5000
 

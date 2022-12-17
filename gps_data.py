@@ -1,16 +1,43 @@
+import gpxpy
+import gpxpy.gpx
+import os
 from random import randint, uniform
 
 
 class GpsTestDataGenerator(object):
 
-    def __init__(self, max):
+    def __init__(self, max_num=50000, gpx_f=None):
         self.events = list()
         self.event_index = -1
         self.startup = True
-        self._fill_events(max)
+        if gpx_file is not None:
+            self._fill_events_from_gpx(gpx_f)
+        else:
+            self._fill_events(max_num)
 
-    def _fill_events(self, max):
-        print("Generating %d Test GPS Data...." % max)
+    def _fill_events_from_gpx(self, gpx_f):
+        print("Generating Test GPS Data from %s...." % gpx_f)
+        gpx_file = open(gpx_f, 'r')
+
+        gpx = gpxpy.parse(gpx_file)
+
+        for track in gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    print('Point at ({0},{1}) -> {2}'.format(point.latitude, point.longitude,
+                                                             point.elevation))
+                    event = {'data': {'gps': {'accuracy': randint(0, 8),
+                                              'latitude': point.latitude,
+                                              'longitude': point.longitude,
+                                              'speed': randint(10, 35),
+                                              'bearing': 281
+                                              }
+                                      },
+                             'name': 'location'}
+                    self.events.append(event)
+
+    def _fill_events(self, max_num):
+        print("Generating %d Test GPS Data...." % max_num)
         # London
         # start_lat = 52.520008
         # start_long = 13.404954
@@ -21,7 +48,7 @@ class GpsTestDataGenerator(object):
         j = 0.0000110
         counter = 0
         bearing = randint(15, 15)
-        for _ in range(max):
+        for _ in range(max_num):
             event = {'data': {'gps': {'accuracy': randint(0, 8),
                                       'latitude': start_lat,
                                       'longitude': start_long,
@@ -55,8 +82,8 @@ class GpsTestDataGenerator(object):
 
 
 if __name__ == '__main__':
-
-    test_iter = iter(GpsTestDataGenerator(20000000))
+    gpx_file = os.path.join(os.path.dirname(__file__), "gpx", "nordspange_tr2.gpx")
+    test_iter = iter(GpsTestDataGenerator(gpx_f=gpx_file))
     print("***********************")
     for entry in test_iter:
         print(entry)
