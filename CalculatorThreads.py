@@ -17,6 +17,7 @@ from random import randint
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 from kivy.clock import Clock
+from geopy.geocoders import Nominatim
 from decimal import Decimal
 from collections import OrderedDict, Counter
 from ThreadBase import StoppableThread, ThreadPool
@@ -549,7 +550,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # maximum number of cross roads to be displayed (reasonable value is 2 or 3)
         self.max_cross_roads = 3
         # disable road lookup in case the performance on your phone is not good
-        self.disable_road_lookup = True
+        self.disable_road_lookup = False
+        # Use the Nominatim library as alternative method to retrieve a road name
+        # Note: This will use more bandwidth
+        # Per default the road name is retrieved via the REST API interface to OpenStreetMap
+        self.alternative_road_lookup = True
+        self.geolocator = Nominatim(user_agent="mozilla")
         # instead of two extrapolated rects, only one can be used (increases performance
         # but might lead to less speed cameras found)
         # if we are on a motorway only one extrapolated rect larger in size will be used
@@ -2869,31 +2875,47 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.resolve_dangers_on_the_road(way, treeGenerator)
                 # Resolve both: road name and max speed (Note: More Performance intensive)
                 if self.disable_road_lookup is False:
-                    found_road_name, \
-                        road_name, \
-                        maxspeed, \
-                        reset_maxspeed, \
-                        found_maxspeed, \
-                        found_combined_tags, \
-                        road_class, \
-                        poi, \
-                        urban, \
-                        facility, \
-                        motorway, \
-                        ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
 
-                    self.process_road_name(found_road_name,
-                                           road_name,
-                                           found_combined_tags,
-                                           road_class,
-                                           poi,
-                                           facility)
-                    status = self.process_max_speed(maxspeed,
-                                                    found_maxspeed,
-                                                    road_name,
-                                                    motorway,
-                                                    reset_maxspeed,
-                                                    ramp)
+                    if self.alternative_road_lookup:
+                        road_name = self.get_road_name_via_nominatim(latitude, longitude)
+                        if road_name:
+                            self.process_road_name(found_road_name=True,
+                                                   road_name=road_name,
+                                                   found_combined_tags=False,
+                                                   road_class='unclassified',
+                                                   poi=False,
+                                                   facility=False)
+                        # Now get the max speed which is independent from the road name
+                        found_maxspeed, maxspeed = self.resolve_max_speed(way, treeGenerator)
+                        status = self.process_max_speed(maxspeed, found_maxspeed)
+                        if status == "MAX_SPEED_NOT_FOUND":
+                            self.process_max_speed_for_road_class(way, treeGenerator)
+                    else:
+                        found_road_name, \
+                            road_name, \
+                            maxspeed, \
+                            reset_maxspeed, \
+                            found_maxspeed, \
+                            found_combined_tags, \
+                            road_class, \
+                            poi, \
+                            urban, \
+                            facility, \
+                            motorway, \
+                            ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
+
+                        self.process_road_name(found_road_name,
+                                               road_name,
+                                               found_combined_tags,
+                                               road_class,
+                                               poi,
+                                               facility)
+                        status = self.process_max_speed(maxspeed,
+                                                        found_maxspeed,
+                                                        road_name,
+                                                        motorway,
+                                                        reset_maxspeed,
+                                                        ramp)
                 else:
                     # Only resolve max speed
                     found_maxspeed, maxspeed = self.resolve_max_speed(way, treeGenerator)
@@ -2908,6 +2930,34 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                       linkedListGenerator)
         return True
 
+    def get_road_name_via_nominatim(self, latitude, longitude):
+        """
+        Get the road name via the Nominatim library
+        Note: This will use more bandwidth
+        :param latitude:
+        :param longitude:
+        :return:
+        """
+        try:
+            location = self.geolocator.reverse(latitude, longitude)
+        except Exception as e:
+            self.print_log_line(f" Road lookup via Nominatim failed! -> "
+                                f"{str(e)}", log_level="ERROR")
+            return None
+
+        loc = location.address.split(",")
+        if loc:
+            # If the first entry is a house number, return the second
+            if loc[0].isnumeric() or loc[0][0].isdigit():
+                if len(loc) >= 2:
+                    return loc[1]
+                else:
+                    return loc[0]
+            else:
+                return loc[0]
+        else:
+            return None
+
     def process_max_speed_for_road_class(self, way, treeGenerator):
         self.print_log_line(f"Trying to get Speed from Road Class..")
         if treeGenerator.hasHighwayAttribute(way):
@@ -2921,7 +2971,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                              {'maxspeed': speed})
 
     # check if at least 4 subsequent position updates resulted in the same road class
-    def is_road_class_stable(self, road_candidates, road_class_value):
+    @staticmethod
+    def is_road_class_stable(road_candidates, road_class_value):
         if not isinstance(road_class_value, int):
             return False
 
