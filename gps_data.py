@@ -10,16 +10,16 @@ class GpsTestDataGenerator(object):
         self.events = list()
         self.event_index = -1
         self.startup = True
-        if gpx_file is not None:
+        if gpx_f is not None:
             self._fill_events_from_gpx(gpx_f)
         else:
             self._fill_events(max_num)
 
     def _fill_events_from_gpx(self, gpx_f):
         print("Generating Test GPS Data from %s...." % gpx_f)
-        gpx_file = open(gpx_f, 'r')
+        gpx_f_handle = open(gpx_f, 'r')
 
-        gpx = gpxpy.parse(gpx_file)
+        gpx = gpxpy.parse(gpx_f_handle)
 
         for track in gpx.tracks:
             for segment in track.segments:
