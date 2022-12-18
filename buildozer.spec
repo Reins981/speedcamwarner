@@ -13,10 +13,10 @@ package.domain = org
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,js,css,wav,html
+source.include_exts = py,png,jpg,kv,atlas,js,css,wav,html,gpx
 
 # (list) List of inclusions using pattern matching
-source.include_patterns = assets/*,images/*.png,sounds/*.wav
+source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 15.1
+version = 15.2
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]

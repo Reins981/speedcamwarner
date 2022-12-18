@@ -44,7 +44,7 @@ class GpsTestDataGenerator(object):
         # Wien
         start_lat = 51.509865
         start_long = -0.118092
-        i = 0.0000010
+        i = 0.0000110
         j = 0.0000110
         counter = 0
         bearing = randint(15, 15)
@@ -59,7 +59,7 @@ class GpsTestDataGenerator(object):
                      'name': 'location'}
             self.events.append(event)
             counter += 1
-            if counter > 500:
+            if counter > 1000:
                 start_lat -= i
                 start_long -= j
                 bearing = randint(180, 180)
