@@ -2939,7 +2939,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :return:
         """
         try:
-            location = self.geolocator.reverse(latitude, longitude)
+            coords = str(latitude) + " " + str(longitude)
+            location = self.geolocator.reverse(coords)
         except Exception as e:
             self.print_log_line(f" Road lookup via Nominatim failed! -> "
                                 f"{str(e)}", log_level="ERROR")
