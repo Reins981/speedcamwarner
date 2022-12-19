@@ -533,7 +533,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # download time timeout for osm data (use a larger timeout for
         # motorways since rects are larger)
         self.osm_timeout = 20
-        self.osm_timeout_motorway = 20
+        self.osm_timeout_motorway = 25
         # initial rect distance in km after app startup
         self.initial_rect_distance = 2
         # increasing the rect boundaries if this defined speed limit is exceeded
