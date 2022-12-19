@@ -132,6 +132,7 @@ class VoicePromptThread(StoppableThread, Logger):
             pass
 
         if sound is not None:
+            self.print_log_line(f" Trigger sound {sound}")
             s = SoundLoader.load(sound)
             if s:
                 s.play()

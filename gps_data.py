@@ -26,11 +26,11 @@ class GpsTestDataGenerator(object):
                 for point in segment.points:
                     print('Point at ({0},{1}) -> {2}'.format(point.latitude, point.longitude,
                                                              point.elevation))
-                    event = {'data': {'gps': {'accuracy': randint(0, 8),
+                    event = {'data': {'gps': {'accuracy': randint(2000, 5200),
                                               'latitude': point.latitude,
                                               'longitude': point.longitude,
                                               'speed': randint(10, 35),
-                                              'bearing': 281
+                                              'bearing': randint(200, 250)
                                               }
                                       },
                              'name': 'location'}

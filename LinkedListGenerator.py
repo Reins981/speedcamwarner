@@ -89,7 +89,8 @@ class DoubleLinkedListNodes(Logger):
         distance_list = []
 
         if len(node_list) == 0:
-            self.print_log_line(' Length of Node list is 0')
+            self.print_log_line(' Can not calculate smallest distance node: '
+                                'Length of Node list is 0')
             return False
 
         for node in node_list:

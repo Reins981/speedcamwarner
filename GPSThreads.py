@@ -191,7 +191,7 @@ class GPSThread(StoppableThread, Logger):
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
-                                     "nordspange_tr2.gpx")
+                                     "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 5000
 
@@ -226,7 +226,7 @@ class GPSThread(StoppableThread, Logger):
         if self.gps_test_data:
             try:
                 event = next(self.gps_data)
-                time.sleep(0.5)
+                time.sleep(1.5)
             except StopIteration:
                 event = None
         else:
@@ -325,6 +325,7 @@ class GPSThread(StoppableThread, Logger):
         if self.already_off():
             pass
         else:
+            self.print_log_line(f"GPS status is {gps_accuracy}")
             self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
             self.g.off_state()
 
@@ -350,6 +351,7 @@ class GPSThread(StoppableThread, Logger):
         if self.already_on():
             pass
         else:
+            self.print_log_line("GPS status is ON")
             self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'GPS_ON')
             self.g.on_state()
             self.on_state = True

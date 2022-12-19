@@ -602,6 +602,11 @@ class Poilayout(GridLayout):
     '''
 
     def callback_poi(self, instance):
+        if RectangleCalculatorThread.thread_lock:
+            self.logger.print_log_line("POI lookup dismissed!! -> Calculator Thread is still busy")
+            self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
+            return
+
         self.logger.print_log_line("POI lookup started!!")
 
         # First stop any open route providers

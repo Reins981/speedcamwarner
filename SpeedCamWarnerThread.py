@@ -119,6 +119,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
             enforcement = item['fix_cam'][3]
             if not enforcement:
+                self.print_log_line(' Fix Cam with %f %f is not an enforcement camera. '
+                                    'Skipping..' % (item['fix_cam'][1], item['fix_cam'][2]))
                 return False
 
             if self.is_already_added((item['fix_cam'][1], item['fix_cam'][2])):
@@ -156,6 +158,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
             enforcement = item['traffic_cam'][3]
             if not enforcement:
+                self.print_log_line(' Traffic Cam with %f %f is not an enforcement camera. '
+                                    'Skipping..' % (item['traffic_cam'][1], item['traffic_cam'][2]))
                 return False
 
             if self.is_already_added((item['traffic_cam'][1], item['traffic_cam'][2])):
@@ -193,6 +197,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
             enforcement = item['distance_cam'][3]
             if not enforcement:
+                self.print_log_line(' Distance Cam with %f %f is not an enforcement camera. '
+                                    'Skipping..' % (item['distance_cam'][1], item['distance_cam'][2]))
                 return False
 
             if self.is_already_added((item['distance_cam'][1], item['distance_cam'][2])):
@@ -230,6 +236,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
             enforcement = item['mobile_cam'][3]
             if not enforcement:
+                self.print_log_line(' Mobile Cam with %f %f is not an enforcement camera. '
+                                    'Skipping..' % (item['mobile_cam'][1], item['mobile_cam'][2]))
                 return False
 
             if self.is_already_added((item['mobile_cam'][1], item['mobile_cam'][2])):
@@ -308,11 +316,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 except:
                     pass
 
+        # Delete obsolete cameras
         self.delete_cameras(cams_to_delete)
-
+        # Sort cameras based on distance
         cam = self.sort_pois(cam_list)
-        cam_attributes = None
-
+        # Nothing to sort
         if cam is None:
             return False
 

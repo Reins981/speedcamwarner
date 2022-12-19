@@ -95,6 +95,7 @@ class DeviationCheckerThread(StoppableThread, Logger):
                 if (-22 <= av_bearing_diff_position_pair_queues <= 22) \
                         and (-13 <= av_bearing_diff_current_queue <= 13):
                     self.interruptqueue.produce(self.cv_interrupt, 'STABLE')
+                    self.print_log_line(' CCP is considered STABLE')
                 else:
                     self.interruptqueue.produce(self.cv_interrupt, 'UNSTABLE')
                     self.print_log_line(' Waiting for CCP to become STABLE again')
