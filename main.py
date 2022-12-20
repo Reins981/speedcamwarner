@@ -5,8 +5,7 @@ __version__ = '0.1'
 # ts=4:sw=4:expandtab
 import os
 from kivy.app import App
-from kivy_garden.mapview import MapView, MapLayer
-from kivy.graphics.instructions import InstructionGroup
+from kivy_garden.mapview import MapView
 from kivy.uix.popup import Popup
 from kivy.properties import ObjectProperty
 from kivy.uix.button import Button
@@ -22,8 +21,8 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.clock import Clock, mainthread, _default_time as time
 from oscpy.server import OSCThreadServer
 from oscpy.client import OSCClient
-import time, sys, threading
-from threading import Condition, Thread
+import time, sys
+from threading import Condition
 from GPSThreads import GPSConsumerThread, GPSThread
 from AccusticWarnerThread import VoicePromptThread
 from CalculatorThreads import RectangleCalculatorThread
@@ -2327,6 +2326,11 @@ class MainTApp(App):
         if self.calculator is not None and self.calculator.thread_lock:
             popup = Popup(title='Attention',
                           content=Label(text='App busy. Please try again'),
+                          size_hint=(None, None), size=(600, 600))
+            popup.open()
+        elif not self.calculator.internet_available():
+            popup = Popup(title='Attention',
+                          content=Label(text='No Internet Connection!'),
                           size_hint=(None, None), size=(600, 600))
             popup.open()
         else:
