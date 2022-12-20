@@ -3197,7 +3197,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if ((
                 internet_check and not self.internet_available()) or reduce_rect_size):
             self.print_log_line(' Reducing rect size -> internet = %s, reduce_rect_size = %s'
-                                %(str(self.internet_available()), str(reduce_rect_size)))
+                                % (str(self.internet_available()), str(reduce_rect_size)))
             self.rectangle_periphery = self.rectangle_periphery_fallback_lower_roadclass
             self.rectangle_periphery_fallback = self.rectangle_periphery_fallback_lower_roadclass
             self.url_timeout = self.osm_timeout
@@ -3207,6 +3207,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if mode == 'LOWER_CLASS' and self.cspeed <= self.speed_influence_on_rect_boundary:
             # make sure the rect size is constantly reduced in case of high delays
             if self.download_time >= self.max_download_time:
+                self.print_log_line(f"Reducing rect size for road class: {mode}")
                 self.rectangle_periphery = self.rectangle_periphery_fallback_lower_roadclass
             else:
                 self.rectangle_periphery = self.rectangle_periphery_lower_roadclass
@@ -3217,6 +3218,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             # make sure the rect size is constantly reduced in case of high delays
             if self.download_time >= self.max_download_time:
+                self.print_log_line(f"Reducing rect size for road class: {mode}")
                 self.rectangle_periphery = self.rectangle_periphery_motorway_fallback
             else:
                 self.print_log_line(
@@ -3654,9 +3656,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(f' Empty dataset from server {self.baseurl} received!')
             self.voice_prompt_queue.produce_gpssignal(self.cv_voice,
                                                       'EMPTY_DATASET_FROM_SERVER')
-            self.print_log_line(
-                "[CLAC Thread] No data -> Leaving build_data_structure prematurely")
-
         if not error:
             if isinstance(linkedListGenerator, DoubleLinkedListNodes):
                 self.start_thread_pool_speed_structure(self.speed_cam_lookup,
@@ -3664,6 +3663,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                        tree=treeGenerator)
             # clear the vector queue, otherwise outdated positions and
             # speed values are provided if building process takes long
+            self.print_log_line("building data structure succeeded")
             self.vector_data.clear_vector_data(self.cv_vector)
 
     def speed_cam_lookup(self, *args):
@@ -3702,7 +3702,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(" Limit %d reached! Deleting all speed cameras")
             del self.speed_cam_dict[:]
 
-        self.print_log_line(' Looking up speed cams FINISHED')
+        self.print_log_line(' Speed Cam lookup FINISHED')
 
     def remove_duplicate_cameras(self):
         # Remove duplicate cameras for Map Renderer per speed cam dict
