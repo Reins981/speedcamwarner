@@ -2943,6 +2943,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :return:
         """
         if not self.internet_available():
+            self.print_log_line(f" Could not resolve Road Name -> No Internet Connection!")
             return None
 
         try:
