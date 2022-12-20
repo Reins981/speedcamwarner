@@ -62,11 +62,13 @@ class OverspeedCheckerThread(StoppableThread, Logger):
 
             if current_speed is None:
                 return 0
+            self.print_log_line(f"Received Current Speed: {current_speed}")
 
             try:
                 max_speed = list(overspeed_entry.values())[0]
             except AttributeError:
                 return 1
+            self.print_log_line(f"Received Max Speed: {max_speed}")
 
             if condition == "maxspeed":
                 if isinstance(max_speed, str) and "mph" in max_speed:
