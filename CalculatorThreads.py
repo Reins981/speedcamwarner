@@ -3162,6 +3162,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     maxspeed = speed
 
                 elif maxspeed.find('DE:motorway') != -1:
+                    speed = self.MAXSPEED_COUNTRIES['DE:motorway']
+                    self.print_log_line(
+                        ' Using german motorway speed %d for overspeed check'
+                        % speed)
                     self.update_rectangle_periphery(mode='MOTORWAY',
                                                     internet_check=False)
                     overspeed_reset = True
