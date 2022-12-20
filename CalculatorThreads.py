@@ -2838,6 +2838,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if overspeed_reset:
                     maxspeed = ""
                     overspeed = 10000
+                self.print_log_line(f"Final Maxspeed value is {overspeed}")
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': overspeed})
                 self.update_kivi_maxspeed(maxspeed)
                 self.last_max_speed = maxspeed
@@ -2845,7 +2846,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             # default
             if self.last_max_speed is not None and self.last_road_name == road_name:
                 return_string = "LAST_MAX_SPEED_USED"
-                self.print_log_line(" Using Last Maxspeed value %s" % str(self.last_max_speed))
+                self.print_log_line(" Using previous Maxspeed value %s" % str(self.last_max_speed))
                 self.update_kivi_maxspeed(self.last_max_speed)
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': self.last_max_speed})
                 self.last_max_speed = None
