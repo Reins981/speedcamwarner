@@ -3579,7 +3579,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if rect == rect_preferred:
                     self.empty_dataset_rect = rect
                     match = True
-                    self.print_log_line(' MATCHED -> Building data structure for rect %s' % rect)
                     linkedListGenerator = attributes[1]
                     treeGenerator = attributes[2]
                     break
@@ -3588,8 +3587,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 for rect, attributes in self.RECT_ATTRIBUTES_EXTRAPOLATED.items():
                     if rect == rect_preferred:
                         self.empty_dataset_rect = rect
-                        self.print_log_line(' MATCHED extrapolated -> Building data structure '
-                                            'for rect %s' % rect)
                         linkedListGenerator = attributes[1]
                         treeGenerator = attributes[2]
                         break
