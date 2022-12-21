@@ -1871,7 +1871,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.build_data_structure,
                     num_threads + 1,
                     server_responses,
-                    wait_till_completed=False)
+                    wait_till_completed=True)
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
                 self.fill_speed_cams()
 
@@ -1900,7 +1900,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         rect_to_index = 1
 
         if mode == 'NORMAL':
-            while (rect_from_index < len(self.RECT_KEYS) - 1):
+            while rect_from_index < len(self.RECT_KEYS) - 1:
                 from_rect = \
                     self.RECT_ATTRIBUTES[self.RECT_KEYS[rect_from_index]][0]
                 to_rect = self.RECT_ATTRIBUTES[self.RECT_KEYS[rect_to_index]][
@@ -2285,7 +2285,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               num_threads,
                                               server_responses,
                                               extrapolated,
-                                              wait_till_completed=False)
+                                              wait_till_completed=True)
 
         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
         self.fill_speed_cams()
@@ -2356,7 +2356,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            attributes[1],
                                                            attributes[2],
                                                            attributes[0],
-                                                           wait_till_completed=True)
+                                                           wait_till_completed=False)
                         '''self.trigger_cache_lookup(latitude=latitude,
                                                   longitude=longitude,
                                                   linkedListGenerator=
@@ -2394,7 +2394,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                        attributes[1],
                                                        attributes[2],
                                                        attributes[0],
-                                                       wait_till_completed=True)
+                                                       wait_till_completed=False)
                     '''self.trigger_cache_lookup(latitude=latitude,
                                               longitude=longitude,
                                               linkedListGenerator=attributes[
@@ -2430,7 +2430,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            attributes[1],
                                                            attributes[2],
                                                            attributes[0],
-                                                           wait_till_completed=True)
+                                                           wait_till_completed=False)
                         '''self.trigger_cache_lookup(latitude=latitude,
                                                   longitude=longitude,
                                                   linkedListGenerator=
@@ -2509,7 +2509,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                        linkedListGenerator,
                                                        treeGenerator,
                                                        current_rect,
-                                                       wait_till_completed=True)
+                                                       wait_till_completed=False)
                     '''self.trigger_cache_lookup(latitude=latitude,
                                               longitude=longitude,
                                               linkedListGenerator=linkedListGenerator,

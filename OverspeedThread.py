@@ -48,6 +48,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
 
             overspeed_entry = self.overspeed_queue.consume(self.cv_overspeed)
             self.cv_overspeed.release()
+            self.print_log_line(f"Received overspeed entry {overspeed_entry}")
 
             if overspeed_entry is None:
                 return 0
