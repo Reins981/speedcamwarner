@@ -29,8 +29,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
         self.currentspeed_queue = currentspeed_queue
         self.speedlayout = s
         self.cond = cond
-        # list of max speed values
-        self.max_speed = list()
 
     def run(self):
         while not self.cond.terminate:
@@ -53,29 +51,15 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             overspeed_entry = self.overspeed_queue.consume(self.cv_overspeed)
             self.cv_overspeed.release()
             self.print_log_line(f" Received overspeed entry {overspeed_entry}")
-            # Clear old outdated overspeed entries
+            # Clear old outdated speed entries
             self.overspeed_queue.clear(self.cv_overspeed)
+            self.currentspeed_queue.clear(self.cv_currentspeed)
 
-            try:
-                condition = list(overspeed_entry.keys())[0]
-            except AttributeError:
-                return 1
+            for condition, max_speed in overspeed_entry.items():
+                if condition == 'EXIT':
+                    return 'TERMINATE'
 
-            if condition == 'EXIT':
-                return 'TERMINATE'
-
-            try:
-                max_speed = list(overspeed_entry.values())[0]
-                self.max_speed.append(max_speed)
-            except AttributeError:
-                return 1
-            self.print_log_line(f"Received Max Speed: {max_speed}")
-
-            if condition == "maxspeed" and self.max_speed:
-                # Take the newest max speed entry
-                max_speed = self.max_speed.pop()
-                # Clear old entries
-                self.max_speed.clear()
+                self.print_log_line(f"Received Max Speed: {max_speed}")
 
                 if isinstance(max_speed, str) and "mph" in max_speed:
                     max_speed = int(max_speed.strip(" mph"))
