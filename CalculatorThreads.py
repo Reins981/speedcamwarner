@@ -2364,8 +2364,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                   treeGenerator=attributes[2],
                                                   current_rect=attributes[0])'''
                         self.ms.update_online_image_layout(False)
-                        self.ml.update_speed_cam_txt(attributes[3])
-                        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                        # self.ml.update_speed_cam_txt(attributes[3])
 
                         if self.enable_ordered_rects_extrapolated:
                             rectangle_string = rect
@@ -2402,8 +2401,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               treeGenerator=attributes[2],
                                               current_rect=attributes[0])'''
                     self.ms.update_online_image_layout(False)
-                    self.ml.update_speed_cam_txt(attributes[3])
-                    self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                    # self.ml.update_speed_cam_txt(attributes[3])
+
                     return attributes[0], close_to_border, delete_rects
 
             if self.matching_rect is not None and self.matching_rect != 'NOTSET' \
@@ -2439,8 +2438,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                   current_rect=attributes[0])'''
 
                         self.ms.update_online_image_layout(False)
-                        self.ml.update_speed_cam_txt(attributes[3])
-                        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                        # self.ml.update_speed_cam_txt(attributes[3])
 
                         if self.enable_ordered_rects_extrapolated:
                             rectangle_string = rect
@@ -2517,8 +2515,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               current_rect=current_rect)'''
 
                     self.ms.update_online_image_layout(False)
-                    self.ml.update_speed_cam_txt(generator[3])
-                    self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                    # self.ml.update_speed_cam_txt(generator[3])
                     break
             else:
                 self.print_log_line(
@@ -2940,6 +2937,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.process_speed_cameras_on_the_way(way,
                                                       treeGenerator,
                                                       linkedListGenerator)
+        # Update speed cameras on the way
+        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+
         return True
 
     def get_road_name_via_nominatim(self, latitude, longitude):
