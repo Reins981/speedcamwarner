@@ -1569,57 +1569,45 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def start_thread_pool_data_structure(self, func, worker_threads=1,
                                          server_responses={},
-                                         extrapolated=False):
+                                         extrapolated=False,
+                                         wait_till_completed=True):
         # get matched street data immediately after building our tree and list structure.
 
         pool = ThreadPool(num_threads=worker_threads, action='CACHE')
         for task, data_list in server_responses.items():
             pool.add_task(func, dataset=data_list[2], rect_preferred=data_list[4])
 
-        server_responses = pool.wait_completion()
+        if wait_till_completed:
+            _ = pool.wait_completion()
         RectangleCalculatorThread.thread_lock = False
 
         if not extrapolated:
             self.check_specific_rectangle()
-            # self.print_log_line(' check specific rect FINISHED')
             if not self.internet_available():
                 self.update_maxspeed_status(status='INIT', internal_error=None)
 
-    def start_thread_pool_speed_structure(self, func, worker_threads=1,
+    @staticmethod
+    def start_thread_pool_speed_structure(func, worker_threads=1,
                                           linkedList=None, tree=None):
         # get speed cam data immediately after building our tree and list structure.
 
         pool = ThreadPool(num_threads=worker_threads, action='SPEED')
         pool.add_task(func, linkedList, tree)
 
-    def start_task_data_structure(self, server_responses={},
-                                  extrapolated=False):
-        # get matched street data immediately after building our tree and list structure.
-
-        for task, data_list in server_responses.items():
-            self.build_data_structure(dataset=data_list[2],
-                                      rect_preferred=data_list[4])
-
-        self.update_kivi_maxspeed_onlinecheck(online_available=data_list[0],
-                                              status='BUILD_FINISHED',
-                                              internal_error=data_list[3])
-
-        if not extrapolated:
-            self.check_specific_rectangle()
-
-    def start_thread_pool_data_lookup(self, func,
+    @staticmethod
+    def start_thread_pool_data_lookup(func,
                                       lat=None,
                                       lon=None,
-                                      speed=None,
                                       linkedList=None,
                                       tree=None,
-                                      c_rect=None):
+                                      c_rect=None,
+                                      wait_till_completed=True):
 
         pool = ThreadPool(num_threads=1, action='LOOKUP')
-        pool.add_task(func, lat, lon, speed, linkedList, tree, c_rect)
+        pool.add_task(func, lat, lon, linkedList, tree, c_rect)
 
-        server_responses = pool.wait_completion()
-        return server_responses
+        if wait_till_completed:
+            _ = pool.wait_completion()
 
     def trigger_calculation(self, *args):
         reason = args[0]
@@ -1882,7 +1870,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.start_thread_pool_data_structure(
                     self.build_data_structure,
                     num_threads + 1,
-                    server_responses)
+                    server_responses,
+                    wait_till_completed=False)
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
                 self.fill_speed_cams()
 
@@ -2120,7 +2109,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             polygon_lookup_string = self.direction
 
-        self.print_log_line(' rectangle EXTRAPOLATED_%s'% str(self.extrapolated_number))
+        self.print_log_line(' rectangle EXTRAPOLATED_%s' % str(self.extrapolated_number))
         LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = self.createGeoJsonTilePolygon(
             polygon_lookup_string,
             self.zoom,
@@ -2177,7 +2166,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # update the main view layout
         self.ml.update_speed_cam_txt(getattr(self, radius_name))
         self.print_log_line(' rectangle EXTRAPOLATED_%s radius %f km'
-                            % (str(self.extrapolated_number),getattr(self, radius_name)))
+                            % (str(self.extrapolated_number), getattr(self, radius_name)))
 
         ########################################################################
         # ####################################################################
@@ -2197,7 +2186,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if self.hasSameDirection():
                 polygon_lookup_string = self.matching_rect.get_rectangle_ident()
 
-            self.print_log_line(' rectangle EXTRAPOLATED_%s'% str(self.extrapolated_number))
+            self.print_log_line(' rectangle EXTRAPOLATED_%s' % str(self.extrapolated_number))
             LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = self.createGeoJsonTilePolygon(
                 polygon_lookup_string + "-2",
                 self.zoom,
@@ -2255,7 +2244,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.ml.update_speed_cam_txt(
                 getattr(self, radius_name) + getattr(self, radius_name_2))
             self.print_log_line(' rectangle EXTRAPOLATED_%s radius %f km'
-                                % (str(self.extrapolated_number),getattr(self, radius_name_2)))
+                                % (str(self.extrapolated_number), getattr(self, radius_name_2)))
 
             # add the more far (second) rectangle first, this is needed
             # for not extrapolating uneccessarily if we switch to the second rect.
@@ -2295,7 +2284,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.start_thread_pool_data_structure(self.build_data_structure,
                                               num_threads,
                                               server_responses,
-                                              extrapolated)
+                                              extrapolated,
+                                              wait_till_completed=False)
 
         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
         self.fill_speed_cams()
@@ -2339,15 +2329,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         if not self.osm_error_reported and self.osm_data_error == "NO_ERROR":
 
-            matched_rect = None
-            rectangle_string = None
             ORDERED_RECTS = OrderedDict()
 
             if self.matching_rect is not None and self.matching_rect != 'NOTSET' \
                     and self.isExtrapolatedRectMatching():
 
                 for rect, attributes in self.RECT_ATTRIBUTES_EXTRAPOLATED.items():
-                    self.print_log_line(' check_all_rectangles() -> rectangle %s\n' %rect)
+                    self.print_log_line(' check_all_rectangles() -> rectangle %s\n' % rect)
                     if attributes[0].point_in_rect(xtile, ytile):
                         # fallback road name lookup
                         if self.empty_dataset_received and rect == self.empty_dataset_rect:
@@ -2362,12 +2350,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.print_log_line(' CCP lon: %f lat: %f, '
                                             'reusing previously calculated rectangle %s\n'
                                             % (longitude, latitude, rect))
-                        self.trigger_cache_lookup(latitude=latitude,
+                        self.start_thread_pool_data_lookup(self.trigger_cache_lookup,
+                                                           latitude,
+                                                           longitude,
+                                                           attributes[1],
+                                                           attributes[2],
+                                                           attributes[0],
+                                                           wait_till_completed=True)
+                        '''self.trigger_cache_lookup(latitude=latitude,
                                                   longitude=longitude,
                                                   linkedListGenerator=
                                                   attributes[1],
                                                   treeGenerator=attributes[2],
-                                                  current_rect=attributes[0])
+                                                  current_rect=attributes[0])'''
                         self.ms.update_online_image_layout(False)
                         self.ml.update_speed_cam_txt(attributes[3])
                         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
@@ -2380,7 +2375,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         return attributes[0], close_to_border, delete_rects
 
             for rect, attributes in self.RECT_ATTRIBUTES.items():
-                self.print_log_line(' check_all_rectangles() -> rectangle %s\n' %rect)
+                self.print_log_line(' check_all_rectangles() -> rectangle %s\n' % rect)
                 if attributes[0].point_in_rect(xtile, ytile):
                     # fallback road name lookup
                     if self.empty_dataset_received and rect == self.empty_dataset_rect:
@@ -2393,12 +2388,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         xtile, ytile)
                     self.print_log_line(' CCP lon: %f lat: %f, reusing previously '
                                         'calculated rectangle %s\n' % (longitude, latitude, rect))
-                    self.trigger_cache_lookup(latitude=latitude,
+                    self.start_thread_pool_data_lookup(self.trigger_cache_lookup,
+                                                       latitude,
+                                                       longitude,
+                                                       attributes[1],
+                                                       attributes[2],
+                                                       attributes[0],
+                                                       wait_till_completed=True)
+                    '''self.trigger_cache_lookup(latitude=latitude,
                                               longitude=longitude,
                                               linkedListGenerator=attributes[
                                                   1],
                                               treeGenerator=attributes[2],
-                                              current_rect=attributes[0])
+                                              current_rect=attributes[0])'''
                     self.ms.update_online_image_layout(False)
                     self.ml.update_speed_cam_txt(attributes[3])
                     self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
@@ -2407,7 +2409,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if self.matching_rect is not None and self.matching_rect != 'NOTSET' \
                     and not self.isExtrapolatedRectMatching():
                 for rect, attributes in self.RECT_ATTRIBUTES_EXTRAPOLATED.items():
-                    self.print_log_line(' check_all_rectangles() -> rectangle %s\n' %rect)
+                    self.print_log_line(' check_all_rectangles() -> rectangle %s\n' % rect)
                     if attributes[0].point_in_rect(xtile, ytile):
                         # fallback road name lookup
                         if self.empty_dataset_received and rect == self.empty_dataset_rect:
@@ -2422,12 +2424,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.print_log_line(' CCP lon: %f lat: %f, reusing previously '
                                             'calculated rectangle %s\n'
                                             % (longitude, latitude, rect))
-                        self.trigger_cache_lookup(latitude=latitude,
+                        self.start_thread_pool_data_lookup(self.trigger_cache_lookup,
+                                                           latitude,
+                                                           longitude,
+                                                           attributes[1],
+                                                           attributes[2],
+                                                           attributes[0],
+                                                           wait_till_completed=True)
+                        '''self.trigger_cache_lookup(latitude=latitude,
                                                   longitude=longitude,
                                                   linkedListGenerator=
                                                   attributes[1],
                                                   treeGenerator=attributes[2],
-                                                  current_rect=attributes[0])
+                                                  current_rect=attributes[0])'''
 
                         self.ms.update_online_image_layout(False)
                         self.ml.update_speed_cam_txt(attributes[3])
@@ -2476,15 +2485,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.RECT_ATTRIBUTES_EXTRAPOLATED = ORDERED_RECTS
 
     def check_specific_rectangle(self, *args):
-        # self.print_log_line(' FIRST rectangle lookup triggered')
-
-        xtile = None
-        ytile = None
-        longitude = None
-        latitude = None
-        linkedListGenerator = None
-        treeGenerator = None
-        current_rect = None
 
         xtile = self.xtile
         ytile = self.ytile
@@ -2503,11 +2503,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if (isinstance(current_rect,
                                Rect) and current_rect.point_in_rect(xtile,
                                                                     ytile)):
-                    self.trigger_cache_lookup(latitude=latitude,
+                    self.start_thread_pool_data_lookup(self.trigger_cache_lookup,
+                                                       latitude,
+                                                       longitude,
+                                                       linkedListGenerator,
+                                                       treeGenerator,
+                                                       current_rect,
+                                                       wait_till_completed=True)
+                    '''self.trigger_cache_lookup(latitude=latitude,
                                               longitude=longitude,
                                               linkedListGenerator=linkedListGenerator,
                                               treeGenerator=treeGenerator,
-                                              current_rect=current_rect)
+                                              current_rect=current_rect)'''
 
                     self.ms.update_online_image_layout(False)
                     self.ml.update_speed_cam_txt(generator[3])
@@ -2769,7 +2776,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     urban = True
 
         return found_road_name, road_name, maxspeed, reset_maxspeed, found_maxspeed, \
-            found_combined_tags, road_class, poi, urban, facility, motorway, ramp
+               found_combined_tags, road_class, poi, urban, facility, motorway, ramp
 
     def process_road_name(self, found_road_name,
                           road_name,
@@ -2897,17 +2904,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             self.process_max_speed_for_road_class(way, treeGenerator)
                     else:
                         found_road_name, \
-                            road_name, \
-                            maxspeed, \
-                            reset_maxspeed, \
-                            found_maxspeed, \
-                            found_combined_tags, \
-                            road_class, \
-                            poi, \
-                            urban, \
-                            facility, \
-                            motorway, \
-                            ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
+                        road_name, \
+                        maxspeed, \
+                        reset_maxspeed, \
+                        found_maxspeed, \
+                        found_combined_tags, \
+                        road_class, \
+                        poi, \
+                        urban, \
+                        facility, \
+                        motorway, \
+                        ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
 
                         self.process_road_name(found_road_name,
                                                road_name,
@@ -3772,7 +3779,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     latitude * math.pi / 180) * x / 6378137.0
                 self.print_log_line(' Tunnel mode: New longitude cached %f, '
                                     'New latitude cached %f' % (self.longitude_cached,
-                                                             self.latitude_cached))
+                                                                self.latitude_cached))
             else:
                 self.latitude = latitude + 180 / math.pi * y / 6378137.0
                 self.longitude = longitude + 180 / math.pi / math.sin(
@@ -3872,7 +3879,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 font_size = 250
                 font_size_alternative = 110
             else:
-                font_size = 200
+                font_size = 230
                 font_size_alternative = 100
 
             if isinstance(maxspeed, str) and len(maxspeed) >= 10:
@@ -3981,12 +3988,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             Clock.schedule_once(self.ms.maxspeed.texture_update)
             # reset the roadname from the previous session
             self.update_kivi_roadname("")
-        elif (status == 'INIT'):
+        elif status == 'INIT':
             self.ms.maxspeed.text = ''
             self.ms.maxspeed.color = (1, 1, 1, 1)
             self.ms.maxspeed.font_size = 80
             Clock.schedule_once(self.ms.maxspeed.texture_update)
-        elif (status == 'DOWNLOAD_FINISHED'):
+        elif status == 'DOWNLOAD_FINISHED':
             self.ms.maxspeed.text = 'DOWNLOAD DONE'
             self.ms.maxspeed.color = (1, .9, 0, 2)
             self.ms.maxspeed.font_size = 80
@@ -4002,7 +4009,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.ms.maxspeed.font_size = 60
             Clock.schedule_once(self.ms.maxspeed.texture_update)
         # check status of additional rects
-        elif (status == 'READ FAILED'):
+        elif status == 'READ FAILED':
             self.ms.maxspeed.text = "DATA READ FAILED: " + internal_error
             self.ms.maxspeed.color = (1, 0, 0, 3)
             self.ms.maxspeed.font_size = 50

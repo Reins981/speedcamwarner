@@ -620,6 +620,8 @@ class Worker(StoppableThread, Logger):
                         self.rect = kwargs['rect_preferred']
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(**kwargs)
+                    elif self.action == 'LOOKUP':
+                        _ = func(**kwargs)
                     else:
                         pass
                 else:
@@ -632,6 +634,8 @@ class Worker(StoppableThread, Logger):
                         func(*args, **kwargs)
                     elif self.action == 'SPEED':
                         func(*args, **kwargs)
+                    elif self.action == 'LOOKUP':
+                        _ = func(*args, **kwargs)
                     else:
                         pass
             except Exception as e:
@@ -719,7 +723,7 @@ class ThreadPool(Logger):
 
     def wait_completion_perf(self):
         # Wait for completion of all the tasks in the queue
-        while (self.taskCounter.get_task_counter() < self.num_threads):
+        while self.taskCounter.get_task_counter() < self.num_threads:
             yield self.resultMap.get_server_response()
         self.print_log_line(" %d tasks completed" % self.num_threads)
 
