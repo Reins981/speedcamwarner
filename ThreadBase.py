@@ -88,32 +88,34 @@ class InterruptQueue(object):
 
 class OverspeedQueue(object):
     def __init__(self):
-        self.OVERSPEEDQUEUE = Queue()
+        self.OVERSPEEDQUEUE = deque()
+
+    def an_item_is_available(self):
+        return bool(self.OVERSPEEDQUEUE)
 
     def get_an_available_item(self):
-        return self.OVERSPEEDQUEUE.get(block=False)
+        return self.OVERSPEEDQUEUE.pop()
 
     def make_an_item_available(self, item):
-        self.OVERSPEEDQUEUE.put(item, block=False)
+        self.OVERSPEEDQUEUE.append(item)
 
     def clear(self, cv):
-        pass
+        cv.acquire()
+        self.OVERSPEEDQUEUE.clear()
+        cv.notify()
+        cv.release()
 
     def consume(self, cv):
         cv.acquire()
-        try:
-            return self.get_an_available_item()
-        except Empty:
-            return None
+        while not self.an_item_is_available():
+            cv.wait()
+        return self.get_an_available_item()
 
     def produce(self, cv, item):
         cv.acquire()
         self.make_an_item_available(item)
         cv.notify()
         cv.release()
-
-    def size(self):
-        return self.OVERSPEEDQUEUE.qsize()
 
 
 class PoiQueue(object):
@@ -238,23 +240,28 @@ class GpsDataQueue(object):
 
 class CurrentSpeedQueue(object):
     def __init__(self):
-        self.CURRENTSPEEDQUEUE = Queue()
+        self.CURRENTSPEEDQUEUE = deque()
+
+    def an_item_is_available(self):
+        return bool(self.CURRENTSPEEDQUEUE)
 
     def get_an_available_item(self):
-        return self.CURRENTSPEEDQUEUE.get(block=False)
+        return self.CURRENTSPEEDQUEUE.pop()
 
     def make_an_item_available(self, item):
-        self.CURRENTSPEEDQUEUE.put(item, block=False)
+        self.CURRENTSPEEDQUEUE.append(item)
 
     def clear(self, cv):
-        pass
+        cv.acquire()
+        self.CURRENTSPEEDQUEUE.clear()
+        cv.notify()
+        cv.release()
 
     def consume(self, cv):
         cv.acquire()
-        try:
-            return self.get_an_available_item()
-        except Empty:
-            return None
+        while not self.an_item_is_available():
+            cv.wait()
+        return self.get_an_available_item()
 
     def produce(self, cv, item):
         cv.acquire()

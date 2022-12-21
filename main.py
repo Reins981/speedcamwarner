@@ -2472,7 +2472,7 @@ class MainTApp(App):
                                                                         False, 0, 0),
                                                                     'ccp_node': (None, None),
                                                                     'list_tree': (None, None)})
-                    self.overspeed_queue.produce(self.cv_overspeed, {'EXIT': 0})
+                    self.overspeed_queue.produce(self.cv_overspeed, {'EXIT': 'EXIT'})
                     self.map_queue.produce(self.cv_map, "EXIT")
                     thread.join(float(3))
                     # try it once again

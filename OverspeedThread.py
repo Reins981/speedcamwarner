@@ -9,6 +9,7 @@ Created on 01.07.2014
 
 from ThreadBase import StoppableThread
 from Logger import Logger
+from copy import deepcopy
 
 
 class OverspeedCheckerThread(StoppableThread, Logger):
@@ -28,6 +29,8 @@ class OverspeedCheckerThread(StoppableThread, Logger):
         self.currentspeed_queue = currentspeed_queue
         self.speedlayout = s
         self.cond = cond
+        # list of max speed values
+        self.max_speed = list()
 
     def run(self):
         while not self.cond.terminate:
@@ -45,13 +48,13 @@ class OverspeedCheckerThread(StoppableThread, Logger):
     def process(self):
             current_speed = self.currentspeed_queue.consume(self.cv_currentspeed)
             self.cv_currentspeed.release()
+            self.print_log_line(f"Received Current Speed: {current_speed}")
 
             overspeed_entry = self.overspeed_queue.consume(self.cv_overspeed)
             self.cv_overspeed.release()
             self.print_log_line(f" Received overspeed entry {overspeed_entry}")
-
-            if overspeed_entry is None:
-                return 0
+            # Clear old outdated overspeed entries
+            self.overspeed_queue.clear(self.cv_overspeed)
 
             try:
                 condition = list(overspeed_entry.keys())[0]
@@ -61,17 +64,19 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             if condition == 'EXIT':
                 return 'TERMINATE'
 
-            if current_speed is None:
-                return 0
-            self.print_log_line(f"Received Current Speed: {current_speed}")
-
             try:
                 max_speed = list(overspeed_entry.values())[0]
+                self.max_speed.append(max_speed)
             except AttributeError:
                 return 1
             self.print_log_line(f"Received Max Speed: {max_speed}")
 
-            if condition == "maxspeed":
+            if condition == "maxspeed" and self.max_speed:
+                # Take the newest max speed entry
+                max_speed = self.max_speed.pop()
+                # Clear old entries
+                self.max_speed.clear()
+
                 if isinstance(max_speed, str) and "mph" in max_speed:
                     max_speed = int(max_speed.strip(" mph"))
 
