@@ -29,6 +29,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
         self.currentspeed_queue = currentspeed_queue
         self.speedlayout = s
         self.cond = cond
+        self.last_max_speed = None
 
     def run(self):
         while not self.cond.terminate:
@@ -51,9 +52,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             overspeed_entry = self.overspeed_queue.consume(self.cv_overspeed)
             self.cv_overspeed.release()
             self.print_log_line(f" Received overspeed entry {overspeed_entry}")
-            # Clear old outdated speed entries
-            self.overspeed_queue.clear(self.cv_overspeed)
-            self.currentspeed_queue.clear(self.cv_currentspeed)
 
             for condition, max_speed in overspeed_entry.items():
                 if condition == 'EXIT':
@@ -65,16 +63,23 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                     max_speed = int(max_speed.strip(" mph"))
 
                 if isinstance(max_speed, int):
-                    if current_speed > max_speed:
-                        self.print_log_line(f" Driver is too fast: expected speed {max_speed}, "
-                                            f"actual speed {current_speed}")
-                        s_color = (1, 0, 0, 3)
-                        self.speedlayout.overspeed.color = s_color
-                        self.speedlayout.overspeed.texture_update()
-                        self.process_entry(current_speed - max_speed)
-                    else:
-                        self.process_entry(10000)
-            return 0
+                    self.last_max_speed = max_speed
+                    self.calculate(current_speed, max_speed)
+
+            if not overspeed_entry and self.last_max_speed:
+                self.print_log_line(f" Recalculating over speed entry according to last max speed")
+                self.calculate(current_speed, self.last_max_speed)
+
+    def calculate(self, current_speed, max_speed):
+        if current_speed > max_speed:
+            self.print_log_line(f" Driver is too fast: expected speed {max_speed}, "
+                                f"actual speed {current_speed}")
+            s_color = (1, 0, 0, 3)
+            self.speedlayout.overspeed.color = s_color
+            self.speedlayout.overspeed.texture_update()
+            self.process_entry(current_speed - max_speed)
+        else:
+            self.process_entry(10000)
 
     def process_entry(self, value):
             if value == 10000:

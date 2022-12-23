@@ -88,34 +88,32 @@ class InterruptQueue(object):
 
 class OverspeedQueue(object):
     def __init__(self):
-        self.OVERSPEEDQUEUE = deque()
-
-    def an_item_is_available(self):
-        return bool(self.OVERSPEEDQUEUE)
+        self.OVERSPEEDQUEUE = Queue()
 
     def get_an_available_item(self):
-        return self.OVERSPEEDQUEUE.pop()
+        return self.OVERSPEEDQUEUE.get(block=False)
 
     def make_an_item_available(self, item):
-        self.OVERSPEEDQUEUE.append(item)
+        self.OVERSPEEDQUEUE.put(item, block=False)
 
     def clear(self, cv):
-        cv.acquire()
-        self.OVERSPEEDQUEUE.clear()
-        cv.notify()
-        cv.release()
+        pass
 
     def consume(self, cv):
         cv.acquire()
-        while not self.an_item_is_available():
-            cv.wait()
-        return self.get_an_available_item()
+        try:
+            return self.get_an_available_item()
+        except Empty:
+            return {}
 
     def produce(self, cv, item):
         cv.acquire()
         self.make_an_item_available(item)
         cv.notify()
         cv.release()
+
+    def size(self):
+        return self.OVERSPEEDQUEUE.qsize()
 
 
 class PoiQueue(object):

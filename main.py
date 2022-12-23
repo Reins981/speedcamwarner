@@ -1885,16 +1885,16 @@ class MainView(FloatLayout):
     # provide None in case any of the speed cams should not get updated
     def update_speed_cams(self, fix_cams, mobile_cams, traffic_cams, distance_cams):
 
-        if mobile_cams != None:
+        if mobile_cams is not None:
             self.speedcam_mobil_number.text = str(mobile_cams)
             Clock.schedule_once(self.speedcam_mobil_number.texture_update)
-        if traffic_cams != None:
+        if traffic_cams is not None:
             self.speedcam_trafficlight_number.text = str(traffic_cams)
             Clock.schedule_once(self.speedcam_trafficlight_number.texture_update)
-        if fix_cams != None:
+        if fix_cams is not None:
             self.speedcam_fix_number.text = str(fix_cams)
             Clock.schedule_once(self.speedcam_fix_number.texture_update)
-        if distance_cams != None:
+        if distance_cams is not None:
             self.speedcam_distance_number.text = str(distance_cams)
             Clock.schedule_once(self.speedcam_distance_number.texture_update)
 
