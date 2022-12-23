@@ -187,13 +187,13 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = True
+        self.gps_test_data = False
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
                                      "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 5000
+        self.gps_treshold = 6000
 
     def run(self):
 
@@ -326,6 +326,8 @@ class GPSThread(StoppableThread, Logger):
             pass
         else:
             self.print_log_line(f"GPS status is {gps_accuracy}")
+            if gps_accuracy.isdigit():
+                gps_accuracy = "GPS_LOW"
             self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
             self.g.off_state()
 
