@@ -70,7 +70,7 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
         if len(current_bearing_queue) > 0:
             av_bearing_final = self.av_bearing / len(current_bearing_queue)
-            self.update_average_bearing(av_bearing_final)
+            self.update_average_bearing(round(av_bearing_final, 1))
 
             av_first_entry = current_bearing_queue[0]
             first_av_entry_current = av_first_entry

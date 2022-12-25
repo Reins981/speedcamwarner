@@ -2054,6 +2054,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                               close_to_border=False,
                               delete_rects=False):
 
+        self.process(update_ccp_only=True)
+
         if self.matching_rect is None or self.previous_rect is None:
             self.print_log_line(" Extrapolation criteria not fulfilled -> no matching rect")
             return False
@@ -2066,7 +2068,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(" Extrapolation criteria not fulfilled -> speed == 0")
             return False
 
-        self.process(update_ccp_only=True)
         if not delete_rects and self.point_in_intersected_rect(self.xtile,
                                                                self.ytile):
             self.print_log_line(" Extrapolation criteria not fulfilled "
@@ -2454,10 +2455,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
             return None, False, False
 
-        # retry network link in case the previous network connection attempt failed
+        # retry network link immediately in case the previous network connection attempt failed
         # or a data error occured based on CURRENT_RECT.
         else:
+            self.print_log_line("Previous Network was unstable: "
+                                "Retry Network link for Rect calculation immediately")
             self.new_rectangle = True
+            self.border_reached = True
             return None, False, False
 
     def sort_rectangles(self, rectangle_string, ORDERED_RECTS):

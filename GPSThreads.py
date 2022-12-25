@@ -65,6 +65,20 @@ class GPSConsumerThread(StoppableThread, Logger):
             self.curspeed.text = av_speed
             Clock.schedule_once(self.curspeed.texture_update)
 
+    def speed_update_kivy(self, key):
+        """
+        Update kivy UI without calculating the average speed
+        :param key:
+        :return:
+        """
+        speed = round(key, 1)
+        if self.display_miles:
+            speed = str(round(speed / 1.609344, 1))
+        if not isinstance(speed, str):
+            speed = str(speed)
+        self.curspeed.text = speed
+        Clock.schedule_once(self.curspeed.texture_update)
+
     def update_kivi(self):
 
         item = self.gpsqueue.consume(self.cv)
@@ -76,8 +90,8 @@ class GPSConsumerThread(StoppableThread, Logger):
                 elif key != '---.-':
                     int_key = int(round(float(key)))
                     float_key = float(key)
-                    # Calculate average speed
-                    self.calculate_av_speed_kivy_update(float_key)
+                    # Update the current speed
+                    self.speed_update_kivy(float_key)
 
                     if self.startup:
                         self.speedlayout.update_accel_layout(int_key, True, 'ONLINE')
@@ -274,7 +288,7 @@ class GPSThread(StoppableThread, Logger):
 
                     self.gpsqueue.produce(self.cv, {speed: 3})
                     self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
-                    self.gpsqueue.produce(self.cv, {str(accuracy): 5})
+                    self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
 
                     direction, bearing = self.calculate_direction(event)
                     if direction is None:
