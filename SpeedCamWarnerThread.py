@@ -401,6 +401,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None, last_distance=-1):
 
+        if speedcam != 'fix':
+            dismiss_policy = True
+        else:
+            dismiss_policy = False
+
         if 0 <= distance <= 100:
 
             if last_distance == -1 or last_distance > 100:
@@ -495,7 +500,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
-                    dismiss = False
+                    dismiss = dismiss_policy
 
             last_distance = 300
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
@@ -547,7 +552,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
-                    dismiss = False
+                    dismiss = dismiss_policy
 
             last_distance = 500
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
@@ -599,7 +604,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
-                    dismiss = False
+                    dismiss = dismiss_policy
 
             last_distance = 1000
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
@@ -630,7 +635,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
-                    dismiss = False
+                    dismiss = dismiss_policy
 
             last_distance = 1001
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
@@ -658,7 +663,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             last_distance = self.max_absolute_distance
             # Those cameras will not be dismissed until their storage time has passed or they are
             # above max_absolute_distance
-            dismiss = False
+            dismiss = dismiss_policy
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
             self.ITEMQUEUE[cam_coordinates][1] = dismiss
             self.ITEMQUEUE[cam_coordinates][2] = ccp_node
@@ -788,32 +793,58 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 distance = self.check_distance_between_two_points(cam,
                                                                   (self.longitude,
                                                                    self.latitude))
+                if abs(distance) >= self.max_absolute_distance:
+                    try:
+                        self.print_log_line(" Deleting obsolete camera: %s "
+                                            "(max distance %d m > current distance %d m)"
+                                            % (str(cam), self.max_absolute_distance, abs(distance)))
+                        self.ITEMQUEUE.pop(cam)
+                        self.start_times.pop(cam)
+                        self.remove_cached_camera(cam)
+                        self.update_calculator_cams(cam_attributes)
+                    except Exception as e:
+                        pass
+                else:
+                    if cam_attributes[6] > self.max_storage_time:
+                        try:
+                            self.print_log_line(" Deleting obsolete camera: %s "
+                                                "because of storage time (max %d seconds)"
+                                                % (str(cam), self.max_storage_time))
+                            self.ITEMQUEUE.pop(cam)
+                            self.start_times.pop(cam)
+                            self.remove_cached_camera(cam)
+                            self.update_calculator_cams(cam_attributes)
+                        except Exception as e:
+                            pass
             else:
                 distance = self.check_distance_between_two_points(cam, cam_attributes[2]) \
                            - self.check_distance_between_two_points((self.longitude,
                                                                      self.latitude),
                                                                     cam_attributes[2])
-            if distance < 0 and abs(distance) >= self.max_absolute_distance:
-                self.print_log_line(" Deleting obsolete camera: %s "
-                                    "(max distance %d m > current distance %d m)"
-                                    % (str(cam), self.max_absolute_distance, abs(distance)))
-                self.ITEMQUEUE.pop(cam)
-                self.start_times.pop(cam)
-                self.remove_cached_camera(cam)
-                self.update_calculator_cams(cam_attributes)
-            else:
-                if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
-                        self.max_storage_time:
+                if distance < 0 and abs(distance) >= self.max_absolute_distance:
                     try:
                         self.print_log_line(" Deleting obsolete camera: %s "
-                                            "because of storage time (max %d seconds)"
-                                            % (str(cam), self.max_storage_time))
+                                            "(max distance %d m > current distance %d m)"
+                                            % (str(cam), self.max_absolute_distance, abs(distance)))
                         self.ITEMQUEUE.pop(cam)
                         self.start_times.pop(cam)
                         self.remove_cached_camera(cam)
                         self.update_calculator_cams(cam_attributes)
-                    except:
+                    except Exception as e:
                         pass
+                else:
+                    if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
+                            self.max_storage_time:
+                        try:
+                            self.print_log_line(" Deleting obsolete camera: %s "
+                                                "because of storage time (max %d seconds)"
+                                                % (str(cam), self.max_storage_time))
+                            self.ITEMQUEUE.pop(cam)
+                            self.start_times.pop(cam)
+                            self.remove_cached_camera(cam)
+                            self.update_calculator_cams(cam_attributes)
+                        except Exception as e:
+                            pass
 
     def update_calculator_cams(self, cam_attributes):
         if self.calculator is not None and isinstance(self.calculator, RectangleCalculatorThread):

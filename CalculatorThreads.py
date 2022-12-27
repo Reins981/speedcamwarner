@@ -956,8 +956,21 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         self.overspeed_queue.produce(self.cv_overspeed, {'EXIT': 'EXIT'})
         self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
+        self.cleanup()
         self.print_log_line(" terminating")
         self.stop()
+
+    def cleanup(self):
+        self.RECT_SPEED_CAM_LOOKAHAEAD = None
+        self.RECT_ATTRIBUTES_EXTRAPOLATED = {}
+        self.RECT_ATTRIBUTES_EXTRAPOLATED_KEYS = []
+        self.RECT_ATTRIBUTES = {}
+        self.RECT_KEYS = []
+        self.RECT_VALUES = []
+        self.RECT_VALUES_EXTRAPOLATED = []
+        self.RECT_ATTRIBUTES_INTERSECTED = {}
+        self.update_kivi_maxspeed("cleanup")
+        self.update_kivi_roadname("cleanup")
 
     def calculate_rectangle_radius(self, a, b):
         diagonale = (math.sqrt(a ** 2 + b ** 2)) * 1000
@@ -4035,51 +4048,58 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def update_kivi_maxspeed(self, maxspeed=None):
         if maxspeed:
-            if self.disable_road_lookup:
-                font_size = 250
-                font_size_alternative = 110
+            if maxspeed == "cleanup":
+                self.ms.maxspeed.text = ""
             else:
-                font_size = 230
-                font_size_alternative = 100
+                if self.disable_road_lookup:
+                    font_size = 250
+                    font_size_alternative = 110
+                else:
+                    font_size = 230
+                    font_size_alternative = 100
 
-            if isinstance(maxspeed, str) and len(maxspeed) >= 10:
-                self.ms.maxspeed.text = maxspeed
-                self.ms.maxspeed.color = (0, 1, .3, .8)
-                self.ms.maxspeed.font_size = font_size_alternative
-            else:
-                self.ms.maxspeed.text = str(maxspeed)
-                self.ms.maxspeed.color = (0, 1, .3, .8)
-                self.ms.maxspeed.font_size = font_size
+                if isinstance(maxspeed, str) and len(maxspeed) >= 10:
+                    self.ms.maxspeed.text = maxspeed
+                    self.ms.maxspeed.color = (0, 1, .3, .8)
+                    self.ms.maxspeed.font_size = font_size_alternative
+                else:
+                    self.ms.maxspeed.text = str(maxspeed)
+                    self.ms.maxspeed.color = (0, 1, .3, .8)
+                    self.ms.maxspeed.font_size = font_size
 
-        Clock.schedule_once(self.ms.maxspeed.texture_update)
+            Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     def update_kivi_roadname(self, roadname=None, found_combined_tags=False):
         if roadname:
             roadname = str(roadname)
-            num_cross_roads = roadname.split('/')
-            num_cross_roads = list(filter(None, num_cross_roads))
-            length_cross_roads = len(num_cross_roads)
 
-            num_cross_roads.reverse()
-            # reverse the road name because the first element is always the current road
-            roadname = "/".join(num_cross_roads)
-            self.ms.roadname.text = roadname
-
-            if found_combined_tags:
-
-                if length_cross_roads == 1:
-                    self.ms.roadname.font_size = 75
-                elif length_cross_roads == 2:
-                    self.ms.roadname.font_size = 65
-                elif length_cross_roads == 3:
-                    self.ms.roadname.font_size = 55
-                else:
-                    self.ms.roadname.font_size = 50
+            if roadname == "cleanup":
+                self.ms.roadname.text = ""
             else:
-                if ":" in roadname:
-                    self.ms.roadname.font_size = 50
+                num_cross_roads = roadname.split('/')
+                num_cross_roads = list(filter(None, num_cross_roads))
+                length_cross_roads = len(num_cross_roads)
+
+                num_cross_roads.reverse()
+                # reverse the road name because the first element is always the current road
+                roadname = "/".join(num_cross_roads)
+                self.ms.roadname.text = roadname
+
+                if found_combined_tags:
+
+                    if length_cross_roads == 1:
+                        self.ms.roadname.font_size = 75
+                    elif length_cross_roads == 2:
+                        self.ms.roadname.font_size = 65
+                    elif length_cross_roads == 3:
+                        self.ms.roadname.font_size = 55
+                    else:
+                        self.ms.roadname.font_size = 50
                 else:
-                    self.ms.roadname.font_size = 60
+                    if ":" in roadname:
+                        self.ms.roadname.font_size = 50
+                    else:
+                        self.ms.roadname.font_size = 60
 
             Clock.schedule_once(self.ms.roadname.texture_update)
 
