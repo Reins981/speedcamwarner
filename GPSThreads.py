@@ -308,8 +308,6 @@ class GPSThread(StoppableThread, Logger):
                                                    'CALCULATE',
                                                    int(accuracy))
                         if self.calculator.thread_lock:
-                            '''self.print_log_line("Thread lock active, "
-                                                "update speedcamwarner position")'''
                             self.speed_cam_queue.produce(self.cv_speedcam, {
                                 'ccp': (lon, lat),
                                 'fix_cam': (False, 0, 0),
@@ -318,7 +316,8 @@ class GPSThread(StoppableThread, Logger):
                                 'mobile_cam': (False, 0, 0),
                                 'ccp_node': (None, None),
                                 'list_tree': (None, None),
-                                'stable_ccp': None})
+                                'stable_ccp': None,
+                                'bearing': bearing})
 
                     self.gpsqueue.produce(self.cv, {str(bearing) + ' ' + direction: 4})
                     self.produce_bearing_set(bearing)

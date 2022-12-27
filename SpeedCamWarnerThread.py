@@ -36,6 +36,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         self.cam_coordinates = (None, None)
         self.ccp_node_coordinates = (None, None)
+        self.ccp_bearing = None
         self.ITEMQUEUE = {}
         self.start_times = {}
         self.INSERTED_SPEEDCAMS = []
@@ -49,18 +50,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                 self.traversed_cameras_interval)
 
     def set_configs(self):
-        # report only cames in driving direction, cams outside the defined angles relative to CCP will be ignored
-        self.enable_inside_relevant_angle_feature = False
-        # angle boundaries of angles between CCP and Cam.
-        # Relevant if enable_inside_relevant_angle_feature is enabled
-        self.angle1 = 45
-        self.angle2 = 90
-        self.angle3 = 135
-        self.angle4 = 180
-        self.angle5 = 225
-        self.angle6 = 270
-        self.angle7 = 315
-        self.angle8 = 360
+        # report only cames in driving direction,
+        # cams outside the defined angles relative to CCP will be ignored
+        self.enable_inside_relevant_angle_feature = True
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
@@ -103,6 +95,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 elif isCCPStable == "STABLE":
                     if self.max_storage_time > 600:
                         self.max_storage_time -= 600
+        if 'bearing' in item:
+            self.ccp_bearing = item.get('bearing')
 
         if item['ccp'][0] == 'EXIT' or item['ccp'][1] == 'EXIT':
             self.print_log_line(' Speedcamwarner thread got a termination item')
@@ -141,6 +135,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                cam_direction = item.get('direction', None)
                 self.start_times[self.cam_coordinates] = start_time
 
                 self.ITEMQUEUE[self.cam_coordinates] = ['fix',
@@ -151,7 +146,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_distance,
                                                         start_time,
                                                         roadname,
-                                                        last_calc_distance]
+                                                        last_calc_distance,
+                                                        cam_direction]
                 self.INSERTED_SPEEDCAMS.append((item['fix_cam'][1], item['fix_cam'][2]))
 
         if item['traffic_cam'][0]:
@@ -180,6 +176,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                cam_direction = item.get('direction', None)
                 self.start_times[self.cam_coordinates] = start_time
 
                 self.ITEMQUEUE[self.cam_coordinates] = ['traffic',
@@ -190,7 +187,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_distance,
                                                         start_time,
                                                         roadname,
-                                                        last_calc_distance]
+                                                        last_calc_distance,
+                                                        cam_direction]
                 self.INSERTED_SPEEDCAMS.append((item['traffic_cam'][1], item['traffic_cam'][2]))
 
         if item['distance_cam'][0]:
@@ -219,6 +217,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                cam_direction = item.get('direction', None)
                 self.start_times[self.cam_coordinates] = start_time
 
                 self.ITEMQUEUE[self.cam_coordinates] = ['distance',
@@ -229,7 +228,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_distance,
                                                         start_time,
                                                         roadname,
-                                                        last_calc_distance]
+                                                        last_calc_distance,
+                                                        cam_direction]
                 self.INSERTED_SPEEDCAMS.append((item['distance_cam'][1], item['distance_cam'][2]))
 
         if item['mobile_cam'][0]:
@@ -258,6 +258,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                cam_direction = item.get('direction', None)
                 self.start_times[self.cam_coordinates] = start_time
 
                 self.ITEMQUEUE[self.cam_coordinates] = ['mobile',
@@ -268,7 +269,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_distance,
                                                         start_time,
                                                         roadname,
-                                                        last_calc_distance]
+                                                        last_calc_distance,
+                                                        cam_direction]
                 self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
 
         cams_to_delete = []
@@ -320,13 +322,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             return False
 
         if self.enable_inside_relevant_angle_feature:
-            ccp = (0, 0)
-            if item['ccp'][0] == 'IGNORE' or item['ccp'][1] == 'IGNORE':
-                ccp = (self.longitude, self.latitude)
-            else:
-                ccp = (item['ccp'][0], item['ccp'][1])
-
-            if not self.inside_relevant_angle(ccp, (cam[0], cam[1])):
+            if not self.inside_relevant_angle(cam):
                 self.update_kivi_speedcam('FREEFLOW')
                 self.update_bar_widget_1000m(color=2)
                 self.update_bar_widget_500m(color=2)
@@ -770,12 +766,34 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         return round(distance * 1000, 3)
 
-    def inside_relevant_angle(self, pt1, pt2):
-        angle = self.calculate_angle(pt1, pt2)
+    def inside_relevant_angle(self, cam):
+        """
+        If no direction is given or an error occurs, the cam will always be considered for lookup
+        :param cam:
+        :return:
+        """
+        try:
+            cam_dir = self.ITEMQUEUE[cam][9]
+        except Exception as e:
+            return True
 
-        return self.angle1 <= angle <= self.angle2 or self.angle2 <= angle <= self.angle3 or \
-               self.angle4 <= angle <= self.angle5 or self.angle5 <= angle <= self.angle6 or \
-               self.angle6 <= angle <= self.angle7 or self.angle7 <= angle <= self.angle8
+        if self.ccp_bearing is not None and cam_dir is not None:
+            try:
+                cam_dir = int(cam_dir)
+            except ValueError:
+                return True
+
+            direction_ccp = self.calculate_direction(self.ccp_bearing)
+            direction_cam = self.calculate_direction(cam_dir)
+
+            if direction_ccp is None or direction_cam is None:
+                return True
+
+            if direction_ccp == direction_cam:
+                return True
+            else:
+                return False
+        return True
 
     def calculate_angle(self, pt1, pt2):
         lon1, lat1 = pt1, pt1
@@ -856,3 +874,54 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.calculator.distance_cams -= 1
             elif cam_attributes[0] == 'mobile' and self.calculator.mobile_cams > 0:
                 self.calculator.mobile_cams -= 1
+
+    @staticmethod
+    def calculate_direction(bearing):
+        if 0 <= bearing <= 11:
+            direction = 'TOP-N'
+        elif 11 < bearing < 22:
+            direction = 'N'
+        elif 22 <= bearing < 45:
+            direction = 'NNO'
+        elif 45 <= bearing < 67:
+            direction = 'NO'
+        elif 67 <= bearing < 78:
+            direction = 'ONO'
+        elif 78 <= bearing <= 101:
+            direction = 'TOP-O'
+        elif 101 < bearing < 112:
+            direction = 'O'
+        elif 112 <= bearing < 135:
+            direction = 'OSO'
+        elif 135 <= bearing < 157:
+            direction = 'SO'
+        elif 157 <= bearing < 168:
+            direction = 'SSO'
+        elif 168 <= bearing < 191:
+            direction = 'TOP-S'
+        elif 191 <= bearing < 202:
+            direction = 'S'
+        elif 202 <= bearing < 225:
+            direction = 'SSW'
+        elif 225 <= bearing < 247:
+            direction = 'SW'
+        elif 247 <= bearing < 258:
+            direction = 'WSW'
+        elif 258 <= bearing < 281:
+            direction = 'TOP-W'
+        elif 281 <= bearing < 292:
+            direction = 'W'
+        elif 292 <= bearing < 315:
+            direction = 'WNW'
+        elif 315 <= bearing < 337:
+            direction = 'NW'
+        elif 337 <= bearing < 348:
+            direction = 'NNW'
+        elif 348 <= bearing < 355:
+            direction = 'N'
+        elif 355 <= bearing <= 360:
+            direction = 'TOP-N'
+        else:
+            direction = None
+
+        return direction

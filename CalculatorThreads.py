@@ -1484,7 +1484,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 'mobile_cam': (False, 0, 0),
                 'ccp_node': (None, None),
                 'list_tree': (None, None),
-                'stable_ccp': self.isCcpStable})
+                'stable_ccp': self.isCcpStable,
+                'bearing': self.bearing})
         elif self.gpsstatus == 'OFFLINE':
             # update the SpeedWarner Thread
             self.calculate_extrapolated_position(self.longitude_cached,
@@ -1642,6 +1643,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             speed_cam_dict = dict()
             for element in data:
                 name = None
+                direction = None
                 try:
                     lat = element['lat']
                     lon = element['lon']
@@ -1652,6 +1654,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         name = element['tags']['name']
                     except KeyError:
                         name = self.get_road_name_via_nominatim(lat, lon)
+                    try:
+                        direction = element['tags']['direction']
+                    except KeyError:
+                        pass
 
                 key = "FIX_" + str(counter)
                 self.fix_cams += 1
@@ -1684,7 +1690,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                              'IGNORE'),
                                                                 'list_tree': (None,
                                                                               None),
-                                                                'name': name})
+                                                                'name': name,
+                                                                'bearing': direction})
 
             self.update_kivi_info_page()
 
