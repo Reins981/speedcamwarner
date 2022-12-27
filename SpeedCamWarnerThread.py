@@ -329,6 +329,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_300m(color=2)
                 self.update_bar_widget_100m(color=2)
                 self.update_bar_widget_meters('')
+                self.update_cam_text(reset=True)
+                self.update_cam_road(reset=True)
                 self.print_log_line(" Leaving Speed cam with coordinates: "
                                     "%s %s because of angle" % (cam[0], cam[1]))
                 return False
