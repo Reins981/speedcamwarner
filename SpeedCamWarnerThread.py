@@ -778,18 +778,30 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             return True
 
         if self.ccp_bearing is not None and cam_dir is not None:
+            cam_dirs = list()
             try:
                 cam_dir = int(cam_dir)
+                cam_dirs.append(cam_dir)
             except ValueError:
+                cam_directions = cam_dir.split(";")
+                for cam_d in cam_directions:
+                    try:
+                        c_d = int(cam_d)
+                        cam_dirs.append(c_d)
+                    except ValueError:
+                        pass
+            if not cam_dirs:
                 return True
 
             direction_ccp = self.calculate_direction(self.ccp_bearing)
-            direction_cam = self.calculate_direction(cam_dir)
+            directions = list()
+            for cam_d in cam_dirs:
+                directions.append(self.calculate_direction(cam_d))
 
-            if direction_ccp is None or direction_cam is None:
+            if direction_ccp is None:
                 return True
 
-            if direction_ccp == direction_cam:
+            if direction_ccp in directions:
                 return True
             else:
                 return False
