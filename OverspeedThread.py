@@ -49,6 +49,9 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             self.cv_currentspeed.release()
             self.print_log_line(f"Received Current Speed: {current_speed}")
 
+            if isinstance(current_speed, str) and current_speed == 'EXIT':
+                return 'TERMINATE'
+
             overspeed_entry = self.overspeed_queue.consume(self.cv_overspeed)
             self.cv_overspeed.release()
 
