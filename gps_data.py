@@ -26,7 +26,7 @@ class GpsTestDataGenerator(object):
                 for point in segment.points:
                     print('Point at ({0},{1}) -> {2}'.format(point.latitude, point.longitude,
                                                              point.elevation))
-                    event = {'data': {'gps': {'accuracy': randint(2000, 5200),
+                    event = {'data': {'gps': {'accuracy': randint(2, 25),
                                               'latitude': point.latitude,
                                               'longitude': point.longitude,
                                               'speed': randint(10, 35),

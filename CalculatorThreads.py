@@ -3971,7 +3971,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if amenity is not None:
             if amenity == "camera_ahead":
                 querystring = self.querystring_cameras1
-                querystring2 = "');out+body;'"
+                querystring2 = ");out+body;"
             else:
                 querystring = self.querystring_amenity.replace("*", amenity)
         if amenity == "camera_ahead":
@@ -3979,7 +3979,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + self.querystring_cameras2 + bbox + \
-                      self.querystring_cameras3 + bbox + querystring2
+                self.querystring_cameras3 + bbox + querystring2
         else:
             osm_url = self.baseurl + querystring + '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
@@ -3993,7 +3993,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             data_json = json.loads(data)
             response.close()
         except HTTPError as e:
-            self.print_log_line(f" The server {self.baseurl} couldn't fulfill the request")
+            self.print_log_line(f" The server {osm_url} couldn't fulfill the request")
             self.print_log_line(str(e))
             internal_error = str(e)
             self.internet_connection = False
