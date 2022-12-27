@@ -1756,7 +1756,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def start_thread_pool_speed_cam_look_ahead(func, worker_threads=1, previous_ccp=False):
         # get speed cam data immediately with a look ahead.
 
-        pool = ThreadPool(num_threads=worker_threads, action='SPEED_LOOK_AHEAD')
+        pool = ThreadPool(num_threads=worker_threads, action='SPEED')
         pool.add_task(func, previous_ccp)
 
     @staticmethod

@@ -625,6 +625,8 @@ class Worker(StoppableThread, Logger):
                         self.rect = kwargs['rect_preferred']
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(**kwargs)
+                    elif self.action == 'SPEED':
+                        func(**kwargs)
                     elif self.action == 'LOOKUP':
                         _ = func(**kwargs)
                     else:
