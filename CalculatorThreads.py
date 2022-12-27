@@ -661,7 +661,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring2 = ';rel(bn)->.x;way(bn);rel(bw););out+body;'
 
         self.querystring_amenity = 'data=[out:json];(node["amenity"="*"]'
-        self.querystring_cameras1 = 'data=[out:json][timeout:10];(node["highway"="speed_camera"]'
+        self.querystring_cameras1 = 'data=[out:json][timeout:20];(node["highway"="speed_camera"]'
         self.querystring_cameras2 = 'way["highway"="speed_camera"]'
         self.querystring_cameras3 = 'relation["highway"="speed_camera"]'
 
@@ -1632,7 +1632,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     try:
                         name = element['tags']['name']
                     except KeyError:
-                        name = None
+                        name = self.get_road_name_via_nominatim(lat, lon)
 
                 key = "FIX_" + str(counter)
                 self.fix_cams += 1
