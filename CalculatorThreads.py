@@ -403,6 +403,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  overspeed_queue,
                  border_queue,
                  border_queue_reverse,
+                 cv_poi,
+                 poi_queue,
                  ms,
                  s,
                  ml,
@@ -425,6 +427,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.overspeed_queue = overspeed_queue
         self.border_queue = border_queue
         self.border_queue_reverse = border_queue_reverse
+        self.poi_queue = poi_queue
+        self.cv_poi = cv_poi
         self.ms = ms
         self.s = s
         self.ml = ml
@@ -447,6 +451,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.RECT_VALUES = []
         self.RECT_VALUES_EXTRAPOLATED = []
         self.RECT_ATTRIBUTES_INTERSECTED = {}
+        self.RECT_SPEED_CAM_LOOKAHAEAD = None
         self.speed_cam_dict = []
         self.road_candidates = []
 
@@ -534,8 +539,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # motorways since rects are larger)
         self.osm_timeout = 20
         self.osm_timeout_motorway = 25
+        # speed cam lookahead distance in km
+        self.speed_cam_look_ahead_distance = 30
         # initial rect distance in km after app startup
-        self.initial_rect_distance = 2
+        self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
         self.speed_influence_on_rect_boundary = 110
         # angle paramter used for current rect in degrees (only for initial rect calculation)
@@ -558,7 +565,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # but might lead to less speed cameras found)
         # If we are on a motorway only one extrapolated rect larger in size will be used
         # regardless of parameter self.use_only_one_extrapolated_rect
-        self.use_only_one_extrapolated_rect = False
+        self.use_only_one_extrapolated_rect = True
         # Calculate a small rectangle in opposite driving direction as fallback
         # instead of a larger extrapolated rect
         # The feature applies for the next calculation cycle in case condition of CCP was
@@ -589,7 +596,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                       'unclassified': 70,
                                       'secondary': 50,
                                       'tertiary': 50,
-                                      'service': 30,
+                                      'service': 50,
                                       'track': 30,
                                       'residential': 30,
                                       'bus_guideway': 30,
@@ -654,6 +661,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring2 = ';rel(bn)->.x;way(bn);rel(bw););out+body;'
 
         self.querystring_amenity = 'data=[out:json];(node["amenity"="*"]'
+        self.querystring_cameras1 = 'data=[out:json][timeout:10];(node["highway"="speed_camera"]'
+        self.querystring_cameras2 = 'way["highway"="speed_camera"]'
+        self.querystring_cameras3 = 'relation["highway"="speed_camera"]'
 
         # rect boundaries
         self.rectangle_periphery_poi_reader = {'TOP-N': (20, 20),
@@ -909,7 +919,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         isinstance(self.treeGenerator, BinarySearchTree)):
                     self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
                         previous_ccp=True)
+                    # Speed Cam lookahead
+                    self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, True)
             elif next_action == 'CALCULATE':
+                # Speed Cam lookahead
+                self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
                 if self.startup_calculation:
 
                     self.update_kivi_maxspeed_onlinecheck(
@@ -1534,6 +1548,138 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.osm_wrapper.first_start = False
             return 0
 
+    def speed_cam_lookup_ahead(self, previous_ccp=False):
+        """
+        Speed Cam lookup ahead after each interrupt cylce.
+        This lookup is independent of a matching Rectangle
+        :return:
+        """
+        if previous_ccp:
+            xtile = self.xtile_cached
+            ytile = self.ytile_cached
+            ccp_lat = self.latitude_cached
+            ccp_lon = self.longitude_cached
+        else:
+            self.process(update_ccp_only=True)
+            # convert CCP longitude,latitude to (x,y).
+            xtile, ytile = self.longlat2tile(self.latitude, self.longitude, self.zoom)
+            ccp_lat = self.latitude
+            ccp_lon = self.longitude
+
+        if self.RECT_SPEED_CAM_LOOKAHAEAD and isinstance(self.RECT_SPEED_CAM_LOOKAHAEAD, Rect):
+            inside_rect = self.RECT_SPEED_CAM_LOOKAHAEAD.point_in_rect(xtile, ytile)
+            close_to_border = self.RECT_SPEED_CAM_LOOKAHAEAD.points_close_to_border(xtile, ytile)
+
+            if inside_rect and not close_to_border:
+                self.print_log_line("Speed cam lookahead not triggered -> CCP within rectangle "
+                                    "'CURRENT_CAM'")
+                return
+        self.print_log_line("Trigger Speed Cam lookahead")
+
+        xtile_min, xtile_max, ytile_min, ytile_max = self.calculatepoints2angle(
+            xtile,
+            ytile,
+            self.speed_cam_look_ahead_distance,
+            self.current_rect_angle)
+        LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = self.createGeoJsonTilePolygonAngle(
+            self.zoom,
+            xtile_min,
+            ytile_min,
+            xtile_max,
+            ytile_max)
+
+        # convert each of the 2 points to (x,y).
+        pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN, self.zoom)
+        pt2_xtile, pt2_ytile = self.longlat2tile(LAT_MAX, LON_MAX, self.zoom)
+        # calculate a rectangle from these 2 points
+        CURRENT_RECT = self.calculate_rectangle_border(
+            [pt1_xtile, pt1_ytile], [pt2_xtile, pt2_ytile])
+        CURRENT_RECT.set_rectangle_ident(self.direction)
+        CURRENT_RECT.set_rectangle_string('CURRENT_CAM')
+        # calculate the radius of the rectangle in km
+        rectangle_radius = self.calculate_rectangle_radius(
+            CURRENT_RECT.rect_height(),
+            CURRENT_RECT.rect_width())
+        self.print_log_line(f"Rectangle radius for rect 'CURRENT_CAM' is {rectangle_radius}")
+        self.RECT_SPEED_CAM_LOOKAHAEAD = CURRENT_RECT
+
+        # check osm data reception status of favoured rectangle
+        RectangleCalculatorThread.thread_lock = True
+        (online_available, status, data, internal_error,
+         current_rect) = self.trigger_osm_lookup(LON_MIN,
+                                                 LAT_MIN,
+                                                 LON_MAX,
+                                                 LAT_MAX,
+                                                 self.direction,
+                                                 "camera_ahead",
+                                                 current_rect='CURRENT_CAM')
+        RectangleCalculatorThread.thread_lock = False
+
+        if status == 'OK' and len(data) > 0:
+            self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
+                                % (len(data), self.speed_cam_look_ahead_distance))
+
+            counter = 80000
+            speed_cam_dict = dict()
+            for element in data:
+                name = None
+                try:
+                    lat = element['lat']
+                    lon = element['lon']
+                except KeyError:
+                    continue
+                if 'tags' in element:
+                    try:
+                        name = element['tags']['name']
+                    except KeyError:
+                        name = None
+
+                key = "FIX_" + str(counter)
+                self.fix_cams += 1
+                speed_cam_dict[key] = [lat,
+                                       lon,
+                                       lat,
+                                       lon,
+                                       True,
+                                       None,
+                                       None]
+                counter += 1
+                self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
+                                                                'fix_cam': (True,
+                                                                            float(lon),
+                                                                            float(lat),
+                                                                            True),
+                                                                'traffic_cam': (False,
+                                                                                float(lon),
+                                                                                float(lat),
+                                                                                True),
+                                                                'distance_cam': (False,
+                                                                                 float(lon),
+                                                                                 float(lat),
+                                                                                 True),
+                                                                'mobile_cam': (False,
+                                                                               float(lon),
+                                                                               float(lat),
+                                                                               True),
+                                                                'ccp_node': ('IGNORE',
+                                                                             'IGNORE'),
+                                                                'list_tree': (None,
+                                                                              None),
+                                                                'name': name})
+
+            self.update_kivi_info_page()
+
+            if len(speed_cam_dict) > 0:
+                self.speed_cam_dict.append(speed_cam_dict)
+
+            self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+            self.fill_speed_cams()
+
+        else:
+            # Reset the speed cam rect for a new try if the internet connection got broken or
+            # no data was received
+            self.RECT_SPEED_CAM_LOOKAHAEAD = None
+
     @staticmethod
     def start_thread_pool_lookup(func,
                                  worker_threads=1,
@@ -1587,12 +1733,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.update_maxspeed_status(status='INIT', internal_error=None)
 
     @staticmethod
-    def start_thread_pool_speed_structure(func, worker_threads=1,
-                                          linkedList=None, tree=None):
+    def start_thread_pool_speed_cam_structure(func, worker_threads=1, linkedList=None, tree=None):
         # get speed cam data immediately after building our tree and list structure.
 
         pool = ThreadPool(num_threads=worker_threads, action='SPEED')
         pool.add_task(func, linkedList, tree)
+
+    @staticmethod
+    def start_thread_pool_speed_cam_look_ahead(func, worker_threads=1, previous_ccp=False):
+        # get speed cam data immediately with a look ahead.
+
+        pool = ThreadPool(num_threads=worker_threads, action='SPEED_LOOK_AHEAD')
+        pool.add_task(func, previous_ccp)
 
     @staticmethod
     def start_thread_pool_data_lookup(func,
@@ -2346,8 +2498,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                 ' Leaving rect %s immediately!' % rect)
                             return attributes[0], True, delete_rects
 
-                        close_to_border = attributes[0].points_close_to_border(
-                            xtile, ytile)
+                        close_to_border = attributes[0].points_close_to_border(xtile, ytile)
                         self.print_log_line(' CCP lon: %f lat: %f, '
                                             'reusing previously calculated rectangle %s\n'
                                             % (longitude, latitude, rect))
@@ -2358,12 +2509,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            attributes[2],
                                                            attributes[0],
                                                            wait_till_completed=False)
-                        '''self.trigger_cache_lookup(latitude=latitude,
-                                                  longitude=longitude,
-                                                  linkedListGenerator=
-                                                  attributes[1],
-                                                  treeGenerator=attributes[2],
-                                                  current_rect=attributes[0])'''
                         self.ms.update_online_image_layout(False)
                         # self.ml.update_speed_cam_txt(attributes[3])
 
@@ -2395,12 +2540,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                        attributes[2],
                                                        attributes[0],
                                                        wait_till_completed=False)
-                    '''self.trigger_cache_lookup(latitude=latitude,
-                                              longitude=longitude,
-                                              linkedListGenerator=attributes[
-                                                  1],
-                                              treeGenerator=attributes[2],
-                                              current_rect=attributes[0])'''
                     self.ms.update_online_image_layout(False)
                     # self.ml.update_speed_cam_txt(attributes[3])
 
@@ -2431,13 +2570,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            attributes[2],
                                                            attributes[0],
                                                            wait_till_completed=False)
-                        '''self.trigger_cache_lookup(latitude=latitude,
-                                                  longitude=longitude,
-                                                  linkedListGenerator=
-                                                  attributes[1],
-                                                  treeGenerator=attributes[2],
-                                                  current_rect=attributes[0])'''
-
                         self.ms.update_online_image_layout(False)
                         # self.ml.update_speed_cam_txt(attributes[3])
 
@@ -2938,9 +3070,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.process_max_speed_for_road_class(way, treeGenerator)
 
                 # get the speed cams in gps and offline mode with a lookahead.
-                self.process_speed_cameras_on_the_way(way,
+                '''self.process_speed_cameras_on_the_way(way,
                                                       treeGenerator,
-                                                      linkedListGenerator)
+                                                      linkedListGenerator)'''
         # Update speed cameras on the way
         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
 
@@ -3307,6 +3439,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.fix_cams += 1
                     cam_index += 1
                     fix = "FIX_" + str(cam_index)
+                elif way is not None and treeGenerator is not None:
+                    if treeGenerator.hasHighwayAttribute(way) and \
+                            treeGenerator.hasSpeedCam(way):
+                        enforcement = True
+                        fix_cam = True
+                        self.fix_cams += 1
+                        cam_index += 1
+                        fix = "FIX_" + str(cam_index)
                 elif linkedListGenerator.hasEnforcementAttribute2(
                         node) and linkedListGenerator.hasTrafficCamEnforcement(node):
                     enforcement = True
@@ -3321,10 +3461,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     cam_index += 1
                     self.traffic_cams += 1
                     traffic = "TRAFFIC_" + str(cam_index)
-                elif (linkedListGenerator.hasHighwayAttribute(
-                        node) and linkedListGenerator.hasTrafficCam(node)) and \
-                        (linkedListGenerator.hasEnforcementAttribute(node) or
-                         linkedListGenerator.hasEnforcementAttribute2(node)):
+                elif (linkedListGenerator.hasSpeedCamAttribute(
+                        node) and linkedListGenerator.hasTrafficCam(node)):
                     enforcement = True
                     traffic_cam = True
                     cam_index += 1
@@ -3443,6 +3581,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.fix_cams += 1
                 cam_index += 1
                 fix = "FIX_" + str(cam_index)
+            elif way is not None and treeGenerator is not None:
+                if treeGenerator.hasHighwayAttribute(way) and \
+                        treeGenerator.hasSpeedCam(way):
+                    enforcement = True
+                    fix_cam = True
+                    self.fix_cams += 1
+                    cam_index += 1
+                    fix = "FIX_" + str(cam_index)
             elif linkedListGenerator.hasEnforcementAttribute2(
                     node) and linkedListGenerator.hasTrafficCamEnforcement(node):
                 enforcement = True
@@ -3457,10 +3603,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 cam_index += 1
                 self.traffic_cams += 1
                 traffic = "TRAFFIC_" + str(cam_index)
-            elif (linkedListGenerator.hasHighwayAttribute(
-                    node) and linkedListGenerator.hasTrafficCam(node)) and \
-                    (linkedListGenerator.hasEnforcementAttribute(node) or
-                     linkedListGenerator.hasEnforcementAttribute2(node)):
+            elif (linkedListGenerator.hasSpeedCamAttribute(
+                    node) and linkedListGenerator.hasTrafficCam(node)):
                 enforcement = True
                 traffic_cam = True
                 cam_index += 1
@@ -3667,9 +3811,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                       'EMPTY_DATASET_FROM_SERVER')
         if not error:
             if isinstance(linkedListGenerator, DoubleLinkedListNodes):
-                self.start_thread_pool_speed_structure(self.speed_cam_lookup,
-                                                       linkedList=linkedListGenerator,
-                                                       tree=treeGenerator)
+                self.start_thread_pool_speed_cam_structure(self.speed_cam_lookup,
+                                                           linkedList=linkedListGenerator,
+                                                           tree=treeGenerator)
             # clear the vector queue, otherwise outdated positions and
             # speed values are provided if building process takes long
             self.print_log_line("building data structure succeeded")
@@ -3707,7 +3851,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.update_kivi_info_page()
 
         # do a cleanup if the speed cam struture increases this limit
-        if len(self.speed_cam_dict) >= 10:
+        if len(self.speed_cam_dict) >= 100:
             self.print_log_line(" Limit %d reached! Deleting all speed cameras")
             del self.speed_cam_dict[:]
 
@@ -3804,11 +3948,23 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         current_rect = kwargs['current_rect']
 
         querystring = self.querystring1
+        querystring2 = self.querystring2
         if amenity is not None:
-            querystring = self.querystring_amenity.replace("*", amenity)
-        osm_url = self.baseurl + querystring + '(' + str(
-            lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
-            lon_max) + ')' + self.querystring2
+            if amenity == "camera_ahead":
+                querystring = self.querystring_cameras1
+                querystring2 = "');out+body;'"
+            else:
+                querystring = self.querystring_amenity.replace("*", amenity)
+        if amenity == "camera_ahead":
+            bbox = '(' + str(
+                lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
+                lon_max) + ');'
+            osm_url = self.baseurl + querystring + bbox + self.querystring_cameras2 + bbox + \
+                      self.querystring_cameras3 + bbox + querystring2
+        else:
+            osm_url = self.baseurl + querystring + '(' + str(
+                lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
+                lon_max) + ')' + querystring2
 
         s_time = calendar.timegm(time.gmtime())
 

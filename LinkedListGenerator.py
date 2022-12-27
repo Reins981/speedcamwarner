@@ -168,7 +168,7 @@ class DoubleLinkedListNodes(Logger):
         while current_node is not None:
             # keep GUI alive
             gui_obj.update_gui()
-            if self.hasHighwayAttribute(current_node):
+            '''if self.hasHighwayAttribute(current_node):
                 if self.hasSpeedCam(current_node):
                     enforcement = True
                     fixedcam_size += 1
@@ -177,8 +177,8 @@ class DoubleLinkedListNodes(Logger):
                                            current_node.longitude_start,
                                            current_node.latitude_end,
                                            current_node.longitude_end,
-                                           enforcement]
-            elif self.hasEnforcementAttribute2(current_node) and \
+                                           enforcement]'''
+            if self.hasEnforcementAttribute2(current_node) and \
                     self.hasTrafficCamEnforcement(current_node):
                 enforcement = True
                 trafficcam_size += 1
@@ -198,10 +198,8 @@ class DoubleLinkedListNodes(Logger):
                                            current_node.latitude_end,
                                            current_node.longitude_end,
                                            enforcement]
-            elif (self.hasHighwayAttribute(
-                    current_node) and self.hasTrafficCam(current_node)) and \
-                    (self.hasEnforcementAttribute(current_node) or
-                     self.hasEnforcementAttribute2(current_node)):
+            elif (self.hasSpeedCamAttribute(
+                    current_node) and self.hasTrafficCam(current_node)):
                 enforcement = True
                 trafficcam_size += 1
                 traffic = "TRAFFIC_" + str(trafficcam_size)
@@ -291,6 +289,16 @@ class DoubleLinkedListNodes(Logger):
                 return False
 
     @staticmethod
+    def hasSpeedCamAttribute(node):
+        if node is None:
+            return False
+        else:
+            if 'speed_camera' in node.tags.keys():
+                return True
+            else:
+                return False
+
+    @staticmethod
     def hasCrossingAttribute(node):
         if node is None:
             return False
@@ -366,8 +374,7 @@ class DoubleLinkedListNodes(Logger):
         if node is None:
             return False
         else:
-            return node.tags['highway'] == 'red_light_camera' or \
-                   node.tags['highway'] == 'traffic_signals'
+            return node.tags['speed_camera'] == 'traffic_signals'
 
     @staticmethod
     def hasTrafficCamCrossing(node):

@@ -225,8 +225,8 @@ class POIReader(Logger):
                                                                            True),
                                                             'ccp_node': ('IGNORE',
                                                                          'IGNORE'),
-                                                            'list_tree': ('IGNORE',
-                                                                          'IGNORE')})
+                                                            'list_tree': (None,
+                                                                          None)})
 
         for camera_mobile in self.result_pois_mobile:
             longitude = camera_mobile[0]
@@ -251,6 +251,6 @@ class POIReader(Logger):
                                                                            True),
                                                             'ccp_node': ('IGNORE',
                                                                          'IGNORE'),
-                                                            'list_tree': ('IGNORE',
-                                                                          'IGNORE')})
+                                                            'list_tree': (None,
+                                                                          None)})
         return

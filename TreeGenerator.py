@@ -199,8 +199,13 @@ class BinarySearchTree(object):
         logger.print_log_line(" Speedcam attribute found")
         return way.tags['role'] == 'device'
 
-        # way is the currentNode object.
+    # way is the currentNode object.
+    @staticmethod
+    def hasSpeedCam(way):
+        logger.print_log_line(" Speedcam found")
+        return way.tags['highway'] == 'speed_camera'
 
+    # way is the currentNode object.
     @staticmethod
     def hasSection(way):
         logger.print_log_line(" Section attribute found")

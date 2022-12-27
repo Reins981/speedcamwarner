@@ -23,6 +23,8 @@ class VoicePromptThread(StoppableThread, Logger):
         self.cv_voice = cv_voice
         self.voice_prompt_queue = voice_prompt_queue
         self.cond = cond
+        # thread lock
+        self._lock = False
 
     def run(self):
         while not self.cond.terminate:
@@ -42,6 +44,9 @@ class VoicePromptThread(StoppableThread, Logger):
     def process(self):
         voice_entry = self.voice_prompt_queue.consume_items(self.cv_voice)
         self.cv_voice.release()
+
+        while self._lock:
+            pass
 
         sound = None
         if voice_entry == "EXIT_APPLICATION":
@@ -132,9 +137,11 @@ class VoicePromptThread(StoppableThread, Logger):
             pass
 
         if sound is not None:
+            self._lock = True
             self.print_log_line(f" Trigger sound {sound}")
             s = SoundLoader.load(sound)
             if s:
                 s.play()
                 while s.get_pos() != 0:
                     pass
+            self._lock = False
