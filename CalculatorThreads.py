@@ -1568,10 +1568,16 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :return:
         """
         if previous_ccp:
-            xtile = self.xtile_cached
-            ytile = self.ytile_cached
-            ccp_lat = self.latitude_cached
-            ccp_lon = self.longitude_cached
+            if self.longitude_cached > 0 and self.latitude_cached > 0:
+                ccp_lat = self.latitude_cached
+                ccp_lon = self.longitude_cached
+            else:
+                return
+            if self.xtile_cached is not None and self.ytile_cached is not None:
+                xtile = self.xtile_cached
+                ytile = self.ytile_cached
+            else:
+                return
         else:
             self.process(update_ccp_only=True)
             # convert CCP longitude,latitude to (x,y).
