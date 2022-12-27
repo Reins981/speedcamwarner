@@ -790,7 +790,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                         cam_dirs.append(c_d)
                     except ValueError:
                         pass
-            if not cam_dirs:
+            if not cam_dirs or 0 in cam_dirs:
                 return True
 
             direction_ccp = self.calculate_direction(self.ccp_bearing)
