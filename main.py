@@ -2347,13 +2347,12 @@ class MainTApp(App):
                     popup = Popup(title='Attention',
                                   content=Label(text='Please start App First!'),
                                   size_hint=(None, None), size=(500, 500))
+                    popup.open()
                 elif self.osm_init.error_code == 2:
                     popup = Popup(title='Attention',
                                   content=Label(text='No valid GPS position'),
                                   size_hint=(None, None), size=(500, 500))
-                else:
-                    return
-                popup.open()
+                    popup.open()
 
     def callback_menu(self, instance):
         self.sm.current = 'Actions'
