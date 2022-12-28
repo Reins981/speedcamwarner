@@ -330,7 +330,7 @@ class GPSThread(StoppableThread, Logger):
                     self.osm_data_isFilled()
                     self.update_map_queue()
                 else:
-                    gps_accuracy = str(accuracy)
+                    gps_accuracy = str(round(float(accuracy), 1))
                     self.process_offroute(gps_accuracy)
 
     def process_offroute(self, gps_accuracy):

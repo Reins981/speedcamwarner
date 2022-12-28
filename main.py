@@ -2327,9 +2327,9 @@ class MainTApp(App):
         self.sm.current = 'Poi'
 
     def callback_map(self, instance):
-        if self.calculator is not None and self.calculator.thread_lock:
+        if not isinstance(self.gps_producer, GPSThread):
             popup = Popup(title='Attention',
-                          content=Label(text='App busy. Please try again'),
+                          content=Label(text='Please start App first!'),
                           size_hint=(None, None), size=(600, 600))
             popup.open()
         elif not self.calculator.internet_available():
