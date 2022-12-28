@@ -1503,7 +1503,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     'mobile_cam': (False, 0, 0),
                     'ccp_node': (None, None),
                     'list_tree': (None, None),
-                    'stable_ccp': self.isCcpStable})
+                    'stable_ccp': self.isCcpStable,
+                    'bearing': None})
 
         else:
             pass
@@ -1691,7 +1692,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                 'list_tree': (None,
                                                                               None),
                                                                 'name': name,
-                                                                'bearing': direction})
+                                                                'direction': direction})
 
             self.update_kivi_info_page()
 
