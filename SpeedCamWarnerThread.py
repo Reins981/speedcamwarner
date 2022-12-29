@@ -770,7 +770,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             Clock.schedule_once(self.ms.maxspeed.texture_update)
         else:
             if max_speed:
-                font_size = 230
+                font_size = 250
                 self.ms.maxspeed.text = str(max_speed)
                 self.ms.maxspeed.color = (0, 1, .3, .8)
                 self.ms.maxspeed.font_size = font_size
