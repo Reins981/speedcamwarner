@@ -556,6 +556,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.max_cross_roads = 3
         # disable road lookup in case the performance on your phone is not good
         self.disable_road_lookup = False
+        # Disable all rectangle operations except the Nominatim road lookup if explicitly
+        # enabled via parameter alternative_road_lookup
+        self.disable_all = True
         # Use the Nominatim library as alternative method to retrieve a road name
         # Note: This will use more bandwidth
         # Per default the road name is retrieved via the REST API interface to OpenStreetMap
@@ -913,14 +916,15 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.print_log_line(' Calculator thread terminating..')
                 return
             elif next_action == 'OFFLINE':
-                # convert previous CCP longitude,latitude to (x,y).
-                if (isinstance(self.linkedListGenerator,
-                               DoubleLinkedListNodes) and
-                        isinstance(self.treeGenerator, BinarySearchTree)):
-                    self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
-                        previous_ccp=True)
-                    # Speed Cam lookahead
-                    self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, True)
+                if not self.disable_all:
+                    # convert previous CCP longitude,latitude to (x,y).
+                    if (isinstance(self.linkedListGenerator,
+                                   DoubleLinkedListNodes) and
+                            isinstance(self.treeGenerator, BinarySearchTree)):
+                        self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
+                            previous_ccp=True)
+                # Speed Cam lookahead
+                self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, True)
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
@@ -935,6 +939,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.startup_calculation = False
                 else:
                     r_value = self.processInterrupts()
+                    if r_value == 'disable_all':
+                        self.processDisableAllAction()
                     if r_value == 'TERMINATE':
                         break
             elif next_action == 'INIT':
@@ -1525,6 +1531,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             return 'INIT'
 
+    def processDisableAllAction(self):
+        if self.alternative_road_lookup:
+            road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
+            if road_name:
+                self.process_road_name(found_road_name=True,
+                                       road_name=road_name,
+                                       found_combined_tags=False,
+                                       road_class='unclassified',
+                                       poi=False,
+                                       facility=False)
+
     def processInterrupts(self):
         self.isCcpStable = self.interruptqueue.consume(self.cv_interrupt)
         self.cv_interrupt.release()
@@ -1532,6 +1549,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if self.isCcpStable == 'TERMINATE':
             self.print_log_line(' Calculator thread interrupt termination')
             return 'TERMINATE'
+
+        if self.disable_all:
+            return 'disable_all'
 
         if self.border_reached or self.isCcpStable == 'STABLE':
             self.trigger_calculation('CONTINUE')
@@ -1625,6 +1645,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.RECT_SPEED_CAM_LOOKAHAEAD = CURRENT_RECT
 
         # check osm data reception status of favoured rectangle
+        speed_cam_dict = dict()
+
         RectangleCalculatorThread.thread_lock = True
         (online_available, status, data, internal_error,
          current_rect) = self.trigger_osm_lookup(LON_MIN,
@@ -1641,16 +1663,23 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                 % (len(data), self.speed_cam_look_ahead_distance))
 
             counter = 80000
-            speed_cam_dict = dict()
             for element in data:
                 name = None
                 direction = None
+                maxspeed = None
                 try:
                     lat = element['lat']
                     lon = element['lon']
                 except KeyError:
                     continue
+
+                prefix = 'FIX_'
                 if 'tags' in element:
+                    if 'speed_camera' in element.get('tags'):
+                        value = element.get('tags').get('speed_camera')
+                        if value == "traffic_signals":
+                            prefix = 'TRAFFIC_'
+
                     try:
                         name = element['tags']['name']
                     except KeyError:
@@ -1659,9 +1688,16 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         direction = element['tags']['direction']
                     except KeyError:
                         pass
+                    try:
+                        maxspeed = element['tags']['maxspeed']
+                    except KeyError:
+                        pass
 
-                key = "FIX_" + str(counter)
-                self.fix_cams += 1
+                key = prefix + str(counter)
+                if prefix == 'FIX_':
+                    self.fix_cams += 1
+                else:
+                    self.traffic_cams += 1
                 speed_cam_dict[key] = [lat,
                                        lon,
                                        lat,
@@ -1671,11 +1707,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                        None]
                 counter += 1
                 self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
-                                                                'fix_cam': (True,
+                                                                'fix_cam': (True if prefix == 'FIX_' else False,
                                                                             float(lon),
                                                                             float(lat),
                                                                             True),
-                                                                'traffic_cam': (False,
+                                                                'traffic_cam': (True if prefix == 'TRAFFIC_' else False,
                                                                                 float(lon),
                                                                                 float(lat),
                                                                                 True),
@@ -1692,7 +1728,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                 'list_tree': (None,
                                                                               None),
                                                                 'name': name,
-                                                                'direction': direction})
+                                                                'direction': direction,
+                                                                'maxspeed': maxspeed})
 
             self.update_kivi_info_page()
 
@@ -1790,6 +1827,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def trigger_calculation(self, *args):
         reason = args[0]
+
+        if self.disable_all:
+            return
 
         # convert CCP longitude,latitude to (x,y).
         self.xtile, self.ytile = self.longlat2tile(self.latitude,
@@ -3115,6 +3155,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         """
         if not self.internet_available():
             self.print_log_line(f" Could not resolve Road Name -> No Internet Connection!")
+            return None
+
+        if self.latitude is None or self.longitude is None:
+            self.print_log_line(f" Could not resolve Road Name -> No valid coordinates given!")
             return None
 
         try:

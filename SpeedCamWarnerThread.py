@@ -134,6 +134,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -146,7 +147,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         start_time,
                                                         roadname,
                                                         last_calc_distance,
-                                                        cam_direction]
+                                                        cam_direction,
+                                                        max_speed]
                 self.INSERTED_SPEEDCAMS.append((item['fix_cam'][1], item['fix_cam'][2]))
 
         if item['traffic_cam'][0]:
@@ -175,6 +177,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -187,7 +190,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         start_time,
                                                         roadname,
                                                         last_calc_distance,
-                                                        cam_direction]
+                                                        cam_direction,
+                                                        max_speed]
                 self.INSERTED_SPEEDCAMS.append((item['traffic_cam'][1], item['traffic_cam'][2]))
 
         if item['distance_cam'][0]:
@@ -216,6 +220,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -228,7 +233,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         start_time,
                                                         roadname,
                                                         last_calc_distance,
-                                                        cam_direction]
+                                                        cam_direction,
+                                                        max_speed]
                 self.INSERTED_SPEEDCAMS.append((item['distance_cam'][1], item['distance_cam'][2]))
 
         if item['mobile_cam'][0]:
@@ -257,6 +263,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 last_calc_distance = 0
                 start_time = time.time()
                 roadname = item.get('name', None)
+                max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -269,7 +276,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         start_time,
                                                         roadname,
                                                         last_calc_distance,
-                                                        cam_direction]
+                                                        cam_direction,
+                                                        max_speed]
                 self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
 
         cams_to_delete = []
@@ -297,6 +305,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_meters('')
                 self.update_cam_text(reset=True)
                 self.update_cam_road(reset=True)
+                self.update_max_speed(reset=True)
                 self.update_calculator_cams(cam_attributes)
             else:
                 entry = (cam, distance)
@@ -330,6 +339,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_meters('')
                 self.update_cam_text(reset=True)
                 self.update_cam_road(reset=True)
+                self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
                                     "%s %s because of Angle mismatch" % (cam[0], cam[1]))
                 return False
@@ -351,7 +361,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[2],
                                           cam_attributes[3],
                                           cam_attributes[4],
-                                          cam_attributes[5])
+                                          cam_attributes[5],
+                                          cam_attributes[10])
 
         else:
             self.print_log_line(" Removed %s speed cam with cam coordinates %f %f" % (
@@ -370,6 +381,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_bar_widget_meters('')
             self.update_cam_text(reset=True)
             self.update_cam_road(reset=True)
+            self.update_max_speed(reset=True)
             del self.INSERTED_SPEEDCAMS[:]
 
         return True
@@ -396,7 +408,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         return cam_coordinates in self.INSERTED_SPEEDCAMS
 
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
-                                 ccp_node=(0, 0), linked_list=None, tree=None, last_distance=-1):
+                                 ccp_node=(0, 0), linked_list=None, tree=None,
+                                 last_distance=-1, max_speed=None):
 
         if speedcam != 'fix':
             dismiss_policy = True
@@ -433,7 +446,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_500m()
                 self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
-                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                if cam_coordinates in self.ITEMQUEUE:
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
 
             if last_distance == 100:
                 Clock.schedule_once(
@@ -444,7 +459,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_500m()
                 self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
-                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                if cam_coordinates in self.ITEMQUEUE:
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
 
             last_distance = 100
             dismiss = False
@@ -475,7 +492,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_500m()
                 self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
-                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                if cam_coordinates in self.ITEMQUEUE:
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
             else:
 
                 if last_distance == 300:
@@ -487,7 +506,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_500m()
                     self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
-                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    if cam_coordinates in self.ITEMQUEUE:
+                        self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                        self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
                 else:
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
@@ -497,6 +518,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
+                    self.update_max_speed(reset=True)
                     dismiss = dismiss_policy
 
             last_distance = 300
@@ -527,7 +549,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_500m()
                 self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
-                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                if cam_coordinates in self.ITEMQUEUE:
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
             else:
 
                 if last_distance == 500:
@@ -539,7 +563,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_500m()
                     self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
-                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    if cam_coordinates in self.ITEMQUEUE:
+                        self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                        self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
                 else:
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
@@ -549,6 +575,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
+                    self.update_max_speed(reset=True)
                     dismiss = dismiss_policy
 
             last_distance = 500
@@ -579,7 +606,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_500m(color=2)
                 self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
-                self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                if cam_coordinates in self.ITEMQUEUE:
+                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
             else:
 
                 if last_distance == 1000:
@@ -591,7 +620,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_500m(color=2)
                     self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
-                    self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                    if cam_coordinates in self.ITEMQUEUE:
+                        self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
+                        self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
                 else:
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
@@ -601,6 +632,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
+                    self.update_max_speed(reset=True)
                     dismiss = dismiss_policy
 
             last_distance = 1000
@@ -632,6 +664,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_meters('')
                     self.update_cam_text(reset=True)
                     self.update_cam_road(reset=True)
+                    self.update_max_speed(reset=True)
                     dismiss = dismiss_policy
 
             last_distance = 1001
@@ -656,6 +689,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_bar_widget_meters('')
             self.update_cam_text(reset=True)
             self.update_cam_road(reset=True)
+            self.update_max_speed(reset=True)
 
             last_distance = self.max_absolute_distance
             # Those cameras will not be dismissed until their storage time has passed or they are
@@ -729,6 +763,20 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def update_cam_road(self, road=None, reset=False):
         self.ms.update_cam_road(road, reset)
+
+    def update_max_speed(self, max_speed=None, reset=False):
+        if reset:
+            self.ms.maxspeed.text = ""
+            Clock.schedule_once(self.ms.maxspeed.texture_update)
+        else:
+            if max_speed:
+                font_size = 230
+                self.ms.maxspeed.text = str(max_speed)
+                self.ms.maxspeed.color = (0, 1, .3, .8)
+                self.ms.maxspeed.font_size = font_size
+            else:
+                self.ms.maxspeed.text = ""
+            Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     # beeline distance between 2 points (lon,lat) in meters.
     def check_beeline_distance(self, pt1, pt2):
