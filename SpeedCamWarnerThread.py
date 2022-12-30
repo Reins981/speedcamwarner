@@ -924,10 +924,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         return angle
 
     def delete_passed_cameras(self):
+
         copy_dict = self.ITEMQUEUE.copy()
         copy_dict_backup = self.ITEMQUEUE_BACKUP.copy()
         camera_items = [copy_dict, copy_dict_backup]
-        for cameras in camera_items:
+
+        for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
                 if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
                     distance = self.check_distance_between_two_points(cam,
@@ -938,10 +940,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                             self.print_log_line(" Deleting obsolete camera: %s "
                                                 "(max distance %d m > current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance, abs(distance)))
-                            self.ITEMQUEUE.pop(cam)
-                            self.start_times.pop(cam)
-                            self.remove_cached_camera(cam)
-                            self.update_calculator_cams(cam_attributes)
+                            if index == 0:
+                                self.ITEMQUEUE.pop(cam)
+                                self.start_times.pop(cam)
+                                self.remove_cached_camera(cam)
+                                self.update_calculator_cams(cam_attributes)
+                            else:
+                                self.ITEMQUEUE_BACKUP.pop(cam)
+                                self.start_times_backup.pop(cam)
                         except Exception as e:
                             pass
                     else:
@@ -950,10 +956,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                 self.print_log_line(" Deleting obsolete camera: %s "
                                                     "because of storage time (max %d seconds)"
                                                     % (str(cam), self.max_storage_time))
-                                self.ITEMQUEUE.pop(cam)
-                                self.start_times.pop(cam)
-                                self.remove_cached_camera(cam)
-                                self.update_calculator_cams(cam_attributes)
+                                if index == 0:
+                                    self.ITEMQUEUE.pop(cam)
+                                    self.start_times.pop(cam)
+                                    self.remove_cached_camera(cam)
+                                    self.update_calculator_cams(cam_attributes)
+                                else:
+                                    self.ITEMQUEUE_BACKUP.pop(cam)
+                                    self.start_times_backup.pop(cam)
                             except Exception as e:
                                 pass
                 else:
@@ -966,10 +976,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                             self.print_log_line(" Deleting obsolete camera: %s "
                                                 "(max distance %d m > current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance, abs(distance)))
-                            self.ITEMQUEUE.pop(cam)
-                            self.start_times.pop(cam)
-                            self.remove_cached_camera(cam)
-                            self.update_calculator_cams(cam_attributes)
+                            if index == 0:
+                                self.ITEMQUEUE.pop(cam)
+                                self.start_times.pop(cam)
+                                self.remove_cached_camera(cam)
+                                self.update_calculator_cams(cam_attributes)
+                            else:
+                                self.ITEMQUEUE_BACKUP.pop(cam)
+                                self.start_times_backup.pop(cam)
                         except Exception as e:
                             pass
                     else:
@@ -979,10 +993,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                 self.print_log_line(" Deleting obsolete camera: %s "
                                                     "because of storage time (max %d seconds)"
                                                     % (str(cam), self.max_storage_time))
-                                self.ITEMQUEUE.pop(cam)
-                                self.start_times.pop(cam)
-                                self.remove_cached_camera(cam)
-                                self.update_calculator_cams(cam_attributes)
+                                if index == 0:
+                                    self.ITEMQUEUE.pop(cam)
+                                    self.start_times.pop(cam)
+                                    self.remove_cached_camera(cam)
+                                    self.update_calculator_cams(cam_attributes)
+                                else:
+                                    self.ITEMQUEUE_BACKUP.pop(cam)
+                                    self.start_times_backup.pop(cam)
                             except Exception as e:
                                 pass
 
