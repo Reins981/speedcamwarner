@@ -667,6 +667,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring_cameras1 = 'data=[out:json][timeout:20];(node["highway"="speed_camera"]'
         self.querystring_cameras2 = 'way["highway"="speed_camera"]'
         self.querystring_cameras3 = 'relation["highway"="speed_camera"]'
+        self.querystring_hazard1 = 'data=[out:json][timeout:20];(node["hazard"="falling_rocks"]'
+        self.querystring_hazard2 = 'node["hazard"="road_narrows"]'
+        self.querystring_hazard3 = 'node["hazard"="slippery"]'
+        self.querystring_hazard4 = 'node["hazard"="damaged_road"]'
+        self.querystring_hazard5 = 'node["hazard"="ice"]'
+        self.querystring_hazard6 = 'node["hazard"="fog"]'
+        self.querystring_distance_cams = 'data=[out:json][timeout:20];(relation["enforcement"="mindistance"]'
 
         # rect boundaries
         self.rectangle_periphery_poi_reader = {'TOP-N': (20, 20),
@@ -940,7 +947,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 else:
                     r_value = self.processInterrupts()
                     if r_value == 'disable_all':
-                        self.processDisableAllAction()
+                        self.start_thread_pool_process_disable_all(self.processDisableAllAction, 1)
                     if r_value == 'TERMINATE':
                         break
             elif next_action == 'INIT':
@@ -1533,6 +1540,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def processDisableAllAction(self):
         if self.alternative_road_lookup:
+            while RectangleCalculatorThread.thread_lock:
+                pass
+            RectangleCalculatorThread.thread_lock = True
             road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
             if road_name:
                 self.process_road_name(found_road_name=True,
@@ -1541,6 +1551,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                        road_class='unclassified',
                                        poi=False,
                                        facility=False)
+            RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
         self.isCcpStable = self.interruptqueue.consume(self.cv_interrupt)
@@ -1646,100 +1657,114 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         # check osm data reception status of favoured rectangle
         speed_cam_dict = dict()
+        lookup_types = ["camera_ahead", "distance_cam"]
+        connection_success = False
 
-        RectangleCalculatorThread.thread_lock = True
-        (online_available, status, data, internal_error,
-         current_rect) = self.trigger_osm_lookup(LON_MIN,
-                                                 LAT_MIN,
-                                                 LON_MAX,
-                                                 LAT_MAX,
-                                                 self.direction,
-                                                 "camera_ahead",
-                                                 current_rect='CURRENT_CAM')
-        RectangleCalculatorThread.thread_lock = False
+        for lookup_type in lookup_types:
 
-        if status == 'OK' and len(data) > 0:
-            self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
-                                % (len(data), self.speed_cam_look_ahead_distance))
+            RectangleCalculatorThread.thread_lock = True
+            (online_available, status, data, internal_error,
+             current_rect) = self.trigger_osm_lookup(LON_MIN,
+                                                     LAT_MIN,
+                                                     LON_MAX,
+                                                     LAT_MAX,
+                                                     self.direction,
+                                                     lookup_type,
+                                                     current_rect='CURRENT_CAM')
+            RectangleCalculatorThread.thread_lock = False
 
-            counter = 80000
-            for element in data:
-                name = None
-                direction = None
-                maxspeed = None
-                try:
-                    lat = element['lat']
-                    lon = element['lon']
-                except KeyError:
-                    continue
+            if status == 'OK' and len(data) > 0:
+                connection_success = True
+                self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
+                                    % (len(data), self.speed_cam_look_ahead_distance))
 
-                prefix = 'FIX_'
-                if 'tags' in element:
-                    if 'speed_camera' in element.get('tags'):
-                        value = element.get('tags').get('speed_camera')
-                        if value == "traffic_signals":
-                            prefix = 'TRAFFIC_'
-
+                counter = 80000
+                for element in data:
+                    name = None
+                    direction = None
+                    maxspeed = None
                     try:
-                        name = element['tags']['name']
+                        lat = element['lat']
+                        lon = element['lon']
                     except KeyError:
+                        continue
+
+                    prefix = 'FIX_'
+                    if 'tags' in element:
+                        if 'speed_camera' in element.get('tags'):
+                            value = element.get('tags')['speed_camera']
+                            if value == "traffic_signals":
+                                prefix = 'TRAFFIC_'
+
+                        try:
+                            name = element['tags']['name']
+                        except KeyError:
+                            name = self.get_road_name_via_nominatim(lat, lon)
+                        try:
+                            direction = element['tags']['direction']
+                        except KeyError:
+                            pass
+                        try:
+                            maxspeed = element['tags']['maxspeed']
+                        except KeyError:
+                            pass
+
+                    if lookup_type == "distance_cam":
+                        prefix = "DISTANCE_"
                         name = self.get_road_name_via_nominatim(lat, lon)
-                    try:
-                        direction = element['tags']['direction']
-                    except KeyError:
-                        pass
-                    try:
-                        maxspeed = element['tags']['maxspeed']
-                    except KeyError:
-                        pass
 
-                key = prefix + str(counter)
-                if prefix == 'FIX_':
-                    self.fix_cams += 1
-                else:
-                    self.traffic_cams += 1
-                speed_cam_dict[key] = [lat,
-                                       lon,
-                                       lat,
-                                       lon,
-                                       True,
-                                       None,
-                                       None]
-                counter += 1
-                self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
-                                                                'fix_cam': (True if prefix == 'FIX_' else False,
-                                                                            float(lon),
-                                                                            float(lat),
-                                                                            True),
-                                                                'traffic_cam': (True if prefix == 'TRAFFIC_' else False,
+                    key = prefix + str(counter)
+                    if prefix == 'FIX_':
+                        self.fix_cams += 1
+                    elif prefix == 'TRAFFIC_':
+                        self.traffic_cams += 1
+                    else:
+                        self.distance_cams += 1
+                    speed_cam_dict[key] = [lat,
+                                           lon,
+                                           lat,
+                                           lon,
+                                           True,
+                                           None,
+                                           None]
+                    counter += 1
+                    self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
+                                                                    'fix_cam': (True if prefix == 'FIX_' else False,
                                                                                 float(lon),
                                                                                 float(lat),
                                                                                 True),
-                                                                'distance_cam': (False,
-                                                                                 float(lon),
-                                                                                 float(lat),
-                                                                                 True),
-                                                                'mobile_cam': (False,
-                                                                               float(lon),
-                                                                               float(lat),
-                                                                               True),
-                                                                'ccp_node': ('IGNORE',
-                                                                             'IGNORE'),
-                                                                'list_tree': (None,
-                                                                              None),
-                                                                'name': name,
-                                                                'direction': direction,
-                                                                'maxspeed': maxspeed})
+                                                                    'traffic_cam': (True if prefix == 'TRAFFIC_' else False,
+                                                                                    float(lon),
+                                                                                    float(lat),
+                                                                                    True),
+                                                                    'distance_cam': (True if prefix == 'DISTANCE_' else False,
+                                                                                     float(lon),
+                                                                                     float(lat),
+                                                                                     True),
+                                                                    'mobile_cam': (False,
+                                                                                   float(lon),
+                                                                                   float(lat),
+                                                                                   True),
+                                                                    'ccp_node': ('IGNORE',
+                                                                                 'IGNORE'),
+                                                                    'list_tree': (None,
+                                                                                  None),
+                                                                    'name': name,
+                                                                    'direction': direction,
+                                                                    'maxspeed': maxspeed})
 
-            self.update_kivi_info_page()
+                self.update_kivi_info_page()
 
-            if len(speed_cam_dict) > 0:
-                self.speed_cam_dict.append(speed_cam_dict)
+                if len(speed_cam_dict) > 0:
+                    self.speed_cam_dict.append(speed_cam_dict)
 
-            self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
-            self.fill_speed_cams()
+                self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                self.fill_speed_cams()
 
-        else:
+            else:
+                connection_success = False
+
+        if connection_success is False:
             # Reset the speed cam rect for a new try if the internet connection got broken or
             # no data was received
             self.RECT_SPEED_CAM_LOOKAHAEAD = None
@@ -1809,6 +1834,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         pool = ThreadPool(num_threads=worker_threads, action='SPEED')
         pool.add_task(func, previous_ccp)
+
+    @staticmethod
+    def start_thread_pool_process_disable_all(func, worker_threads=1):
+        pool = ThreadPool(num_threads=worker_threads, action='DISABLE')
+        pool.add_task(func)
 
     @staticmethod
     def start_thread_pool_data_lookup(func,
@@ -4024,6 +4054,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if amenity == "camera_ahead":
                 querystring = self.querystring_cameras1
                 querystring2 = ");out+body;"
+            elif amenity == "hazard":
+                querystring = self.querystring_hazard1
+                querystring2 = ");out+body;"
+            elif amenity == "distance_cam":
+                querystring = self.querystring_distance_cams
+                querystring2 = ");out+body;"
             else:
                 querystring = self.querystring_amenity.replace("*", amenity)
         if amenity == "camera_ahead":
@@ -4032,6 +4068,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + self.querystring_cameras2 + bbox + \
                 self.querystring_cameras3 + bbox + querystring2
+        elif amenity == "hazard":
+            bbox = '(' + str(
+                lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
+                lon_max) + ');'
+            osm_url = self.baseurl + querystring + bbox + self.querystring_hazard2 + bbox + \
+                self.querystring_hazard3 + bbox + self.querystring_hazard4 + bbox + \
+                self.querystring_hazard5 + bbox + self.querystring_hazard6 + bbox + querystring2
+        elif amenity == "distance_cam":
+            bbox = '(' + str(
+                lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
+                lon_max) + ');'
+            osm_url = self.baseurl + querystring + bbox + querystring2
         else:
             osm_url = self.baseurl + querystring + '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(

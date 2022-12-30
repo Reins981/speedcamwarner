@@ -2285,10 +2285,11 @@ class MainTApp(App):
         return self.calculator
 
     def init_speed_cam_warner(self, cv_voice, cv_speedcam, gpssignalqueue, speedcamqueue,
-                              osm_wrapper, calculator, ms, g,
+                              cv_overspeed, overspeed_queue, osm_wrapper, calculator, ms, g,
                               cond):
         self.speedwarner = SpeedCamWarnerThread(cv_voice, cv_speedcam, gpssignalqueue,
-                                                speedcamqueue, osm_wrapper, calculator, ms, g, cond)
+                                                speedcamqueue, cv_overspeed, overspeed_queue,
+                                                osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
         logger.print_log_line(" Start speed warner thread")
         self.speedwarner.setDaemon(True)
@@ -2582,6 +2583,8 @@ class MainTApp(App):
                                        self.cv_speedcam,
                                        self.voice_prompt_queue,
                                        self.speed_cam_queue,
+                                       self.cv_overspeed,
+                                       self.overspeed_queue,
                                        self.osm_wrapper,
                                        calculator,
                                        self.ms,

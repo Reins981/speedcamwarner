@@ -191,6 +191,7 @@ class GPSThread(StoppableThread, Logger):
         self.last_bearing = None
         self.current_bearings = []
         self.curr_driving_direction = None
+        self.gps_offline_stable_counter = 0
 
         # set config items
         self.set_configs()
@@ -207,7 +208,7 @@ class GPSThread(StoppableThread, Logger):
                                      "gpx",
                                      "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 950
+        self.gps_treshold = 150
 
     def run(self):
 
@@ -263,6 +264,7 @@ class GPSThread(StoppableThread, Logger):
                 accuracy = event['data']['gps']['accuracy']
                 if int(accuracy) <= self.gps_treshold:
 
+                    self.gps_offline_stable_counter = 0
                     # Set members
                     success_speed = False
                     success_coords = False
@@ -335,22 +337,24 @@ class GPSThread(StoppableThread, Logger):
 
     def process_offroute(self, gps_accuracy):
 
+        self.gps_offline_stable_counter += 1
         if self.already_off():
             pass
         else:
-            self.print_log_line(f"GPS status is {gps_accuracy}")
-            if gps_accuracy.isdigit():
-                gps_accuracy = "GPS_LOW"
-            self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
-            self.g.off_state()
+            if self.gps_offline_stable_counter == 2:
+                self.print_log_line(f"GPS status is {gps_accuracy}")
+                if gps_accuracy.isdigit():
+                    gps_accuracy = "GPS_LOW"
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
+                self.g.off_state()
 
-            self.gpsqueue.produce(self.cv, {'---.-': 3})
-            self.gpsqueue.produce(self.cv, {'---.-': 4})
-            self.produce_bearing_set(0.001)
+                self.gpsqueue.produce(self.cv, {'---.-': 3})
+                self.gpsqueue.produce(self.cv, {'---.-': 4})
+                self.produce_bearing_set(0.001)
 
-            self.off_state = True
-            self.on_state = False
-            self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
+                self.off_state = True
+                self.on_state = False
+                self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
 
         self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
                                    float(0.0), float(0.0), '-', 'OFFLINE', 0)
