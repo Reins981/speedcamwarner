@@ -300,7 +300,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
             last_distance = cam_attributes[8]
             if current_distance < last_distance:
-                self.print_log_line(f"Reinserting camera {str(cam)} with new distance "
+                self.print_log_line(f"Reinserting {cam_attributes[0]} camera {str(cam)} "
+                                    f"with new distance "
                                     f"{current_distance} km")
                 self.ITEMQUEUE[cam] = cam_attributes
                 self.ITEMQUEUE[cam][1] = False
