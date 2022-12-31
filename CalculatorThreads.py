@@ -22,7 +22,6 @@ from decimal import Decimal
 from collections import OrderedDict, Counter
 from ThreadBase import StoppableThread, ThreadPool
 from OSMWrapper import maps
-from SpeedCamWarnerThread import SpeedCamWarnerThread
 from LinkedListGenerator import DoubleLinkedListNodes
 from TreeGenerator import BinarySearchTree
 from enum import Enum
@@ -1560,7 +1559,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                        road_class='unclassified',
                                        poi=False,
                                        facility=False)
-            if SpeedCamWarnerThread.CAM_IN_PROGRESS is False and self.internet_available():
+            if self.internet_available():
                 self.update_kivi_maxspeed("->->->")
             if road_name.startswith("ERROR:"):
                 self.update_maxspeed_status("ERROR",
