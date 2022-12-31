@@ -1493,6 +1493,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.convert_cspeed()
             self.cache_bearing()
             self.cache_ccp()
+            self.cache_tiles(self.xtile, self.ytile)
             return
 
         if self.gpsstatus != 'EXIT' and self.gpsstatus != 'OFFLINE':
@@ -1627,6 +1628,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             # convert CCP longitude,latitude to (x,y).
             xtile, ytile = self.longlat2tile(self.latitude, self.longitude, self.zoom)
+            self.cache_tiles(xtile, ytile)
             ccp_lat = self.latitude
             ccp_lon = self.longitude
 
