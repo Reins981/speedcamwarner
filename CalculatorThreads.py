@@ -22,6 +22,7 @@ from decimal import Decimal
 from collections import OrderedDict, Counter
 from ThreadBase import StoppableThread, ThreadPool
 from OSMWrapper import maps
+from SpeedCamWarnerThread import SpeedCamWarnerThread
 from LinkedListGenerator import DoubleLinkedListNodes
 from TreeGenerator import BinarySearchTree
 from enum import Enum
@@ -233,6 +234,9 @@ class Rect(object):
         self.width = 0
         self.ident = ''
         self.rect_string = ''
+        # close to border max values
+        self.max_close_to_border_value = 0.300
+        self.max_close_to_border_value_look_ahead = 0.200
         # initialize a rectangle from 2 points
         self.set_points(pt1, pt2, point_list)
 
@@ -365,8 +369,12 @@ class Rect(object):
 
         return inside
 
-    def points_close_to_border(self, xtile, ytile):
+    def points_close_to_border(self, xtile, ytile, look_ahead=False):
         x, y = xtile, ytile
+        if look_ahead:
+            max_val = self.max_close_to_border_value_look_ahead
+        else:
+            max_val = self.max_close_to_border_value
 
         rect = [self.top_left(), self.top_right(), self.bottom_left(),
                 self.bottom_right()]
@@ -376,10 +384,10 @@ class Rect(object):
         pt1x, pt1y = rect[0].x, rect[0].y
         for i in range(n + 1):
             pt2x, pt2y = rect[i % n].x, rect[i % n].y
-            if abs(y - min(pt1y, pt2y)) <= 0.300 or abs(
-                    y - max(pt1y, pt2y)) <= 0.300 or abs(
-                x - max(pt1x, pt2x)) <= 0.300 or abs(
-                x - min(pt1x, pt2x)) <= 0.300:
+            if abs(y - min(pt1y, pt2y)) <= max_val or abs(
+                    y - max(pt1y, pt2y)) <= max_val or abs(
+                x - max(pt1x, pt2x)) <= max_val or abs(
+                x - min(pt1x, pt2x)) <= max_val:
                 return True
             pt1x, pt1y = pt2x, pt2y
 
@@ -540,7 +548,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.osm_timeout = 20
         self.osm_timeout_motorway = 25
         # speed cam lookahead distance in km
-        self.speed_cam_look_ahead_distance = 30
+        self.speed_cam_look_ahead_distance = 50
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
@@ -1544,13 +1552,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 pass
             RectangleCalculatorThread.thread_lock = True
             road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
-            if road_name:
+            if road_name and not road_name.startswith("ERROR:"):
                 self.process_road_name(found_road_name=True,
                                        road_name=road_name,
                                        found_combined_tags=False,
                                        road_class='unclassified',
                                        poi=False,
                                        facility=False)
+            if SpeedCamWarnerThread.CAM_IN_PROGRESS is False and self.internet_available():
+                self.update_kivi_maxspeed("->->->")
+            if road_name.startswith("ERROR:"):
+                self.update_maxspeed_status("ERROR",
+                                            internal_error=road_name[road_name.find(":")+2:])
             RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
@@ -1620,7 +1633,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         if self.RECT_SPEED_CAM_LOOKAHAEAD and isinstance(self.RECT_SPEED_CAM_LOOKAHAEAD, Rect):
             inside_rect = self.RECT_SPEED_CAM_LOOKAHAEAD.point_in_rect(xtile, ytile)
-            close_to_border = self.RECT_SPEED_CAM_LOOKAHAEAD.points_close_to_border(xtile, ytile)
+            close_to_border = self.RECT_SPEED_CAM_LOOKAHAEAD.points_close_to_border(xtile,
+                                                                                    ytile,
+                                                                                    look_ahead=True)
 
             if inside_rect and not close_to_border:
                 self.print_log_line("Speed cam lookahead not triggered -> CCP within rectangle "
@@ -1658,7 +1673,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # check osm data reception status of favoured rectangle
         speed_cam_dict = dict()
         lookup_types = ["camera_ahead", "distance_cam"]
-        connection_success = False
 
         for lookup_type in lookup_types:
 
@@ -1672,9 +1686,23 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                      lookup_type,
                                                      current_rect='CURRENT_CAM')
             RectangleCalculatorThread.thread_lock = False
+            self.update_kivi_maxspeed_onlinecheck(
+                online_available=online_available,
+                status=status,
+                internal_error=internal_error,
+                alternative_image="UNDEFINED")
+
+            if status != 'OK':
+                if self.osm_error_reported:
+                    pass
+                else:
+                    self.ms.update_online_image_layout("INETFAILED")
+                    self.voice_prompt_queue.produce_online_status(
+                        self.cv_voice, "INTERNET_CONN_FAILED")
+                    self.osm_error_reported = True
 
             if status == 'OK' and len(data) > 0:
-                connection_success = True
+                self.osm_error_reported = False
                 self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
                                     % (len(data), self.speed_cam_look_ahead_distance))
 
@@ -1761,10 +1789,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
                 self.fill_speed_cams()
 
-            else:
-                connection_success = False
-
-        if connection_success is False:
+        if not self.internet_available():
             # Reset the speed cam rect for a new try if the internet connection got broken or
             # no data was received
             self.RECT_SPEED_CAM_LOOKAHAEAD = None
@@ -3183,10 +3208,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :param longitude:
         :return:
         """
-        if not self.internet_available():
-            self.print_log_line(f" Could not resolve Road Name -> No Internet Connection!")
-            return None
-
         if self.latitude is None or self.longitude is None:
             self.print_log_line(f" Could not resolve Road Name -> No valid coordinates given!")
             return None
@@ -3195,10 +3216,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             coords = str(latitude) + " " + str(longitude)
             # try to not fetch buildings, only major and minor streets
             location = self.geolocator.reverse(coords, zoom=17)
+            self.internet_connection = True
         except Exception as e:
             self.print_log_line(f" Road lookup via Nominatim failed! -> "
                                 f"{str(e)}", log_level="ERROR")
-            return None
+            self.internet_connection = False
+            return "ERROR: " + str(e)
 
         loc = location.address.split(",")
         if loc:
@@ -4223,7 +4246,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                   self.traffic_cams, self.distance_cams)
 
     def update_kivi_maxspeed_onlinecheck(self, online_available=True,
-                                         status='OK', internal_error=''):
+                                         status='OK', internal_error='', alternative_image=None):
         self.current_online_status = status
 
         if online_available:
@@ -4233,7 +4256,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             else:
                 self.update_maxspeed_status(self.current_online_status,
                                             internal_error)
-                self.ms.update_online_image_layout(online_available)
+                if alternative_image is not None:
+                    self.ms.update_online_image_layout(alternative_image)
+                else:
+                    self.ms.update_online_image_layout(online_available)
                 self.already_online = True
                 self.already_offline = False
         else:

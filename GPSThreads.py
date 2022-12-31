@@ -208,7 +208,7 @@ class GPSThread(StoppableThread, Logger):
                                      "gpx",
                                      "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 150
+        self.gps_treshold = 110
 
     def run(self):
 

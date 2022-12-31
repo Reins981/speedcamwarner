@@ -21,6 +21,9 @@ from CalculatorThreads import RectangleCalculatorThread
 
 
 class SpeedCamWarnerThread(StoppableThread, Logger):
+
+    CAM_IN_PROGRESS = False
+
     def __init__(self, cv_voice, cv_speedcam, voice_prompt_queue, speedcamqueue, cv_overspeed,
                  overspeed_queue, osm_wrapper, calculator, ms, g, cond):
         StoppableThread.__init__(self)
@@ -61,7 +64,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
-        self.max_absolute_distance = 30000
+        self.max_absolute_distance = 50000
         # Initial max storage time. If this time has passed,
         # cameras which have been traversed by the car
         # and which have never been initialized once (last_distance = -1) will be deleted
@@ -456,7 +459,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                  last_distance=-1, max_speed=None):
 
         if 0 <= distance <= 100:
-
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = True
             if last_distance == -1 or last_distance > 100:
                 if distance < 50:
                     if speedcam == 'fix':
@@ -512,6 +515,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE[cam_coordinates][5] = last_distance
             self.ITEMQUEUE[cam_coordinates][8] = distance
         elif 100 < distance <= 300:
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = True
             dismiss = False
             if last_distance == -1 or last_distance > 300:
                 if speedcam == 'fix':
@@ -549,6 +553,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                         self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                         self.update_max_speed(max_speed=max_speed)
                 else:
+                    SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
                     self.update_bar_widget_500m(color=2)
@@ -569,6 +574,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE[cam_coordinates][5] = last_distance
             self.ITEMQUEUE[cam_coordinates][8] = distance
         elif 300 < distance <= 500:
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = True
             dismiss = False
             if last_distance == -1 or last_distance > 500:
                 if speedcam == 'fix':
@@ -606,6 +612,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                         self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                         self.update_max_speed(max_speed=max_speed)
                 else:
+                    SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
                     self.update_bar_widget_500m(color=2)
@@ -626,6 +633,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE[cam_coordinates][5] = last_distance
             self.ITEMQUEUE[cam_coordinates][8] = distance
         elif 500 < distance <= 1000:
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = True
             dismiss = False
             if last_distance == -1 or last_distance > 1000:
                 if speedcam == 'fix':
@@ -663,6 +671,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                         self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                         self.update_max_speed(max_speed=max_speed)
                 else:
+                    SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
                     self.update_bar_widget_500m(color=2)
@@ -683,6 +692,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE[cam_coordinates][5] = last_distance
             self.ITEMQUEUE[cam_coordinates][8] = distance
         elif 1000 < distance <= 1500:
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = True
             dismiss = False
             if last_distance == -1 or last_distance > 1001:
                 self.print_log_line(" %s speed cam ahead with distance %d m" % (
@@ -695,6 +705,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_kivi_speedcam('CAMERA_AHEAD')
                     self.update_bar_widget_meters(distance)
                 else:
+                    SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
                     self.update_bar_widget_1000m(color=2)
                     self.update_bar_widget_500m(color=2)
@@ -716,10 +727,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE[cam_coordinates][8] = distance
         else:
             if last_distance == -1 and distance < self.max_absolute_distance:
+                SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                 return
             self.print_log_line(" %s speed cam OUTSIDE relevant radius -> distance %d m" % (
                 speedcam, int(distance)))
 
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = False
             self.update_kivi_speedcam('FREEFLOW')
             self.update_bar_widget_1000m(color=2)
             self.update_bar_widget_500m(color=2)

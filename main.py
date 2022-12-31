@@ -390,9 +390,9 @@ class MaxSpeedlayout(FloatLayout):
             Clock.schedule_once(self.callback_undefined)
         elif no_cache == "INETFAILED":
             Clock.schedule_once(self.callback_internet)
-        elif no_cache == True:
+        elif no_cache is True:
             Clock.schedule_once(self.callback_online)
-        elif no_cache == False:
+        elif no_cache is False:
             Clock.schedule_once(self.callback_offline)
         else:
             pass
