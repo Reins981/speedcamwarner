@@ -565,7 +565,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # disable road lookup in case the performance on your phone is not good
         self.disable_road_lookup = False
         # Disable all rectangle operations except the Nominatim road lookup if explicitly
-        # enabled via parameter alternative_road_lookup
+        # enabled via parameter alternative_road_lookup. This option safes the most bandwidth.
         self.disable_all = True
         # Use the Nominatim library as alternative method to retrieve a road name
         # Note: This will use more bandwidth
