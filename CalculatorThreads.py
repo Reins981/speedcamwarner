@@ -1625,7 +1625,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             else:
                 return
         else:
-            self.process(update_ccp_only=True)
             # convert CCP longitude,latitude to (x,y).
             xtile, ytile = self.longlat2tile(self.latitude, self.longitude, self.zoom)
             ccp_lat = self.latitude
