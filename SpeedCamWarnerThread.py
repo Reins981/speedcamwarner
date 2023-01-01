@@ -64,13 +64,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
-        self.max_absolute_distance = 50000
+        self.max_absolute_distance = 100000
         # Initial max storage time. If this time has passed,
         # cameras which have been traversed by the car
         # and which have never been initialized once (last_distance = -1) will be deleted
         # The value increases by 600 units if the ccp is UNSTABLE assuming the driver makes a
         # UTURN and cameras behind are still relevant
-        self.max_storage_time = 3600
+        self.max_storage_time = 14400
         # Traversed cameras will be checked every X seconds
         self.traversed_cameras_interval = 3
 
