@@ -625,7 +625,7 @@ class Poilayout(GridLayout):
                                                               RectangleCalculatorThread) and \
                 isinstance(speedwarner, SpeedCamWarnerThread):
             lon, lat = gps_producer.get_lon_lat_bot()
-            if lon is None and lat is None:
+            if (lon is None and lat is None) or (lon == 0 and lat == 0):
                 self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
                 popup = Popup(title='Attention',
                               content=Label(text='No valid GPS position!'),

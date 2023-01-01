@@ -402,6 +402,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[4],
                                           cam_attributes[5],
                                           cam_attributes[10])
+            self.calculator.camera_in_progress(SpeedCamWarnerThread.CAM_IN_PROGRESS)
 
         else:
             if cam_attributes[1] is True:

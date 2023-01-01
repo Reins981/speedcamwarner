@@ -525,6 +525,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.access_control = False
         self.access_control_voice = False
         self.empty_dataset_received = False
+        self.cam_in_progress = False
         self.empty_dataset_rect = ""
 
         # set config items
@@ -991,6 +992,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.RECT_ATTRIBUTES_INTERSECTED = {}
         self.update_kivi_maxspeed("cleanup")
         self.update_kivi_roadname("cleanup")
+
+    def camera_in_progress(self, state):
+        self.cam_in_progress = state
 
     def calculate_rectangle_radius(self, a, b):
         diagonale = (math.sqrt(a ** 2 + b ** 2)) * 1000
@@ -1559,7 +1563,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                        road_class='unclassified',
                                        poi=False,
                                        facility=False)
-            if self.internet_available():
+            if self.cam_in_progress is False and self.internet_available():
                 self.update_kivi_maxspeed("->->->")
             if road_name.startswith("ERROR:"):
                 self.update_maxspeed_status("ERROR",
