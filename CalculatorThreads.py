@@ -1565,7 +1565,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                        facility=False)
             if self.cam_in_progress is False and self.internet_available():
                 self.update_kivi_maxspeed("->->->")
-            if road_name.startswith("ERROR:"):
+            if self.cam_in_progress is False and road_name.startswith("ERROR:"):
                 self.update_maxspeed_status("ERROR",
                                             internal_error=road_name[road_name.find(":")+2:])
             RectangleCalculatorThread.thread_lock = False
