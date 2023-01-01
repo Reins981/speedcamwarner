@@ -553,7 +553,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
         self.speed_influence_on_rect_boundary = 110
-        # angle paramter used for current rect in degrees (only for initial rect calculation)
+        # angle paramter used for current rect in degrees
+        # (only for initial rect calculation and look aheads)
         self.current_rect_angle = 90
         # angle paramter used for fallback rect in degrees (only for initial rect calculation)
         self.fallback_rect_angle = 123
