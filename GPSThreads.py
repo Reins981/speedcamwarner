@@ -182,7 +182,6 @@ class GPSThread(StoppableThread, Logger):
         self.day_update_done = False
         self.night_update_done = False
         self.map_thread_started = False
-        self.startup = True
         self.latitude = None
         self.longitude = None
         self.latitude_bot = None
@@ -202,7 +201,7 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = False
+        self.gps_test_data = True
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
@@ -256,6 +255,8 @@ class GPSThread(StoppableThread, Logger):
                     self.process_offroute(gps_accuracy)
                     return
             else:
+                # keep UI alive
+                self.ms.update_gui()
                 return
 
         if event:
@@ -334,6 +335,12 @@ class GPSThread(StoppableThread, Logger):
                 else:
                     gps_accuracy = str(round(float(accuracy), 1))
                     self.process_offroute(gps_accuracy)
+            else:
+                # update UI
+                self.ms.update_gui()
+        else:
+            #  update UI
+            self.ms.update_gui()
 
     def process_offroute(self, gps_accuracy):
 

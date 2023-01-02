@@ -673,7 +673,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring2 = ';rel(bn)->.x;way(bn);rel(bw););out+body;'
 
         self.querystring_amenity = 'data=[out:json];(node["amenity"="*"]'
-        self.querystring_cameras1 = 'data=[out:json][timeout:20];(node["highway"="speed_camera"]'
+        self.querystring_cameras1 = 'data=[out:json][timeout:25];(node["highway"="speed_camera"]'
         self.querystring_cameras2 = 'way["highway"="speed_camera"]'
         self.querystring_cameras3 = 'relation["highway"="speed_camera"]'
         self.querystring_hazard1 = 'data=[out:json][timeout:20];(node["hazard"="falling_rocks"]'
@@ -682,7 +682,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring_hazard4 = 'node["hazard"="damaged_road"]'
         self.querystring_hazard5 = 'node["hazard"="ice"]'
         self.querystring_hazard6 = 'node["hazard"="fog"]'
-        self.querystring_distance_cams = 'data=[out:json][timeout:20];(relation["enforcement"="mindistance"]'
+        self.querystring_distance_cams = 'data=[out:json][timeout:25];(relation["enforcement"="mindistance"]'
 
         # rect boundaries
         self.rectangle_periphery_poi_reader = {'TOP-N': (20, 20),
@@ -939,8 +939,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             isinstance(self.treeGenerator, BinarySearchTree)):
                         self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
                             previous_ccp=True)
-                # Speed Cam lookahead
-                self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, True)
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
@@ -962,6 +960,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             elif next_action == 'INIT':
                 self.update_kivi_maxspeed_onlinecheck(online_available=False,
                                                       status='INIT')
+                time.sleep(0.5)
             else:
                 pass
 
@@ -1500,7 +1499,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.cache_tiles(self.xtile, self.ytile)
             return
 
-        if self.gpsstatus != 'EXIT' and self.gpsstatus != 'OFFLINE':
+        if self.gpsstatus == 'CALCULATE':
             # update the SpeedWarner Thread
             self.speed_cam_queue.produce(self.cv_speedcam, {
                 'ccp': (self.longitude, self.latitude),
@@ -1706,6 +1705,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.cv_voice, "INTERNET_CONN_FAILED")
                     self.osm_error_reported = True
 
+                # Reset the speed cam rect for a new try if the internet connection got broken or
+                # no data was received
+                self.RECT_SPEED_CAM_LOOKAHAEAD = None
+                break
+
             if status == 'OK' and len(data) > 0:
                 self.osm_error_reported = False
                 self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
@@ -1793,11 +1797,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
                 self.fill_speed_cams()
-
-        if not self.internet_available():
-            # Reset the speed cam rect for a new try if the internet connection got broken or
-            # no data was received
-            self.RECT_SPEED_CAM_LOOKAHAEAD = None
 
     @staticmethod
     def start_thread_pool_lookup(func,
@@ -4143,6 +4142,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         except Exception as e:
             self.print_log_line(f' Read failed from server {self.baseurl}')
+            self.print_log_line(str(e))
             self.internet_connection = False
             self.failed_rect = current_rect
             internal_error = str(e)
