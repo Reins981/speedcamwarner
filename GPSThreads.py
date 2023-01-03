@@ -257,8 +257,6 @@ class GPSThread(StoppableThread, Logger):
                     self.process_offroute(gps_accuracy)
                     return
             else:
-                # keep UI alive
-                self.ms.update_gui()
                 return
 
         if event:
@@ -337,12 +335,6 @@ class GPSThread(StoppableThread, Logger):
                 else:
                     gps_accuracy = str(round(float(accuracy), 1))
                     self.process_offroute(gps_accuracy)
-            else:
-                # update UI
-                self.ms.update_gui()
-        else:
-            #  update UI
-            self.ms.update_gui()
 
     def process_offroute(self, gps_accuracy):
 
