@@ -979,7 +979,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                       'list_tree': (None, None),
                                       'stable_ccp': self.isCcpStable})
 
-        self.overspeed_queue.produce(self.cv_overspeed, {'EXIT': 'EXIT'})
         self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
         self.cleanup()
         self.print_log_line(" terminating")
