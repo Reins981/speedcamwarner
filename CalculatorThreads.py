@@ -412,6 +412,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  border_queue_reverse,
                  cv_poi,
                  poi_queue,
+                 cv_map,
+                 map_queue,
                  ms,
                  s,
                  ml,
@@ -435,6 +437,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.border_queue = border_queue
         self.border_queue_reverse = border_queue_reverse
         self.poi_queue = poi_queue
+        self.cv_map = cv_map
+        self.map_queue = map_queue
         self.cv_poi = cv_poi
         self.ms = ms
         self.s = s
@@ -462,7 +466,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.speed_cam_dict = []
         self.road_candidates = []
 
-        self.url_timeout = 0
+        # default timeout
+        self.url_timeout = 25
         self.extrapolated_number = 0
         self.download_time = 0
         self.fix_cams = 0
@@ -546,7 +551,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # download time timeout for osm data (use a larger timeout for
         # motorways since rects are larger)
         self.osm_timeout = 20
-        self.osm_timeout_motorway = 25
+        self.osm_timeout_motorway = 30
         # speed cam lookahead distance in km
         self.speed_cam_look_ahead_distance = 100
         # initial rect distance in km after app startup
@@ -960,7 +965,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             elif next_action == 'INIT':
                 self.update_kivi_maxspeed_onlinecheck(online_available=False,
                                                       status='INIT')
-                time.sleep(0.5)
             else:
                 pass
 
@@ -995,6 +999,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def camera_in_progress(self, state):
         self.cam_in_progress = state
+
+    def update_map_queue(self):
+        self.map_queue.produce(self.cv_map, "UPDATE")
 
     def calculate_rectangle_radius(self, a, b):
         diagonale = (math.sqrt(a ** 2 + b ** 2)) * 1000
@@ -1791,11 +1798,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                     'maxspeed': maxspeed})
 
                 self.update_kivi_info_page()
+                self.cleanup_speed_cams()
 
                 if len(speed_cam_dict) > 0:
                     self.speed_cam_dict.append(speed_cam_dict)
 
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                self.update_map_queue()
                 self.fill_speed_cams()
 
     @staticmethod
@@ -3977,13 +3986,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         # update specific cams per rect (sum of all rects)
         self.update_kivi_info_page()
+        self.cleanup_speed_cams()
+        self.print_log_line(' Speed Cam lookup FINISHED')
 
+    def cleanup_speed_cams(self):
         # do a cleanup if the speed cam struture increases this limit
         if len(self.speed_cam_dict) >= 100:
             self.print_log_line(" Limit %d reached! Deleting all speed cameras")
             del self.speed_cam_dict[:]
-
-        self.print_log_line(' Speed Cam lookup FINISHED')
 
     def remove_duplicate_cameras(self):
         # Remove duplicate cameras for Map Renderer per speed cam dict

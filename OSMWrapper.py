@@ -165,8 +165,6 @@ class maps(Logger):
     def set_configs(self):
         # draw rectangles on map
         self.draw_rects = True
-        # delete old + newly added speed cams from the structure if this limit is reached, old cams will still remain on the map
-        self.speed_cam_limit = 2000
 
     def get_address_by_location(self, latitude, longitude, language="en"):
         """This function returns an address as raw from a location
@@ -412,13 +410,6 @@ class maps(Logger):
 
         # remove duplicate speed cameras
         speed_cam_list = self.get_unique_speed_cam_list()
-
-        # do a cleanup, in this scenario no speed cams will be drawn which is a rare case
-        if len(speed_cam_list) >= self.speed_cam_limit:
-            self.print_log_line(' Speed cam limit reached! -> %d' % self.speed_cam_limit)
-            # clear the original list
-            del self.speed_cams[:]
-            return
 
         # if speed_cams_available:
         if len(speed_cam_list) > 0:

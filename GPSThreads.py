@@ -201,7 +201,7 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = True
+        self.gps_test_data = False
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
@@ -235,7 +235,9 @@ class GPSThread(StoppableThread, Logger):
         if self.startup:
             self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
                                        float(0.0), float(0.0), '-', 'INIT', 0)
+            self.ms.update_gui()
             self.startup = False
+            time.sleep(0.3)
 
         if self.gps_test_data:
             try:
