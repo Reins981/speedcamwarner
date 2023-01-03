@@ -2495,6 +2495,7 @@ class MainTApp(App):
             self.interruptqueue.clear_interruptqueue(self.cv_interrupt)
             self.speed_cam_queue.clear_camqueue(self.cv_speedcam)
             self.map_queue.clear_map_update(self.cv_map)
+            self.currentspeed_queue.clear(self.cv_currentspeed)
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'
