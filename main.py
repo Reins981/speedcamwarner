@@ -2400,7 +2400,6 @@ class MainTApp(App):
                 self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
                 self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0),
                                            float(0.0), float(0.0), float(0.0), '-', 'EXIT', 0)
-                self.overspeed_queue.produce(self.cv_overspeed, {'EXIT': 'EXIT'})
                 self.currentspeed_queue.produce(self.cv_currentspeed, 'EXIT')
                 self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
                 self.speed_cam_queue.produce(self.cv_speedcam,
@@ -2469,7 +2468,6 @@ class MainTApp(App):
                     self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
                     self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0),
                                                float(0.0), float(0.0), float(0.0), '-', 'EXIT', 0)
-                    self.overspeed_queue.produce(self.cv_overspeed, {'EXIT', 'EXIT'})
                     self.currentspeed_queue.produce(self.cv_currentspeed, 'EXIT')
                     self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': '(EXIT, EXIT)',
                                                                     'fix_cam': (False, 0, 0),
