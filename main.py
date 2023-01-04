@@ -2452,6 +2452,7 @@ class MainTApp(App):
             self.interruptqueue.clear_interruptqueue(self.cv_interrupt)
             self.speed_cam_queue.clear_camqueue(self.cv_speedcam)
             self.map_queue.clear_map_update(self.cv_map)
+            self.currentspeed_queue.clear(self.cv_currentspeed)
 
             for thread in self.root_table.route_providers:
                 self.root_table.route_providers.remove(thread)

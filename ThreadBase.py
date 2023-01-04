@@ -208,32 +208,34 @@ class BorderQueueReverse(object):
 
 class GpsDataQueue(object):
     def __init__(self):
-        self.GPS = Queue()
+        self.GPS = deque()
+
+    def an_item_is_available(self):
+        return bool(self.GPS)
 
     def get_an_available_item(self):
-        return self.GPS.get(block=False)
+        return self.GPS.pop()
 
     def make_an_item_available(self, item):
-        self.GPS.put(item, block=False)
+        self.GPS.append(item)
 
     def clear(self, cv):
-        pass
+        cv.acquire()
+        self.GPS.clear()
+        cv.notify()
+        cv.release()
 
     def consume(self, cv):
         cv.acquire()
-        try:
-            return self.get_an_available_item()
-        except Empty:
-            return None
+        while not self.an_item_is_available():
+            cv.wait()
+        return self.get_an_available_item()
 
     def produce(self, cv, item):
         cv.acquire()
         self.make_an_item_available(item)
         cv.notify()
         cv.release()
-
-    def size(self):
-        return self.GPS.qsize()
 
 
 class CurrentSpeedQueue(object):

@@ -85,6 +85,8 @@ class GPSConsumerThread(StoppableThread, Logger):
         for key, value in item.items():
             if value == 3:
                 if key == '---.-':
+                    self.curspeed.text = key
+                    Clock.schedule_once(self.curspeed.texture_update)
                     self.speedlayout.update_accel_layout()
                     self.curvelayout.check_speed_deviation(key, False)
                 elif key != '---.-':
@@ -207,7 +209,7 @@ class GPSThread(StoppableThread, Logger):
                                      "gpx",
                                      "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 110
+        self.gps_treshold = 50
 
     def run(self):
 
@@ -344,7 +346,7 @@ class GPSThread(StoppableThread, Logger):
         else:
             if self.gps_offline_stable_counter == 2:
                 self.print_log_line(f"GPS status is {gps_accuracy}")
-                if gps_accuracy.isdigit():
+                if gps_accuracy != "GPS_OFF":
                     gps_accuracy = "GPS_LOW"
                 self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
                 self.g.off_state()
