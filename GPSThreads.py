@@ -209,7 +209,7 @@ class GPSThread(StoppableThread, Logger):
                                      "gpx",
                                      "t3688297_radweg-berlin-leipzig_0.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 50
+        self.gps_treshold = 55
 
     def run(self):
 
@@ -250,16 +250,13 @@ class GPSThread(StoppableThread, Logger):
         else:
             item = self.gps_data_queue.consume(self.cv_gps_data)
             self.cv_gps_data.release()
-            if item is not None:
-                event = item.get('event', None)
-                gps_status = item.get('status', None)
 
-                if gps_status is not None \
-                        and (gps_status == 'network' or gps_status == 'passive') and not event:
-                    self.process_offroute(gps_accuracy)
-                    return
-            else:
-                return
+            event = item.get('event', None)
+            gps_status = item.get('status', None)
+
+            if gps_status is not None \
+                    and (gps_status == 'network' or gps_status == 'passive') and not event:
+                self.process_offroute(gps_accuracy)
 
         if event:
             if 'gps' in event['data'] and 'accuracy' in event['data']['gps']:
