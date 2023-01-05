@@ -85,10 +85,7 @@ class GPSConsumerThread(StoppableThread, Logger):
         for key, value in item.items():
             if value == 3:
                 if key == '---.-':
-                    self.curspeed.text = key
-                    Clock.schedule_once(self.curspeed.texture_update)
-                    self.speedlayout.update_accel_layout()
-                    self.curvelayout.check_speed_deviation(key, False)
+                    self.clear_all(key)
                 elif key != '---.-':
                     int_key = int(round(float(key)))
                     float_key = float(key)
@@ -133,6 +130,14 @@ class GPSConsumerThread(StoppableThread, Logger):
             else:
                 self.print_log_line(f"Invalid value {value} received!")
         self.cv.release()
+
+    def clear_all(self, key):
+        self.curspeed.text = key
+        Clock.schedule_once(self.curspeed.texture_update)
+        self.speedlayout.update_accel_layout()
+        self.speedlayout.reset_overspeed()
+        self.speedlayout.reset_bearing()
+        self.curvelayout.check_speed_deviation(key, False)
 
     def calculate_average_speed(self, speed):
         # based on 3 speed values

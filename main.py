@@ -1168,6 +1168,12 @@ class Speedlayout(FloatLayout):
         self.overspeed.text = ""
         Clock.schedule_once(self.overspeed.texture_update)
 
+    def reset_bearing(self):
+        self.bearing.text = "---.-"
+        Clock.schedule_once(self.bearing.texture_update)
+        self.av_bearing_value.text = "---.-"
+        Clock.schedule_once(self.av_bearing_value.texture_update)
+
     def update_accel_layout(self, cur_speed=0, accel=True, gps_status='OFFLINE'):
         if gps_status == 'ONLINE':
             self.cur_speed = cur_speed
