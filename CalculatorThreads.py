@@ -408,8 +408,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  interruptqueue,
                  speedcamqueue,
                  overspeed_queue,
-                 border_queue,
-                 border_queue_reverse,
+                 cv_currentspeed,
+                 currentspeed_queue,
                  cv_poi,
                  poi_queue,
                  cv_map,
@@ -434,8 +434,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.interruptqueue = interruptqueue
         self.speed_cam_queue = speedcamqueue
         self.overspeed_queue = overspeed_queue
-        self.border_queue = border_queue
-        self.border_queue_reverse = border_queue_reverse
+        self.cv_currentspeed = cv_currentspeed
+        self.currentspeed_queue = currentspeed_queue
         self.poi_queue = poi_queue
         self.cv_map = cv_map
         self.map_queue = map_queue
@@ -1536,6 +1536,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     'list_tree': (None, None),
                     'stable_ccp': self.isCcpStable,
                     'bearing': None})
+                # clear any overhead leading to performance bottle necks
+                self.currentspeed_queue.produce(self.cv_currentspeed, None)
+                self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
 
         else:
             pass
@@ -1558,8 +1561,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def processDisableAllAction(self):
         if self.alternative_road_lookup:
-            while RectangleCalculatorThread.thread_lock:
-                pass
             RectangleCalculatorThread.thread_lock = True
             road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
             if road_name and not road_name.startswith("ERROR:"):
@@ -1874,8 +1875,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     @staticmethod
     def start_thread_pool_process_disable_all(func, worker_threads=1):
+        while RectangleCalculatorThread.thread_lock:
+            pass
         pool = ThreadPool(num_threads=worker_threads, action='DISABLE')
         pool.add_task(func)
+        #_ = pool.wait_completion()
 
     @staticmethod
     def start_thread_pool_data_lookup(func,
@@ -4209,8 +4213,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.ms.maxspeed.text = str(maxspeed)
                     self.ms.maxspeed.color = (0, 1, .3, .8)
                     self.ms.maxspeed.font_size = font_size
-
-            Clock.schedule_once(self.ms.maxspeed.texture_update)
+            if self.ms.maxspeed.text != str(maxspeed):
+                Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     def update_kivi_roadname(self, roadname=None, found_combined_tags=False):
         if roadname:

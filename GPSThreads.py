@@ -117,23 +117,18 @@ class GPSConsumerThread(StoppableThread, Logger):
                             self.curvelayout.check_speed_deviation(float_key, False)
                         self.backup_speed = float_key
             elif value == 4:
-                if key is not None:
-                    self.bearing.text = key
-                    Clock.schedule_once(self.bearing.texture_update)
+                self.bearing.text = key
+                Clock.schedule_once(self.bearing.texture_update)
             elif value == 5:
                 self.speedlayout.update_gps_accuracy(key)
-            elif value == 1:
-                self.curvelayout.check_speed_deviation('---.-', False)
-                self.speedlayout.update_accel_layout()
-                self.curspeed.text = '---.-'
-                Clock.schedule_once(self.curspeed.texture_update)
             else:
                 self.print_log_line(f"Invalid value {value} received!")
         self.cv.release()
 
     def clear_all(self, key):
-        self.curspeed.text = key
-        Clock.schedule_once(self.curspeed.texture_update)
+        if self.curspeed.text != key:
+            self.curspeed.text = key
+            Clock.schedule_once(self.curspeed.texture_update)
         self.speedlayout.update_accel_layout()
         self.speedlayout.reset_overspeed()
         self.speedlayout.reset_bearing()
@@ -197,7 +192,6 @@ class GPSThread(StoppableThread, Logger):
         self.last_bearing = None
         self.current_bearings = []
         self.curr_driving_direction = None
-        self.gps_offline_stable_counter = 0
 
         # set config items
         self.set_configs()
@@ -269,7 +263,6 @@ class GPSThread(StoppableThread, Logger):
                 accuracy = event['data']['gps']['accuracy']
                 if int(accuracy) <= self.gps_treshold:
 
-                    self.gps_offline_stable_counter = 0
                     # Set members
                     success_speed = False
                     success_coords = False
@@ -342,24 +335,21 @@ class GPSThread(StoppableThread, Logger):
 
     def process_offroute(self, gps_accuracy):
 
-        self.gps_offline_stable_counter += 1
         if self.already_off():
             pass
         else:
-            if self.gps_offline_stable_counter == 2:
-                self.print_log_line(f"GPS status is {gps_accuracy}")
-                if gps_accuracy != "GPS_OFF":
-                    gps_accuracy = "GPS_LOW"
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, gps_accuracy)
-                self.g.off_state()
+            self.print_log_line(f"GPS status is {gps_accuracy}")
+            if gps_accuracy != "GPS_OFF":
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_LOW")
+            else:
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_OFF")
+            self.g.off_state()
 
-                self.gpsqueue.produce(self.cv, {'---.-': 3})
-                self.gpsqueue.produce(self.cv, {'---.-': 4})
-                self.produce_bearing_set(0.001)
+            self.gpsqueue.produce(self.cv, {'---.-': 3})
 
-                self.off_state = True
-                self.on_state = False
-                self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
+            self.off_state = True
+            self.on_state = False
+            self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
 
         self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
                                    float(0.0), float(0.0), '-', 'OFFLINE', 0)

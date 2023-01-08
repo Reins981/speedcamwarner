@@ -49,6 +49,9 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             self.cv_currentspeed.release()
             self.print_log_line(f"Received Current Speed: {current_speed}")
 
+            if current_speed is None:
+                return None
+
             if isinstance(current_speed, str) and current_speed == 'EXIT':
                 return 'TERMINATE'
 
@@ -56,9 +59,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
             self.cv_overspeed.release()
 
             for condition, max_speed in overspeed_entry.items():
-                if condition == 'EXIT':
-                    return 'TERMINATE'
-
                 self.print_log_line(f"Received Max Speed: {max_speed}")
 
                 if isinstance(max_speed, str) and "mph" in max_speed:

@@ -455,10 +455,11 @@ class MaxSpeedlayout(FloatLayout):
 
     def update_cam_road(self, road="", reset=False, m_type="CAMERA"):
         if reset:
-            self.camroad.text = ""
-            self.camroad.color = (1, 0, 0, 3)
-            Clock.schedule_once(self.camroad.texture_update)
-            Clock.schedule_once(self.callback_freeflow)
+            if self.camroad.text != "":
+                self.camroad.text = ""
+                self.camroad.color = (1, 0, 0, 3)
+                Clock.schedule_once(self.camroad.texture_update)
+                Clock.schedule_once(self.callback_freeflow)
         else:
             if m_type == "WATER":
                 color = (0, 1, 1, 1)
@@ -469,16 +470,17 @@ class MaxSpeedlayout(FloatLayout):
 
             if road is None:
                 road = ""
-            self.camroad.text = str(road)
-            self.camroad.color = color
-            self.camroad.size_hint = (1., 0.2)
-            Clock.schedule_once(self.camroad.texture_update)
-            if m_type == "HAZARD":
-                Clock.schedule_once(self.callback_hazard)
-            elif m_type == "WATER":
-                Clock.schedule_once(self.callback_water)
-            elif m_type == "ACCESS_CONTROL":
-                Clock.schedule_once(self.callback_access_control)
+            if self.camroad.text != str(road):
+                self.camroad.text = str(road)
+                self.camroad.color = color
+                self.camroad.size_hint = (1., 0.2)
+                Clock.schedule_once(self.camroad.texture_update)
+                if m_type == "HAZARD":
+                    Clock.schedule_once(self.callback_hazard)
+                elif m_type == "WATER":
+                    Clock.schedule_once(self.callback_water)
+                elif m_type == "ACCESS_CONTROL":
+                    Clock.schedule_once(self.callback_access_control)
 
     def callback_offline(self, instance):
         self.imonlinestatus.source = 'images/cache.png'
@@ -1165,14 +1167,17 @@ class Speedlayout(FloatLayout):
         Clock.schedule_once(self.overspeed.texture_update)
 
     def reset_overspeed(self):
-        self.overspeed.text = ""
-        Clock.schedule_once(self.overspeed.texture_update)
+        if self.overspeed.text != "":
+            self.overspeed.text = ""
+            Clock.schedule_once(self.overspeed.texture_update)
 
     def reset_bearing(self):
-        self.bearing.text = "---.-"
-        Clock.schedule_once(self.bearing.texture_update)
-        self.av_bearing_value.text = "---.-"
-        Clock.schedule_once(self.av_bearing_value.texture_update)
+        if self.bearing.text != "---.-":
+            self.bearing.text = "---.-"
+            Clock.schedule_once(self.bearing.texture_update)
+        if self.av_bearing_value.text != "---.-":
+            self.av_bearing_value.text = "---.-"
+            Clock.schedule_once(self.av_bearing_value.texture_update)
 
     def update_accel_layout(self, cur_speed=0, accel=True, gps_status='OFFLINE'):
         if gps_status == 'ONLINE':
@@ -2043,8 +2048,6 @@ class MainTApp(App):
         self.cv_border_reverse = Condition()
         self.cv_poi = Condition()
         self.cv_gps_data = Condition()
-        self.border_queue = BorderQueue()
-        self.border_queue_reverse = BorderQueueReverse()
         self.poi_queue = PoiQueue()
         self.vdata = VectorDataPoolQueue()
         self.gpsqueue = GPSQueue()
@@ -2252,8 +2255,8 @@ class MainTApp(App):
                         interruptqueue,
                         speedcamqueue,
                         overspeed_queue,
-                        border_queue,
-                        border_queue_reverse,
+                        cv_currentspeed,
+                        currentspeed_queue,
                         cv_poi,
                         poi_queue,
                         cv_map,
@@ -2275,8 +2278,8 @@ class MainTApp(App):
                                                     interruptqueue,
                                                     speedcamqueue,
                                                     overspeed_queue,
-                                                    border_queue,
-                                                    border_queue_reverse,
+                                                    cv_currentspeed,
+                                                    currentspeed_queue,
                                                     cv_poi,
                                                     poi_queue,
                                                     cv_map,
@@ -2530,8 +2533,8 @@ class MainTApp(App):
                                               self.interruptqueue,
                                               self.speed_cam_queue,
                                               self.overspeed_queue,
-                                              self.border_queue,
-                                              self.border_queue_reverse,
+                                              self.cv_currentspeed,
+                                              self.currentspeed_queue,
                                               self.cv_poi,
                                               self.poi_queue,
                                               self.cv_map,
