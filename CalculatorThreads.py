@@ -2152,7 +2152,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     internal_error,
                     'CURRENT')
                 # self.print_log_line(' Tasks completed')
-                self.overspeed_queue.clear(self.cv_overspeed)
+                self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
                 # we are done getting our data
 
                 # start our worker threads for building data structures
@@ -3096,7 +3096,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if reset_maxspeed and not self.dismiss_pois:
             self.print_log_line("Resetting Overspeed to 10000")
             # Clear the max speed in case it is a POI
-            self.overspeed_queue.clear(self.cv_overspeed)
+            self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
             self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
             self.print_log_line("Final Maxspeed value is POI")
             self.update_kivi_maxspeed("POI")

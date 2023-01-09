@@ -34,13 +34,13 @@ class OverspeedCheckerThread(StoppableThread, Logger):
     def run(self):
         while not self.cond.terminate:
             if not self.resume.isResumed():
-                self.overspeed_queue.clear(self.cv_overspeed)
+                self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
             else:
                 status = self.process()
                 if status == 'TERMINATE':
                     break
 
-        self.overspeed_queue.clear(self.cv_overspeed)
+        self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
         self.print_log_line(" terminating")
         self.stop()
 
