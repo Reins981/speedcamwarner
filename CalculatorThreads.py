@@ -553,7 +553,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.osm_timeout = 20
         self.osm_timeout_motorway = 30
         # speed cam lookahead distance in km
-        self.speed_cam_look_ahead_distance = 100
+        self.speed_cam_look_ahead_distance = 300
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
