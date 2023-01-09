@@ -144,7 +144,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 freeflow_processed = False
-                cam_image_processed = False
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -159,8 +158,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        freeflow_processed,
-                                                        cam_image_processed]
+                                                        freeflow_processed]
                 self.INSERTED_SPEEDCAMS.append((item['fix_cam'][1], item['fix_cam'][2]))
 
         if item['traffic_cam'][0]:
@@ -191,7 +189,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 freeflow_processed = False
-                cam_image_processed = False
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -206,8 +203,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        freeflow_processed,
-                                                        cam_image_processed]
+                                                        freeflow_processed]
                 self.INSERTED_SPEEDCAMS.append((item['traffic_cam'][1], item['traffic_cam'][2]))
 
         if item['distance_cam'][0]:
@@ -238,7 +234,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 freeflow_processed = False
-                cam_image_processed = False
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -253,8 +248,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        freeflow_processed,
-                                                        cam_image_processed]
+                                                        freeflow_processed]
                 self.INSERTED_SPEEDCAMS.append((item['distance_cam'][1], item['distance_cam'][2]))
 
         if item['mobile_cam'][0]:
@@ -285,7 +279,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 freeflow_processed = False
-                cam_image_processed = False
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -300,8 +293,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        freeflow_processed,
-                                                        cam_image_processed]
+                                                        freeflow_processed]
                 self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
 
         cams_to_delete = []
@@ -328,7 +320,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.ITEMQUEUE[cam][8] = current_distance
                 self.ITEMQUEUE[cam][5] = -1
                 self.ITEMQUEUE[cam][11] = False
-                self.ITEMQUEUE[cam][12] = False
                 # delete backup camera and startup time
                 self.ITEMQUEUE_BACKUP.pop(cam)
                 self.start_times_backup.pop(cam)
@@ -420,8 +411,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[4],
                                           cam_attributes[5],
                                           cam_attributes[10],
-                                          cam_attributes[11],
-                                          cam_attributes[12])
+                                          cam_attributes[11])
             self.calculator.camera_in_progress(SpeedCamWarnerThread.CAM_IN_PROGRESS)
 
         else:
@@ -477,8 +467,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None,
                                  last_distance=-1, max_speed=None,
-                                 freeflow_processed=False,
-                                 cam_image_procesed=False):
+                                 freeflow_processed=False):
 
         if 0 <= distance <= 100:
             SpeedCamWarnerThread.CAM_IN_PROGRESS = True
@@ -516,20 +505,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_max_speed(max_speed=self.ITEMQUEUE[cam_coordinates][10])
 
             if last_distance == 100:
-                if not cam_image_procesed:
-                    Clock.schedule_once(
-                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                    self.update_kivi_speedcam(speedcam)
-                    self.update_bar_widget_100m()
-                    self.update_bar_widget_300m()
-                    self.update_bar_widget_500m()
-                    self.update_bar_widget_1000m()
-                    if cam_coordinates in self.ITEMQUEUE:
-                        tmp = deepcopy(self.ITEMQUEUE)
-                        self.update_cam_road(road=tmp[cam_coordinates][7])
-                        self.update_max_speed(max_speed=max_speed)
-                    self.ITEMQUEUE[cam_coordinates][12] = True
+                Clock.schedule_once(
+                    partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                self.update_kivi_speedcam(speedcam)
+                self.update_bar_widget_100m()
+                self.update_bar_widget_300m()
+                self.update_bar_widget_500m()
+                self.update_bar_widget_1000m()
                 self.update_bar_widget_meters(distance)
+                if cam_coordinates in self.ITEMQUEUE:
+                    tmp = deepcopy(self.ITEMQUEUE)
+                    self.update_cam_road(road=tmp[cam_coordinates][7])
+                    self.update_max_speed(max_speed=max_speed)
 
             last_distance = 100
             dismiss = False
@@ -568,20 +555,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             else:
 
                 if last_distance == 300:
-                    if not cam_image_procesed:
-                        Clock.schedule_once(
-                            partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                        self.update_kivi_speedcam(speedcam)
-                        self.update_bar_widget_100m(color=2)
-                        self.update_bar_widget_300m()
-                        self.update_bar_widget_500m()
-                        self.update_bar_widget_1000m()
-                        if cam_coordinates in self.ITEMQUEUE:
-                            tmp = deepcopy(self.ITEMQUEUE)
-                            self.update_cam_road(road=tmp[cam_coordinates][7])
-                            self.update_max_speed(max_speed=max_speed)
-                        self.ITEMQUEUE[cam_coordinates][12] = True
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m()
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
+                    if cam_coordinates in self.ITEMQUEUE:
+                        tmp = deepcopy(self.ITEMQUEUE)
+                        self.update_cam_road(road=tmp[cam_coordinates][7])
+                        self.update_max_speed(max_speed=max_speed)
                 else:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
@@ -630,20 +615,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             else:
 
                 if last_distance == 500:
-                    if not cam_image_procesed:
-                        Clock.schedule_once(
-                            partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                        self.update_kivi_speedcam(speedcam)
-                        self.update_bar_widget_100m(color=2)
-                        self.update_bar_widget_300m(color=2)
-                        self.update_bar_widget_500m()
-                        self.update_bar_widget_1000m()
-                        if cam_coordinates in self.ITEMQUEUE:
-                            tmp = deepcopy(self.ITEMQUEUE)
-                            self.update_cam_road(road=tmp[cam_coordinates][7])
-                            self.update_max_speed(max_speed=max_speed)
-                        self.ITEMQUEUE[cam_coordinates][12] = True
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
+                    if cam_coordinates in self.ITEMQUEUE:
+                        tmp = deepcopy(self.ITEMQUEUE)
+                        self.update_cam_road(road=tmp[cam_coordinates][7])
+                        self.update_max_speed(max_speed=max_speed)
                 else:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
@@ -692,20 +675,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             else:
 
                 if last_distance == 1000:
-                    if not cam_image_procesed:
-                        Clock.schedule_once(
-                            partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                        self.update_kivi_speedcam(speedcam)
-                        self.update_bar_widget_100m(color=2)
-                        self.update_bar_widget_300m(color=2)
-                        self.update_bar_widget_500m(color=2)
-                        self.update_bar_widget_1000m()
-                        if cam_coordinates in self.ITEMQUEUE:
-                            tmp = deepcopy(self.ITEMQUEUE)
-                            self.update_cam_road(road=tmp[cam_coordinates][7])
-                            self.update_max_speed(max_speed=max_speed)
-                        self.ITEMQUEUE[cam_coordinates][12] = True
+                    Clock.schedule_once(
+                        partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_1000m()
                     self.update_bar_widget_meters(distance)
+                    if cam_coordinates in self.ITEMQUEUE:
+                        tmp = deepcopy(self.ITEMQUEUE)
+                        self.update_cam_road(road=tmp[cam_coordinates][7])
+                        self.update_max_speed(max_speed=max_speed)
                 else:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
@@ -738,9 +719,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_meters(distance)
             else:
                 if last_distance == 1001:
-                    if not cam_image_procesed:
-                        self.update_kivi_speedcam('CAMERA_AHEAD')
-                        self.ITEMQUEUE[cam_coordinates][12] = True
+                    self.update_kivi_speedcam('CAMERA_AHEAD')
                     self.update_bar_widget_meters(distance)
                 else:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
