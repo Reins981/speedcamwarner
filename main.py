@@ -2499,6 +2499,7 @@ class MainTApp(App):
                                                float(0.0), float(0.0), float(0.0), '-', 'EXIT', 0)
 
             self.threads = []
+            self.gps_data_queue.clear(self.cv_gps_data)
             self.voice_prompt_queue.clear_gpssignalqueue(self.cv_voice)
             self.gpsqueue.clear_gpsqueue(self.cv)
             self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)
