@@ -47,6 +47,7 @@ class GPSConsumerThread(StoppableThread, Logger):
             else:
                 self.update_kivi()
 
+        self.print_log_line("Terminating")
         self.gpsqueue.clear_gpsqueue(self.cv)
         self.stop()
 
@@ -121,6 +122,8 @@ class GPSConsumerThread(StoppableThread, Logger):
                 Clock.schedule_once(self.bearing.texture_update)
             elif value == 5:
                 self.speedlayout.update_gps_accuracy(key)
+            elif value == 1:
+                self.print_log_line("Exit item received")
             else:
                 self.print_log_line(f"Invalid value {value} received!")
         self.cv.release()
@@ -213,7 +216,9 @@ class GPSThread(StoppableThread, Logger):
     def run(self):
 
         while not self.cond.terminate:
-            self.process()
+            status = self.process()
+            if status == 'EXIT':
+                break
 
         '''
             add an exit item in case consumer threads
@@ -250,6 +255,9 @@ class GPSThread(StoppableThread, Logger):
             item = self.gps_data_queue.consume(self.cv_gps_data)
             self.cv_gps_data.release()
 
+            if item.get('EXIT', None):
+                return 'EXIT'
+
             event = item.get('event', None)
             gps_status = item.get('status', None)
 
@@ -280,7 +288,7 @@ class GPSThread(StoppableThread, Logger):
                     if success_speed is False or success_coords is False:
                         self.print_log_line("Could not retrieve speed or coordinates from event!. "
                                             "Skipping..")
-                        return
+                        return None
 
                     self.callback_gps(lon, lat)
                     # Update our bot
@@ -294,7 +302,7 @@ class GPSThread(StoppableThread, Logger):
                     if direction is None:
                         self.print_log_line("Could not calculate direction from event!. "
                                             "Skipping..")
-                        return
+                        return None
 
                     # trigger calculation only if speed >= 0 km/h and
                     # initiate deviation checker thread##
@@ -332,6 +340,7 @@ class GPSThread(StoppableThread, Logger):
                 else:
                     gps_accuracy = str(round(float(accuracy), 1))
                     self.process_offroute(gps_accuracy)
+        return None
 
     def process_offroute(self, gps_accuracy):
 

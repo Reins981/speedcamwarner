@@ -3239,16 +3239,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.internet_connection = False
             return "ERROR: " + str(e)
 
-        loc = location.address.split(",")
-        if loc:
-            # If the first entry is a house number, return the second
-            if loc[0].isnumeric() or loc[0][0].isdigit():
-                if len(loc) >= 2:
-                    return loc[1]
+        if location:
+            loc = location.address.split(",")
+            if loc:
+                # If the first entry is a house number, return the second
+                if loc[0].isnumeric() or loc[0][0].isdigit():
+                    if len(loc) >= 2:
+                        return loc[1]
+                    else:
+                        return loc[0]
                 else:
                     return loc[0]
             else:
-                return loc[0]
+                return None
         else:
             return None
 

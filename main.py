@@ -2405,6 +2405,7 @@ class MainTApp(App):
                 logger.print_log_line(' %s still alive!' % thread)
 
                 self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'EXIT_APPLICATION')
+                self.gps_data_queue.produce(self.cv_gps_data, {'EXIT': True})
                 self.gpsqueue.produce(self.cv, {'EXIT': 1})
                 self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
                 self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0),
@@ -2474,6 +2475,7 @@ class MainTApp(App):
                     self.voice_prompt_queue.produce_gpssignal(self.cv_voice,
                                                               'STOP_APPLICATION')
                     self.gpsqueue.produce(self.cv, {'EXIT': 1})
+                    self.gps_data_queue.produce(self.cv_gps_data, {'EXIT': True})
                     self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
                     self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
                     self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0),
