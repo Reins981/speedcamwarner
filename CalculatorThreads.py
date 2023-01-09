@@ -4197,6 +4197,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if maxspeed:
             if maxspeed == "cleanup":
                 self.ms.maxspeed.text = ""
+                Clock.schedule_once(self.ms.maxspeed.texture_update)
             else:
                 if self.disable_road_lookup:
                     font_size = 250
@@ -4205,16 +4206,16 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     font_size = 230
                     font_size_alternative = 100
 
-                if isinstance(maxspeed, str) and len(maxspeed) >= 10:
-                    self.ms.maxspeed.text = maxspeed
-                    self.ms.maxspeed.color = (0, 1, .3, .8)
-                    self.ms.maxspeed.font_size = font_size_alternative
-                else:
-                    self.ms.maxspeed.text = str(maxspeed)
-                    self.ms.maxspeed.color = (0, 1, .3, .8)
-                    self.ms.maxspeed.font_size = font_size
-            if self.ms.maxspeed.text != str(maxspeed):
-                Clock.schedule_once(self.ms.maxspeed.texture_update)
+                if self.ms.maxspeed.text != str(maxspeed):
+                    if isinstance(maxspeed, str) and len(maxspeed) >= 10:
+                        self.ms.maxspeed.text = maxspeed
+                        self.ms.maxspeed.color = (0, 1, .3, .8)
+                        self.ms.maxspeed.font_size = font_size_alternative
+                    else:
+                        self.ms.maxspeed.text = str(maxspeed)
+                        self.ms.maxspeed.color = (0, 1, .3, .8)
+                        self.ms.maxspeed.font_size = font_size
+                    Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     def update_kivi_roadname(self, roadname=None, found_combined_tags=False):
         if roadname:
@@ -4222,6 +4223,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
             if roadname == "cleanup":
                 self.ms.roadname.text = ""
+                Clock.schedule_once(self.ms.roadname.texture_update)
             else:
                 num_cross_roads = roadname.split('/')
                 num_cross_roads = list(filter(None, num_cross_roads))
@@ -4230,7 +4232,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 num_cross_roads.reverse()
                 # reverse the road name because the first element is always the current road
                 roadname = "/".join(num_cross_roads)
-                self.ms.roadname.text = roadname
 
                 if found_combined_tags:
 
@@ -4248,7 +4249,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     else:
                         self.ms.roadname.font_size = 60
 
-            Clock.schedule_once(self.ms.roadname.texture_update)
+                if self.ms.roadname.text != roadname:
+                    self.ms.roadname.text = roadname
+                    Clock.schedule_once(self.ms.roadname.texture_update)
 
     def update_cam_radius(self, radius):
         if isinstance(radius, int) or isinstance(radius, float):
