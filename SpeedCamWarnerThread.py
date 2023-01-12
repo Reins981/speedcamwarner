@@ -367,6 +367,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         if self.enable_inside_relevant_angle_feature:
             if not self.inside_relevant_angle(cam):
+                SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                 self.update_kivi_speedcam('FREEFLOW')
                 self.update_bar_widget_1000m(color=2)
                 self.update_bar_widget_500m(color=2)
@@ -410,6 +411,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.remove_cached_camera(cam)
 
         if len(self.ITEMQUEUE) == 0:
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = False
             self.update_kivi_speedcam('FREEFLOW')
             self.update_bar_widget_1000m(color=2)
             self.update_bar_widget_500m(color=2)
