@@ -925,7 +925,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 return True
             else:
                 self.print_log_line(f" Speed Camera '{cam_type}' ({str(cam)}): "
-                                    f"Expected angle: {self.ccp_bearing}, Received Angle: "
+                                    f"CCP bearing angle: {self.ccp_bearing}, "
+                                    f"Expected camera angle: "
                                     f"{str(cam_direction)}")
                 return False
         return True
