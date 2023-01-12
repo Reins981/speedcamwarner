@@ -2442,11 +2442,7 @@ class MainTApp(App):
             self.maxspeed.text = 'STOPPED'
             self.maxspeed.color = (1, .9, 0, 2)
             self.maxspeed.font_size = 130
-            self.ms.roadname.text = ""
-            self.s.curspeed.text = '---.-'
             Clock.schedule_once(self.maxspeed.texture_update)
-            Clock.schedule_once(self.ms.roadname.texture_update)
-            Clock.schedule_once(self.s.curspeed.texture_update)
             self.gps_producer = None
             self.calculator = None
 
