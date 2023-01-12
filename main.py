@@ -440,8 +440,9 @@ class MaxSpeedlayout(FloatLayout):
     def update_bar_widget_meters(self, meter=0):
         if not isinstance(meter, str):
             meter = str(meter)
-        self.bar_meters.text = meter
-        Clock.schedule_once(self.bar_meters.texture_update)
+        if self.bar_meters.text != meter:
+            self.bar_meters.text = meter
+            Clock.schedule_once(self.bar_meters.texture_update)
 
     def update_cam_text(self, distance=0, reset=False):
         if reset:
