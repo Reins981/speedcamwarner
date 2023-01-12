@@ -1799,15 +1799,15 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                     'direction': direction,
                                                                     'maxspeed': maxspeed})
 
-                self.update_kivi_info_page()
-                self.cleanup_speed_cams()
+        self.update_kivi_info_page()
+        self.cleanup_speed_cams()
 
-                if len(speed_cam_dict) > 0:
-                    self.speed_cam_dict.append(speed_cam_dict)
+        if len(speed_cam_dict) > 0:
+            self.speed_cam_dict.append(speed_cam_dict)
 
-                self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
-                self.update_map_queue()
-                self.fill_speed_cams()
+        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+        self.update_map_queue()
+        self.fill_speed_cams()
 
     @staticmethod
     def start_thread_pool_lookup(func,
