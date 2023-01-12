@@ -64,7 +64,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
-        self.max_absolute_distance = 100000
+        self.max_absolute_distance = 300000
         # Initial max storage time. If this time has passed,
         # cameras which have been traversed by the car
         # and which have never been initialized once (last_distance = -1) will be deleted
@@ -140,7 +140,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 tree = item['list_tree'][1]
                 last_distance = -1
                 last_calc_distance = 0
-                start_time = time.time()
+                init_time = time.time()
+                start_time = time.time() - init_time
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
@@ -183,7 +184,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 tree = item['list_tree'][1]
                 last_distance = -1
                 last_calc_distance = 0
-                start_time = time.time()
+                init_time = time.time()
+                start_time = time.time() - init_time
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
@@ -226,7 +228,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 tree = item['list_tree'][1]
                 last_distance = -1
                 last_calc_distance = 0
-                start_time = time.time()
+                init_time = time.time()
+                start_time = time.time() - init_time
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
@@ -269,7 +272,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 tree = item['list_tree'][1]
                 last_distance = -1
                 last_calc_distance = 0
-                start_time = time.time()
+                init_time = time.time()
+                start_time = time.time() - init_time
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
@@ -288,8 +292,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         max_speed]
                 self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
 
+        # cameras to be deleted
         cams_to_delete = []
-
         # sort the cams based on distance
         cam_list = []
 
@@ -298,22 +302,24 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                                       (self.longitude,
                                                                        self.latitude))
             # calculate new start time
-            start_time = time.time() - self.start_times_backup[cam]
-            self.ITEMQUEUE_BACKUP[cam][6] = start_time
+            # Make sure the camera still exists in the original item queue
+            if cam in self.start_times_backup and cam in self.ITEMQUEUE_BACKUP:
+                start_time = time.time() - self.start_times_backup[cam]
+                self.ITEMQUEUE_BACKUP[cam][6] = start_time
 
-            last_distance = cam_attributes[8]
-            if current_distance < last_distance:
-                self.print_log_line(f"Reinserting {cam_attributes[0]} camera {str(cam)} "
-                                    f"with new distance "
-                                    f"{current_distance} km")
-                self.ITEMQUEUE[cam] = cam_attributes
-                self.ITEMQUEUE[cam][1] = False
-                self.ITEMQUEUE[cam][6] = start_time
-                self.ITEMQUEUE[cam][8] = current_distance
-                self.ITEMQUEUE[cam][5] = -1
-                # delete backup camera and startup time
-                self.ITEMQUEUE_BACKUP.pop(cam)
-                self.start_times_backup.pop(cam)
+                last_distance = cam_attributes[8]
+                if current_distance < last_distance:
+                    self.print_log_line(f"Reinserting {cam_attributes[0]} camera {str(cam)} "
+                                        f"with new distance "
+                                        f"{current_distance} km")
+                    self.ITEMQUEUE[cam] = cam_attributes
+                    self.ITEMQUEUE[cam][1] = False
+                    self.ITEMQUEUE[cam][6] = start_time
+                    self.ITEMQUEUE[cam][8] = current_distance
+                    self.ITEMQUEUE[cam][5] = -1
+                    # delete backup camera and startup time
+                    self.ITEMQUEUE_BACKUP.pop(cam)
+                    self.start_times_backup.pop(cam)
 
         for cam, cam_attributes in self.ITEMQUEUE.copy().items():
             distance = self.check_distance_between_two_points(cam,
@@ -337,22 +343,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_max_speed(reset=True)
                 self.update_calculator_cams(cam_attributes)
             else:
-                if cam_attributes[1] == "to_be_stored":
+                # Make sure the camera still exists in the original item queue
+                if cam in self.start_times and cam in self.ITEMQUEUE:
                     start_time = time.time() - self.start_times[cam]
-                    try:
-                        self.ITEMQUEUE[cam][6] = start_time
-                    except:
-                        pass
-                    cams_to_delete.append(cam)
-                    self.backup_camera(cam, distance)
-                else:
-                    entry = (cam, distance)
-                    cam_list.append(entry)
-                    start_time = time.time() - self.start_times[cam]
-                    try:
-                        self.ITEMQUEUE[cam][6] = start_time
-                    except:
-                        pass
+                    self.ITEMQUEUE[cam][6] = start_time
+
+                    if cam_attributes[1] == "to_be_stored":
+                        cams_to_delete.append(cam)
+                        self.backup_camera(cam, distance)
+
+                    if cam_attributes[1] is False:
+                        entry = (cam, distance)
+                        cam_list.append(entry)
 
         # Delete obsolete cameras
         self.delete_cameras(cams_to_delete)
@@ -429,7 +431,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.ITEMQUEUE_BACKUP[cam] = deepcopy(self.ITEMQUEUE[cam])
         self.ITEMQUEUE_BACKUP[cam][1] = False
         self.ITEMQUEUE_BACKUP[cam][8] = distance
-        self.start_times_backup[cam] = deepcopy(self.start_times[cam])
+        self.start_times_backup[cam] = time.time() - deepcopy(self.start_times[cam])
 
     def delete_cameras(self, cams_to_delete):
         if len(cams_to_delete) > 0:
@@ -745,7 +747,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             last_distance = self.max_absolute_distance
             # Those cameras will not be dismissed until their storage time has passed or they are
             # above max_absolute_distance
-            dismiss = False
+            dismiss = "to_be_stored"
             self.ITEMQUEUE[cam_coordinates][0] = speedcam
             self.ITEMQUEUE[cam_coordinates][1] = dismiss
             self.ITEMQUEUE[cam_coordinates][2] = ccp_node
