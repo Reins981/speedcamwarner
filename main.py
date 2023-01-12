@@ -305,6 +305,8 @@ class CurveLayout(RelativeLayout):
             middle_high = 50
 
         for_compare /= 100
+        if for_compare == 0:
+            return None
         deviation_percentage = abs(round((to_compare / for_compare) - 100))
         if (middle_low <= deviation_percentage <= middle_high):
             return 'LOW'
