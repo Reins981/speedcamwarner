@@ -1563,18 +1563,20 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if self.alternative_road_lookup:
             RectangleCalculatorThread.thread_lock = True
             road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
-            if road_name and not road_name.startswith("ERROR:"):
-                self.process_road_name(found_road_name=True,
-                                       road_name=road_name,
-                                       found_combined_tags=False,
-                                       road_class='unclassified',
-                                       poi=False,
-                                       facility=False)
+            if road_name is not None:
+                if road_name.startswith("ERROR:"):
+                    if self.cam_in_progress is False:
+                        self.update_maxspeed_status("ERROR",
+                                                    internal_error=road_name[road_name.find(":") + 2:])
+                else:
+                    self.process_road_name(found_road_name=True,
+                                           road_name=road_name,
+                                           found_combined_tags=False,
+                                           road_class='unclassified',
+                                           poi=False,
+                                           facility=False)
             if self.cam_in_progress is False and self.internet_available():
                 self.update_kivi_maxspeed("->->->")
-            if self.cam_in_progress is False and road_name.startswith("ERROR:"):
-                self.update_maxspeed_status("ERROR",
-                                            internal_error=road_name[road_name.find(":")+2:])
             RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
