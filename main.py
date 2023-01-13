@@ -2440,11 +2440,6 @@ class MainTApp(App):
             self.root_table.stop_thread = True
             self.q.set_terminate_state(True)
             self.g.off_state()
-
-            self.maxspeed.text = 'STOPPED'
-            self.maxspeed.color = (1, .9, 0, 2)
-            self.maxspeed.font_size = 130
-            Clock.schedule_once(self.maxspeed.texture_update)
             self.gps_producer = None
             self.calculator = None
 
@@ -2508,6 +2503,10 @@ class MainTApp(App):
             self.speed_cam_queue.clear_camqueue(self.cv_speedcam)
             self.map_queue.clear_map_update(self.cv_map)
             self.currentspeed_queue.clear(self.cv_currentspeed)
+            self.maxspeed.text = 'STOPPED'
+            self.maxspeed.color = (1, .9, 0, 2)
+            self.maxspeed.font_size = 130
+            Clock.schedule_once(self.maxspeed.texture_update)
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'
