@@ -122,7 +122,9 @@ class GPSConsumerThread(StoppableThread, Logger):
                             self.curvelayout.check_speed_deviation(float_key, False)
                         self.backup_speed = float_key
             elif value == 4:
+                font_size = 100
                 self.bearing.text = key
+                self.bearing.font_size = font_size
                 Clock.schedule_once(self.bearing.texture_update)
             elif value == 5:
                 self.speedlayout.update_gps_accuracy(key)
