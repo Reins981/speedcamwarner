@@ -1164,10 +1164,11 @@ class Speedlayout(FloatLayout):
         Clock.schedule_once(self.gps_accuracy.texture_update)
 
     def update_overspeed(self, speed=0):
-        self.overspeed.text = "+" + str(speed)
-        self.overspeed.font_size = 120
-        self.overspeed.color = (1, 0, 0, 3)
-        Clock.schedule_once(self.overspeed.texture_update)
+        if self.overspeed.text != "+" + str(speed):
+            self.overspeed.text = "+" + str(speed)
+            self.overspeed.font_size = 120
+            self.overspeed.color = (1, 0, 0, 3)
+            Clock.schedule_once(self.overspeed.texture_update)
 
     def reset_overspeed(self):
         if self.overspeed.text != "":

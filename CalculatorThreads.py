@@ -4204,12 +4204,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.ms.maxspeed.text = ""
                 Clock.schedule_once(self.ms.maxspeed.texture_update)
             else:
-                if self.disable_road_lookup:
-                    font_size = 250
-                    font_size_alternative = 110
-                else:
-                    font_size = 230
-                    font_size_alternative = 100
+                font_size = 230
+                font_size_alternative = 100
 
                 if self.ms.maxspeed.text != str(maxspeed):
                     if isinstance(maxspeed, str) and len(maxspeed) >= 10:

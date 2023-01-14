@@ -63,7 +63,9 @@ class GPSConsumerThread(StoppableThread, Logger):
                 av_speed = str(round(av_speed / 1.609344, 1))
             if not isinstance(av_speed, str):
                 av_speed = str(av_speed)
+            font_size = 250
             self.curspeed.text = av_speed
+            self.curspeed.font_size = font_size
             Clock.schedule_once(self.curspeed.texture_update)
 
     def speed_update_kivy(self, key):
@@ -77,7 +79,9 @@ class GPSConsumerThread(StoppableThread, Logger):
             speed = str(round(speed / 1.609344, 1))
         if not isinstance(speed, str):
             speed = str(speed)
+        font_size = 250
         self.curspeed.text = speed
+        self.curspeed.font_size = font_size
         Clock.schedule_once(self.curspeed.texture_update)
 
     def update_kivi(self):
@@ -130,7 +134,9 @@ class GPSConsumerThread(StoppableThread, Logger):
 
     def clear_all(self, key):
         if self.curspeed.text != key:
+            font_size = 250
             self.curspeed.text = key
+            self.curspeed.font_size = font_size
             Clock.schedule_once(self.curspeed.texture_update)
         self.speedlayout.update_accel_layout()
         self.speedlayout.reset_overspeed()
@@ -205,11 +211,11 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = False
+        self.gps_test_data = True
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
-                                     "t3688297_radweg-berlin-leipzig_0.gpx")
+                                     "t1374104_berliner-mauerweg.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 55
 

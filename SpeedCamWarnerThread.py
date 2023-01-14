@@ -818,8 +818,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def update_max_speed(self, max_speed=None, reset=False):
         if reset:
-            if self.ms.maxspeed.text != "":
-                self.ms.maxspeed.text = ""
+            if self.ms.maxspeed.text != "->->->":
+                font_size = 230
+                self.ms.maxspeed.text = "->->->"
+                self.ms.maxspeed.color = (0, 1, .3, .8)
+                self.ms.maxspeed.font_size = font_size
                 Clock.schedule_once(self.ms.maxspeed.texture_update)
         else:
             if max_speed:
@@ -830,8 +833,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.ms.maxspeed.font_size = font_size
                     Clock.schedule_once(self.ms.maxspeed.texture_update)
             else:
-                if self.ms.maxspeed.text != "":
-                    self.ms.maxspeed.text = ""
+                if self.ms.maxspeed.text != "->->->":
+                    font_size = 230
+                    self.ms.maxspeed.text = "->->->"
+                    self.ms.maxspeed.color = (0, 1, .3, .8)
+                    self.ms.maxspeed.font_size = font_size
                     Clock.schedule_once(self.ms.maxspeed.texture_update)
 
         if reset or not max_speed:
