@@ -19,7 +19,7 @@ The devkit image is available under (https://hub.docker.com/repository/docker/re
 You can also pull it from the repository
 
 ```
-docker pull reko8680/android:tagname
+docker pull reko8680/android:devkit1
 ```
 
 ### Steps
