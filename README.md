@@ -72,8 +72,10 @@ Upload your sources and then run the build.
     gstreamer1.0-plugins-good
 !sudo apt-get install build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev
 !sudo apt-get install libffi-dev
+```
 
-# Build in debug or release mode
+Build in debug or release mode:
+```
 !buildozer -v android debug
 !buildozer android clean
 ```
