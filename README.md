@@ -23,18 +23,19 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 2) Run the script "run_docker.sh" with the following options:
 
 ```
-# Start a devkit container and build your app in debug mode
-./run_docker.sh speedwarner build debug
+# Start a devkit container with name "speedwarner" and build your app in debug mode
+# NOTE: If no name is provided, the default devkit container name is "devkit_container"
+./run_docker.sh --name speedwarner -m ".:/home/docker/speedwarner" -c "buildozer -v android debug"
 
 
-# Start a devkit container and build your app in release mode
-./run_docker.sh speedwarner build release
+# Start a devkit container with name "speedwarner" and build your app in release mode
+./run_docker.sh --name speedwarner -m ".:/home/docker/speedwarner" -c "buildozer -v android release"
 
 # Cleanup your android build directories
-./run_docker.sh speedwarner cleanup
+./run_docker.sh -c "android clean"
 
-# Stop and remove the devkit container
-./run_docker.sh speedwarner remove
+# Stop and remove the devkit container with name "speedwarner"
+./run_docker.sh --rm --name speedwarner
 ```
 
 If the build was successfull, **the APK image will be
