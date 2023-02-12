@@ -37,8 +37,8 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 ./run_docker.sh remove
 ```
 
-If the build was successfull, the APK image will be transferred 
-automaticalliy to your host machine in the current directory
+If the build was successfull, **the APK image will be transferred 
+automaticalliy to your host machine in the current directory**
 
 
 ## Build process on Google Colab:
