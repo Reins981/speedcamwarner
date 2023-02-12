@@ -16,6 +16,12 @@ No more struggles to set up the dependencies that go along with it. The devkit c
 
 The devkit image is available under (https://hub.docker.com/repository/docker/reko8680/android/general)
 
+You can also pull it from the repository
+
+```
+docker push reko8680/android:tagname
+```
+
 ### Steps
 
 1) Install docker and git
