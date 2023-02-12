@@ -45,7 +45,7 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 ./run_docker.sh -c "android clean"
 
 # Stop and remove the devkit container with name "speedwarner"
-./run_docker.sh --rm --name speedwarner
+./run_docker.sh -rm --name speedwarner
 ```
 
 If the build was successfull, **the APK image will be
