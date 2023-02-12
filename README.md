@@ -1,8 +1,41 @@
-# A simple speedcam warner based on OpenStreetMap OSM. 
+## A simple speedcam warner based on OpenStreetMap OSM. 
+
 This App is designed to run on Android. 
 Preconditions:
 - Internet
 - GPS
+
+# Build process using a devkit environment
+
+Are you tired of setting up your own devkit environment in order to build
+android apps?
+If so then this is the right place for you.
+I have provided a devkit environment as Docker image to build and run your own android projects. No more struggle to set up the dependencies that go along with it.
+
+### Steps
+
+1) Clone the speedwarner master branch into your local working directory
+    -> git clone git@github.com:Reins981/speedcamwarner.git .
+2) Run the script "run_docker.sh" with the following options:
+
+```
+# Start a devkit container and build your app in debug mode
+./run_docker.sh build debug
+
+
+# Start a devkit container and build your app in release mode
+./run_docker.sh build release
+
+# Cleanup your android build directories
+./run_docker.sh cleanup
+
+# Stop and remove the devkit container
+./run_docker.sh remove
+```
+
+If the build was successfull, the APK image will be transferred 
+automaticalliy to your host machine in the current directory
+
 
 # Build process on Google Colab:
 
