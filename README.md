@@ -43,6 +43,10 @@ automaticalliy to your host machine in the current directory**
 
 ## Build process on Google Colab:
 
+On Google Colab most of the libraries needed are already installed.
+Just execute the below commands to install the buildozer relevant libraries.
+Upload your sources and then run the build.
+
 ```
 !pip install buildozer
 !pip install cython==0.29.19
@@ -68,6 +72,8 @@ automaticalliy to your host machine in the current directory**
     gstreamer1.0-plugins-good
 !sudo apt-get install build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev
 !sudo apt-get install libffi-dev
+
+# Build in debug or release mode
 !buildozer -v android debug
 !buildozer android clean
 ```
