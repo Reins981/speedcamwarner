@@ -1,11 +1,12 @@
-## A simple speedcam warner based on OpenStreetMap OSM. 
+# A simple speedcam warner based on OpenStreetMap OSM. 
 
 This App is designed to run on Android. 
-Preconditions:
+
+**Preconditions:**
 - Internet
 - GPS
 
-# Build process using a devkit environment
+## Build process using a devkit environment
 
 Are you tired of setting up your own devkit environment in order to build
 android apps?
@@ -37,7 +38,7 @@ If the build was successfull, the APK image will be transferred
 automaticalliy to your host machine in the current directory
 
 
-# Build process on Google Colab:
+## Build process on Google Colab:
 
 !pip install buildozer
 !pip install cython==0.29.19
