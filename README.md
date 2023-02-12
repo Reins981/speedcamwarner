@@ -25,7 +25,7 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 
 ```
 # Start a devkit container with name "speedwarner" and build your app in debug mode
-# Mount the project sources and the buildozer.spec files usign the -m option
+# Mount the project sources and the buildozer.spec file usign the -m option
 # NOTE: If no name is provided, the default devkit container name is "devkit_container"
 ./run_docker.sh --name speedwarner -m ".:/home/docker/speedwarner" -c "buildozer -v android debug"
 
