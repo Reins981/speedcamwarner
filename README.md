@@ -24,17 +24,17 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 
 ```
 # Start a devkit container and build your app in debug mode
-./run_docker.sh build debug
+./run_docker.sh speedwarner build debug
 
 
 # Start a devkit container and build your app in release mode
-./run_docker.sh build release
+./run_docker.sh speedwarner build release
 
 # Cleanup your android build directories
-./run_docker.sh cleanup
+./run_docker.sh speedwarner cleanup
 
 # Stop and remove the devkit container
-./run_docker.sh remove
+./run_docker.sh speedwarner remove
 ```
 
 If the build was successfull, **the APK image will be
