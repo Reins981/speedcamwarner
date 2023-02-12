@@ -11,7 +11,7 @@ This App is designed to run on Android. iOS is not supported.
 Are you tired of setting up your own devkit environment in order to build
 android apps?
 If so then this is the right place for you.
-I have provided a devkit environment as Docker image to build and run your own android projects. No more struggle to set up the dependencies that go along with it.
+I have provided a devkit environment as Docker image to build your own android projects. No more struggle to set up the dependencies that go along with it.
 
 ### Steps
 
