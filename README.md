@@ -43,6 +43,7 @@ automaticalliy to your host machine in the current directory**
 
 ## Build process on Google Colab:
 
+```
 !pip install buildozer
 !pip install cython==0.29.19
 !sudo apt-get install -y \
@@ -69,6 +70,7 @@ automaticalliy to your host machine in the current directory**
 !sudo apt-get install libffi-dev
 !buildozer -v android debug
 !buildozer android clean
+```
 
 
 
