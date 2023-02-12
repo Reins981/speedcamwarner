@@ -1,4 +1,4 @@
-# A simple speedcam warner based on OpenStreetMap OSM. 
+# A simple speedcam warner based on OpenStreetMap (OSM)
 
 This App is designed to run on Android. 
 
