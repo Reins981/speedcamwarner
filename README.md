@@ -16,7 +16,7 @@ No more struggles to set up the dependencies that go along with it. The devkit c
 
 ### Steps
 
-1) Install docker
+1) Install docker and git
 2) Clone the speedwarner master branch into your local working directory
 ```
 git clone git@github.com:Reins981/speedcamwarner.git .
