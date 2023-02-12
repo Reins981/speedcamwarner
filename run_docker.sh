@@ -3,9 +3,12 @@ set -e
 
 DOCKER_IMAGE="reko8680/android:devkit1"
 
-DOCKER_CREATE_OPTS=(
+DOCKER_EXEC_OPTS=(
 
     --it
+)
+
+DOCKER_CREATE_OPTS=(
     -v ${VOLUME}
     -w ${WORKDIR}
 
@@ -30,10 +33,10 @@ function stop_container()
 
 function start_container()
 {
-    if [$CONTAINER_RUNS == 0 ]; then
+    if [ $CONTAINER_RUNS == 0 ]; then
         echo "Starting container ${CONTAINER_NAME}.."
         docker start -a ${CONTAINER_NAME}
-        $CONTAINER_RUNS=1
+        CONTAINER_RUNS=1
     else
         echo "Container ${CONTAINER_NAME} is already started"
     fi
@@ -41,15 +44,15 @@ function start_container()
 
 function remove_container()
 {
-    if [$CONTAINER_EXISTS == 1 ]; then
+    if [ $CONTAINER_EXISTS == 1 ]; then
     
-        if [$CONTAINER_RUNS == 1 ]; then
+        if [ $CONTAINER_RUNS == 1 ]; then
             stop_container
         fi
         
         echo "Removing container ${CONTAINER_NAME}.."
         docker rm -f ${CONTAINER_NAME}
-        $CONTAINER_EXISTS=0
+        CONTAINER_EXISTS=0
     else
         echo "Container ${CONTAINER_NAME} already removed"
     fi
@@ -57,26 +60,29 @@ function remove_container()
 
 function create_container()
 {
-    if [$CONTAINER_EXISTS == 1 ]; then
+    if [ $CONTAINER_EXISTS == 1 ]; then
         echo "Container ${CONTAINER_NAME} is already created"
     else
         echo "Creating container ${CONTAINER_NAME}"
-        DOCKER_OPTS=${DOCKER_CREATE_OPTS[@]} + ( ${DOCKER_GENERAL_OPTS[@]} )
-        docker create ${DOCKER_OPTS} ${CONTAINER_NAME} ${DOCKER_IMAGE}
+        DOCKER_OPTS=()
+        DOCKER_OPTS+=( "${DOCKER_CREATE_OPTS[@]}" "${DOCKER_GENERAL_OPTS[@]}" )
+        docker create ${DOCKER_OPTS[*]} ${CONTAINER_NAME} ${DOCKER_IMAGE}
+        CONTAINER_EXISTS=1
     fi
 }
 
 function exec_container()
 {
     
-    if [$CONTAINER_EXISTS == 1 ]; then
+    if [ $CONTAINER_EXISTS == 1 ]; then
 
-        if [$CONTAINER_RUNS == 0 ]; then
+        if [ $CONTAINER_RUNS == 0 ]; then
             echo "Container ${CONTAINER_NAME} is not running"
             start_container
         fi
 
         echo "Executing ${COMMAND} in container ${CONTAINER_NAME}"
+        DOCKER_OPTS+=( "${DOCKER_EXEC_OPTS[@]}" "${DOCKER_CREATE_OPTS[@]}" )
         if [ -n $COMMAND ]; then
             docker exec ${DOCKER_CREATE_OPTS[*]} $CONTAINER_NAME bash -c ${COMMAND}  
         else
@@ -88,16 +94,13 @@ function exec_container()
 
 function check_container_status()
 {
-    $CONTAINER_RUNS=0
-    $CONTAINER_EXISTS=0
-
-    exists=$(docker ps -a | grep ${CONTAINER_NAME})
-    if [ -n $exists ]; then
+    CONTAINER_RUNS=0
+    CONTAINER_EXISTS=0
+    if docker ps -a | grep ${CONTAINER_NAME} > /dev/null; then
         echo "Docker container ${CONTAINER_NAME} already exists"
-        $CONTAINER_EXISTS=1
+        CONTAINER_EXISTS=1
         
-        status=$(docker ps -a --filter status=running | grep ${CONTAINER_NAME})
-        if [ -n $status ]; then
+        if docker ps -a --filter status=running | grep ${CONTAINER_NAME} > /dev/null; then
             CONTAINER_RUNS=1
         fi
     fi
@@ -153,17 +156,15 @@ for ((i=1;i<=${#@}; i++)); do
 done
 
 echo "------ Show all docker containers --------"
-docker ps --all
+docker ps -a
 echo "------------------------------------------"
 
 check_container_status
-
-if [ $REMOVE_CONTAINER == 1 ]; then
+if [ "${REMOVE_CONTAINER}" == 1 ]; then
     remove_container
-    exit 0
+else
+    echo "Workdir in container is: \"$WORKDIR\""
+    create_container
+    exec_container
 fi
-
-echo "Workdir in container is: \"$WORKDIR\""
-create_container
-exec_container
 exit 0
