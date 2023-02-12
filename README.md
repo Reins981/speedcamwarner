@@ -47,7 +47,7 @@ automatically available on your host machine in the $SOURCE_PATH/bin directory.*
 ## Build process on Google Colab:
 
 On Google Colab most of the libraries needed are already installed.
-Just execute the below commands to install the buildozer relevant libraries.
+Just execute the below commands to install buildozer relevant libraries.
 Upload your sources and then run the build.
 
 ```
