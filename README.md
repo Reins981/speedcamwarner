@@ -39,10 +39,10 @@ git clone git@github.com:Reins981/speedcamwarner.git .
 
 
 # Start a devkit container with name "speedwarner" and build your app in release mode
-./run_docker.sh --name speedwarner -m ".:/home/docker/speedwarner" -c "buildozer -v android release"
+./run_docker.sh --name speedwarner -m "$PWD:/home/docker/speedwarner" -c "buildozer -v android release"
 
 # Cleanup your android build directories
-./run_docker.sh -c "android clean"
+./run_docker.sh --name speedwarner -m "$PWD:/home/docker/speedwarner" -c "buildozer android clean"
 
 # Stop and remove the devkit container with name "speedwarner"
 ./run_docker.sh -rm --name speedwarner
