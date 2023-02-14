@@ -1,6 +1,7 @@
 # A simple speedcam warner based on OpenStreetMap (OSM)
 
 This App is designed to run on Android. iOS is not supported.
+Tests were successfully executed for architecture arm64-v8a.
 
 **Preconditions:**
 - Internet
