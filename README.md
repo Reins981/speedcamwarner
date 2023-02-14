@@ -2,6 +2,7 @@
 
 This App is designed to run on Android. iOS is not supported.
 Tests were successfully executed for architecture arm64-v8a.
+The sources also include a ready to go buildozer.spec file.
 
 **Preconditions:**
 - Internet
