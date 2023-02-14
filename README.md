@@ -1,8 +1,10 @@
 # A simple speedcam warner based on OpenStreetMap (OSM)
 
 This App is designed to run on Android. iOS is not supported.
-Tests were successfully executed for architecture arm64-v8a.
 The sources also include a ready to go buildozer.spec file.
+
+**Tested on:**
+- arm64-v8a
 
 **Preconditions:**
 - Internet
