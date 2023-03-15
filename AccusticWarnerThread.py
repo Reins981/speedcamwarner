@@ -133,6 +133,8 @@ class VoicePromptThread(StoppableThread, Logger):
             sound = os.path.join(BASE_PATH, 'route_stopped.wav')
         elif voice_entry == "POI_REACHED":
             sound = os.path.join(BASE_PATH, 'poi_reached.wav')
+        elif voice_entry == "ANGLE_MISMATCH":
+            sound = os.path.join(BASE_PATH, 'angle_mismatch.wav')
         else:
             pass
 

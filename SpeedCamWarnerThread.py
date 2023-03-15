@@ -378,6 +378,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
                                     "%s %s because of Angle mismatch" % (cam[0], cam[1]))
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ANGLE_MISMATCH')
                 return False
 
         # check speed cam distance to updated ccp position

@@ -516,6 +516,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.is_cam = False
         self.already_online = False
         self.already_offline = False
+        self.gps_already_offline = False
         self.new_rectangle = True
         self.border_reached = False
         self.osm_error_reported = False
@@ -935,6 +936,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             next_action = self.process()
             if next_action == 'EXIT':
                 self.print_log_line(' Calculator thread terminating..')
+                self.reset_gps_off_state()
                 return
             elif next_action == 'OFFLINE':
                 if not self.disable_all:
@@ -944,6 +946,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             isinstance(self.treeGenerator, BinarySearchTree)):
                         self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
                             previous_ccp=True)
+                self.process_offline()
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
@@ -962,11 +965,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.start_thread_pool_process_disable_all(self.processDisableAllAction, 1)
                     if r_value == 'TERMINATE':
                         break
+                self.reset_gps_off_state()
             elif next_action == 'INIT':
                 self.update_kivi_maxspeed_onlinecheck(online_available=False,
                                                       status='INIT')
+                self.reset_gps_off_state()
             else:
-                pass
+                self.reset_gps_off_state()
 
         # send a termination item to our speed warner thread
         self.speed_cam_queue.produce(self.cv_speedcam,
@@ -1558,6 +1563,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return 'CALCULATE'
         else:
             return 'INIT'
+
+    def process_offline(self):
+        if self.gps_already_offline:
+            pass
+        else:
+            self.update_kivi_maxspeed("<-<-<-<", color=(1, 0, 0, 3))
+            self.update_kivi_roadname("", False)
+            self.gps_already_offline = True
 
     def processDisableAllAction(self):
         if self.alternative_road_lookup:
@@ -4198,7 +4211,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             self.slow_data_reported = False
 
-    def update_kivi_maxspeed(self, maxspeed=None):
+    def update_kivi_maxspeed(self, maxspeed=None, color=None):
         if maxspeed:
             if maxspeed == "cleanup":
                 self.ms.maxspeed.text = ""
@@ -4210,11 +4223,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if self.ms.maxspeed.text != str(maxspeed):
                     if isinstance(maxspeed, str) and len(maxspeed) >= 10:
                         self.ms.maxspeed.text = maxspeed
-                        self.ms.maxspeed.color = (0, 1, .3, .8)
+                        self.ms.maxspeed.color = (0, 1, .3, .8) if color is None else color
                         self.ms.maxspeed.font_size = font_size_alternative
                     else:
                         self.ms.maxspeed.text = str(maxspeed)
-                        self.ms.maxspeed.color = (0, 1, .3, .8)
+                        self.ms.maxspeed.color = (0, 1, .3, .8) if color is None else color
                         self.ms.maxspeed.font_size = font_size
                     Clock.schedule_once(self.ms.maxspeed.texture_update)
 
@@ -4253,6 +4266,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if self.ms.roadname.text != roadname:
                     self.ms.roadname.text = roadname
                     Clock.schedule_once(self.ms.roadname.texture_update)
+        else:
+            self.ms.roadname.text = ""
+            Clock.schedule_once(self.ms.roadname.texture_update)
 
     def update_cam_radius(self, radius):
         if isinstance(radius, int) or isinstance(radius, float):
@@ -4295,6 +4311,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.already_online = False
 
         self.last_online_status = self.current_online_status
+
+    def reset_gps_off_state(self):
+        if self.gps_already_offline:
+            self.gps_already_offline = False
 
     def update_maxspeed_status(self, status, internal_error):
         # check current and additional rects
