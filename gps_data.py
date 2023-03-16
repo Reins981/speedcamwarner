@@ -83,7 +83,7 @@ class GpsTestDataGenerator(object):
 
 if __name__ == '__main__':
     gpx_file = os.path.join(os.path.dirname(__file__), "gpx", "nordspange_tr2.gpx")
-    test_iter = iter(GpsTestDataGenerator(gpx_f=gpx_file))
+    test_iter = GpsTestDataGenerator(gpx_f=gpx_file)
     print("***********************")
     for entry in test_iter:
         print(entry)
