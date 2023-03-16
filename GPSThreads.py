@@ -384,6 +384,7 @@ class GPSThread(StoppableThread, Logger):
         else:
             self.print_log_line("GPS status is ON")
             self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'GPS_ON')
+            self.calculator.update_kivi_maxspeed(">->->")
             self.g.on_state()
             self.on_state = True
             self.off_state = False

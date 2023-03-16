@@ -1568,7 +1568,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if self.gps_already_offline:
             pass
         else:
-            self.update_kivi_maxspeed("<-<-<-<", color=(1, 0, 0, 3))
+            self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
             self.update_kivi_roadname("", False)
             self.gps_already_offline = True
 
