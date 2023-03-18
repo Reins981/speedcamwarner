@@ -374,11 +374,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_300m(color=2)
                 self.update_bar_widget_100m(color=2)
                 self.update_bar_widget_meters('')
-                self.update_cam_road(reset=True)
+                self.update_cam_road(road="Camera dismissed (Angle)", color=(0, 1, .3, .8))
                 self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
                                     "%s %s because of Angle mismatch" % (cam[0], cam[1]))
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ANGLE_MISMATCH')
+                # self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ANGLE_MISMATCH')
                 return False
 
         # check speed cam distance to updated ccp position
@@ -814,8 +814,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def update_cam_text(self, distance=0, reset=False):
         self.ms.update_cam_text(distance, reset)
 
-    def update_cam_road(self, road=None, reset=False):
-        self.ms.update_cam_road(road, reset)
+    def update_cam_road(self, road=None, reset=False, color=None):
+        self.ms.update_cam_road(road, reset, color=color)
 
     def update_max_speed(self, max_speed=None, reset=False):
         if reset:

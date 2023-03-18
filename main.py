@@ -456,20 +456,20 @@ class MaxSpeedlayout(FloatLayout):
             self.camtext.color = (1, 0, 0, 3)
             Clock.schedule_once(self.camtext.texture_update)
 
-    def update_cam_road(self, road="", reset=False, m_type="CAMERA"):
+    def update_cam_road(self, road="", reset=False, m_type="CAMERA", color=None):
         if reset:
             if self.camroad.text != "":
                 self.camroad.text = ""
-                self.camroad.color = (1, 0, 0, 3)
+                self.camroad.color = (1, 0, 0, 3) if color is None else color
                 Clock.schedule_once(self.camroad.texture_update)
                 Clock.schedule_once(self.callback_freeflow)
         else:
             if m_type == "WATER":
-                color = (0, 1, 1, 1)
+                color = (0, 1, 1, 1) if color is None else color
             elif m_type == "ACCESS_CONTROL":
-                color = (1, 1, 0, 2)
+                color = (1, 1, 0, 2) if color is None else color
             else:
-                color = (1, 0, 0, 3)
+                color = (1, 0, 0, 3) if color is None else color
 
             if road is None:
                 road = ""
