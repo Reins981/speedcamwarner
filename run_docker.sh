@@ -71,6 +71,12 @@ function check_container_status()
     fi
 }
 
+function cleanup()
+{
+	CLEANUP_PATH=${VOLUME%:*}
+	rm -rf $CLEANUP_PATH/.buildozer
+}
+
 
 function usage()
 {
@@ -125,6 +131,7 @@ echo "------ Show all docker containers --------"
 docker ps -a
 echo "------------------------------------------"
 
+cleanup
 setup_docker_run_options
 check_container_status
 
