@@ -358,6 +358,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         cam = self.sort_pois(cam_list)
         # Nothing to sort
         if cam is None:
+            self.update_cam_road(reset=True)
             return False
 
         try:
