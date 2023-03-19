@@ -76,9 +76,6 @@ class OverspeedCheckerThread(StoppableThread, Logger):
         if current_speed > max_speed:
             self.print_log_line(f" Driver is too fast: expected speed {max_speed}, "
                                 f"actual speed {current_speed}")
-            s_color = (1, 0, 0, 3)
-            self.speedlayout.overspeed.color = s_color
-            self.speedlayout.overspeed.texture_update()
             self.process_entry(current_speed - max_speed)
         else:
             self.process_entry(10000)
