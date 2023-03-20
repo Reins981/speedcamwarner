@@ -349,6 +349,9 @@ class GPSThread(StoppableThread, Logger):
         return None
 
     def process_offroute(self, gps_accuracy):
+        # Always calculate extrapolated positions
+        self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
+                                   float(0.0), float(0.0), '-', 'OFFLINE', 0)
 
         if self.already_off():
             pass
@@ -368,8 +371,6 @@ class GPSThread(StoppableThread, Logger):
             self.on_state = False
             self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
 
-            self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
-                                       float(0.0), float(0.0), '-', 'OFFLINE', 0)
             self.reset_osm_data_state()
 
     def callback_gps(self, lon, lat):

@@ -1526,20 +1526,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                  float(self.bearing_cached),
                                                  1)
 
-            if self.longitude_cached > 0 and self.latitude_cached > 0:
-                self.speed_cam_queue.produce(self.cv_speedcam, {
-                    'ccp': (self.longitude_cached, self.latitude_cached),
-                    'fix_cam': (False, 0, 0),
-                    'traffic_cam': (False, 0, 0),
-                    'distance_cam': (False, 0, 0),
-                    'mobile_cam': (False, 0, 0),
-                    'ccp_node': (None, None),
-                    'list_tree': (None, None),
-                    'stable_ccp': self.isCcpStable,
-                    'bearing': None})
-                # clear any overhead leading to performance bottle necks
-                self.currentspeed_queue.produce(self.cv_currentspeed, None)
-                self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
+            self.speed_cam_queue.produce(self.cv_speedcam, {
+                'ccp': (self.longitude_cached, self.latitude_cached),
+                'fix_cam': (False, 0, 0),
+                'traffic_cam': (False, 0, 0),
+                'distance_cam': (False, 0, 0),
+                'mobile_cam': (False, 0, 0),
+                'ccp_node': (None, None),
+                'list_tree': (None, None),
+                'stable_ccp': self.isCcpStable,
+                'bearing': None})
+            # clear any overhead leading to performance bottlenecks
+            self.currentspeed_queue.produce(self.cv_currentspeed, None)
+            self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
 
         else:
             pass
@@ -4258,8 +4257,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.ms.roadname.text = roadname
                     Clock.schedule_once(self.ms.roadname.texture_update)
         else:
-            self.ms.roadname.text = ""
-            Clock.schedule_once(self.ms.roadname.texture_update)
+            if self.ms.roadname.text != "":
+                self.ms.roadname.text = ""
+                Clock.schedule_once(self.ms.roadname.texture_update)
 
     def update_cam_radius(self, radius):
         if isinstance(radius, int) or isinstance(radius, float):
