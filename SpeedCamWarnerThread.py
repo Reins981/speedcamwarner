@@ -355,11 +355,22 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Delete obsolete cameras
         self.delete_cameras(cams_to_delete)
         # Sort cameras based on distance
-        cam = self.sort_pois(cam_list)
+        cam, cam_entry = self.sort_pois(cam_list)
         # Nothing to sort
         if cam is None:
             self.update_cam_road(reset=True)
             return False
+        # Sort the follow up cameras based on the list of cameras - the actual camera
+        cam_list_followup = cam_list.copy()
+        cam_list_followup.remove(cam_entry)
+        next_cam, next_cam_entry = self.sort_pois(cam_list_followup)
+        # Set up the road name and the distance for the next camera
+        next_cam_road = ""
+        next_cam_distance = ""
+        if next_cam is not None and next_cam in self.ITEMQUEUE:
+            tmp = deepcopy(self.ITEMQUEUE)
+            next_cam_road = tmp[next_cam][7]
+            next_cam_distance = next_cam_entry[1] + "m"
 
         try:
             cam_attributes = self.ITEMQUEUE[cam]
@@ -400,7 +411,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[3],
                                           cam_attributes[4],
                                           cam_attributes[5],
-                                          cam_attributes[10])
+                                          cam_attributes[10],
+                                          next_cam_road,
+                                          next_cam_distance)
             self.calculator.camera_in_progress(SpeedCamWarnerThread.CAM_IN_PROGRESS)
 
         else:
@@ -456,7 +469,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None,
-                                 last_distance=-1, max_speed=None):
+                                 last_distance=-1, max_speed=None,
+                                 next_cam_road="", next_cam_distance=""):
 
         if 0 <= distance <= 100:
             SpeedCamWarnerThread.CAM_IN_PROGRESS = True
@@ -563,7 +577,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True)
+                    self.update_cam_road(reset=True) if not next_cam_road \
+                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                                                  color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -622,7 +638,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True)
+                    self.update_cam_road(reset=True) if not next_cam_road \
+                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                                                  color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -681,7 +699,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True)
+                    self.update_cam_road(reset=True) if not next_cam_road \
+                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                                                  color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -707,6 +727,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('CAMERA_AHEAD')
                     self.update_bar_widget_meters(distance)
+                    if cam_coordinates in self.ITEMQUEUE:
+                        tmp = deepcopy(self.ITEMQUEUE)
+                        self.update_cam_road(road=tmp[cam_coordinates][7])
                 else:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                     self.update_kivi_speedcam('FREEFLOW')
@@ -715,7 +738,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True)
+                    self.update_cam_road(reset=True) if not next_cam_road \
+                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                                                  color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -741,7 +766,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_bar_widget_300m(color=2)
             self.update_bar_widget_100m(color=2)
             self.update_bar_widget_meters('')
-            self.update_cam_road(reset=True)
+            self.update_cam_road(reset=True) if not next_cam_road \
+                else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                                          color=(0, 1, .3, .8))
             self.update_max_speed(reset=True)
 
             last_distance = self.max_absolute_distance
@@ -760,8 +787,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def sort_pois(cam_list):
         if len(cam_list) > 0:
             attributes = min(cam_list, key=lambda c: c[1])
-            return attributes[0]
-        return None
+            return attributes[0], attributes
+        return None, None
 
     def check_road_name(self, *args):
         linked_list = args[0]

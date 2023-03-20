@@ -45,7 +45,7 @@ class GPSConsumerThread(StoppableThread, Logger):
             if not self.resume.isResumed():
                 self.gpsqueue.clear_gpsqueue(self.cv)
             else:
-                self.update_kivi()
+                self.process()
 
         self.print_log_line("Terminating")
         self.gpsqueue.clear_gpsqueue(self.cv)
@@ -84,14 +84,14 @@ class GPSConsumerThread(StoppableThread, Logger):
         self.curspeed.font_size = font_size
         Clock.schedule_once(self.curspeed.texture_update)
 
-    def update_kivi(self):
+    def process(self):
 
         item = self.gpsqueue.consume(self.cv)
         for key, value in item.items():
             if value == 3:
                 if key == '---.-':
                     self.clear_all(key)
-                elif key != '---.-':
+                else:
                     int_key = int(round(float(key)))
                     float_key = float(key)
                     # Update the current speed
@@ -278,16 +278,18 @@ class GPSThread(StoppableThread, Logger):
                 # Set accuracy
                 accuracy = event['data']['gps']['accuracy']
                 if int(accuracy) <= self.gps_treshold:
+                    self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
 
                     # Set members
                     success_speed = False
                     success_coords = False
-                    speed = None
                     speed_vector = None
                     lon, lat = None, None
                     if 'speed' in event['data']['gps']:
                         speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
                         speed_vector = round((float(event['data']['gps']['speed'])), 2)
+                        self.gpsqueue.produce(self.cv, {speed: 3})
+                        self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
                         success_speed = True
                     if 'latitude' in event['data']['gps']:
                         lat = float(event['data']['gps']['latitude'])
@@ -301,10 +303,6 @@ class GPSThread(StoppableThread, Logger):
                     self.callback_gps(lon, lat)
                     # Update our bot
                     self.set_lon_lat_bot(lat, lon)
-
-                    self.gpsqueue.produce(self.cv, {speed: 3})
-                    self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
-                    self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
 
                     direction, bearing = self.calculate_direction(event)
                     if direction is None:
@@ -355,6 +353,8 @@ class GPSThread(StoppableThread, Logger):
         if self.already_off():
             pass
         else:
+            # Clear old gps items
+            self.gpsqueue.clear_gpsqueue(self.cv)
             self.print_log_line(f"GPS status is {gps_accuracy}")
             if gps_accuracy != "GPS_OFF":
                 self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_LOW")
