@@ -516,7 +516,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.is_cam = False
         self.already_online = False
         self.already_offline = False
-        self.gps_already_offline = False
         self.new_rectangle = True
         self.border_reached = False
         self.osm_error_reported = False
@@ -936,9 +935,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             next_action = self.process()
             if next_action == 'EXIT':
                 self.print_log_line(' Calculator thread terminating..')
-                self.reset_gps_off_state()
                 return
             elif next_action == 'OFFLINE':
+                self.process_offline()
                 if not self.disable_all:
                     # convert previous CCP longitude,latitude to (x,y).
                     if (isinstance(self.linkedListGenerator,
@@ -946,7 +945,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             isinstance(self.treeGenerator, BinarySearchTree)):
                         self.matching_rect, close_to_border, delete_rects = self.check_all_rectangles(
                             previous_ccp=True)
-                self.process_offline()
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
@@ -965,13 +963,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         self.start_thread_pool_process_disable_all(self.processDisableAllAction, 1)
                     if r_value == 'TERMINATE':
                         break
-                self.reset_gps_off_state()
             elif next_action == 'INIT':
                 self.update_kivi_maxspeed_onlinecheck(online_available=False,
                                                       status='INIT')
-                self.reset_gps_off_state()
             else:
-                self.reset_gps_off_state()
+                pass
 
         # send a termination item to our speed warner thread
         self.speed_cam_queue.produce(self.cv_speedcam,
@@ -1565,12 +1561,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return 'INIT'
 
     def process_offline(self):
-        if self.gps_already_offline:
-            pass
-        else:
-            self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
-            self.update_kivi_roadname("", False)
-            self.gps_already_offline = True
+        self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
+        self.update_kivi_roadname("", False)
 
     def processDisableAllAction(self):
         if self.alternative_road_lookup:
@@ -4310,10 +4302,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.already_online = False
 
         self.last_online_status = self.current_online_status
-
-    def reset_gps_off_state(self):
-        if self.gps_already_offline:
-            self.gps_already_offline = False
 
     def update_maxspeed_status(self, status, internal_error):
         # check current and additional rects
