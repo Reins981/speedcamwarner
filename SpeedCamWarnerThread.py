@@ -588,7 +588,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
                     self.update_cam_road(reset=True) if not process_next_cam \
-                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                        else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
@@ -649,7 +649,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
                     self.update_cam_road(reset=True) if not process_next_cam \
-                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                        else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
@@ -710,7 +710,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
                     self.update_cam_road(reset=True) if not process_next_cam \
-                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                        else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
@@ -749,7 +749,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
                     self.update_cam_road(reset=True) if not process_next_cam \
-                        else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                        else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
@@ -777,7 +777,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_bar_widget_100m(color=2)
             self.update_bar_widget_meters('')
             self.update_cam_road(reset=True) if not process_next_cam \
-                else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
+                else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
                                           color=(0, 1, .3, .8))
             self.update_max_speed(reset=True)
 
