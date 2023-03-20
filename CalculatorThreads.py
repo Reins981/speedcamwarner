@@ -4063,7 +4063,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                         cspeed_converted, direction, dtime,
                                         mode='OFFLINE'):
 
-        if longitude > 0 and latitude > 0 and cspeed_converted > 0:
+        if longitude != 0 and latitude != 0 and cspeed_converted > 0:
             self.print_log_line(" Calculating extrapolated position based on speed and bearing")
             x = cspeed_converted * math.sin(
                 direction * math.pi / 180) * dtime / 3600
