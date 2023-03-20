@@ -370,7 +370,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         if next_cam is not None and next_cam in self.ITEMQUEUE:
             tmp = deepcopy(self.ITEMQUEUE)
             next_cam_road = tmp[next_cam][7]
-            next_cam_distance = next_cam_entry[1] + "m"
+            next_cam_distance = str(next_cam_entry[1]) + "m"
+            self.print_log_line("-> Followup Camera is: "
+                                "coords: (%f, %f), road name: %s, distance: %s "
+                                % (cam[0], cam[1], next_cam_road, next_cam_distance))
+        else:
+            self.print_log_line("Clear: No followup cameras found")
 
         try:
             cam_attributes = self.ITEMQUEUE[cam]
