@@ -73,8 +73,9 @@ function check_container_status()
 
 function cleanup()
 {
-	CLEANUP_PATH=${VOLUME%:*}
-	rm -rf $CLEANUP_PATH/.buildozer
+	CLEANUP_PATH=${VOLUME%:*}/.buildozer
+	echo "Removing ${CLEANUP_PATH}"
+	rm -rf $CLEANUP_PATH
 }
 
 
