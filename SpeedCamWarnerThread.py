@@ -367,15 +367,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Set up the road name and the distance for the next camera
         next_cam_road = ""
         next_cam_distance = ""
+        process_next_cam = False
         if next_cam is not None and next_cam in self.ITEMQUEUE:
             tmp = deepcopy(self.ITEMQUEUE)
             next_cam_road = tmp[next_cam][7]
             next_cam_distance = str(next_cam_entry[1]) + "m"
-            self.print_log_line("-> Followup Camera is: "
-                                "coords: (%f, %f), road name: %s, distance: %s "
-                                % (cam[0], cam[1], next_cam_road, next_cam_distance))
-        else:
-            self.print_log_line("Clear: No followup cameras found")
+            process_next_cam = True
 
         try:
             cam_attributes = self.ITEMQUEUE[cam]
@@ -404,10 +401,17 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             distance = self.check_distance_between_two_points(cam,
                                                               (self.longitude,
                                                                self.latitude))
-            self.print_log_line(" Followup Distance to speed cam (%f, %f, %s): %f meters , "
+            self.print_log_line(" Followup Distance to current speed cam "
+                                "(%f, %f, %s): %f meters , "
                                 "last distance: %s, storage_time: %f seconds"
                                 % (cam[0], cam[1], cam_attributes[0],
                                    distance, str(cam_attributes[5]), cam_attributes[6]))
+            if process_next_cam:
+                self.print_log_line("-> Future speed cam in queue is: "
+                                    "coords: (%f, %f), road name: %s, distance: %s "
+                                    % (next_cam[0], next_cam[1], next_cam_road, next_cam_distance))
+            else:
+                self.print_log_line("No future speed cam in queue found")
 
             self.trigger_speed_cam_update(round(distance),
                                           cam,
@@ -418,7 +422,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[5],
                                           cam_attributes[10],
                                           next_cam_road,
-                                          next_cam_distance)
+                                          next_cam_distance,
+                                          process_next_cam)
             self.calculator.camera_in_progress(SpeedCamWarnerThread.CAM_IN_PROGRESS)
 
         else:
@@ -475,7 +480,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None,
                                  last_distance=-1, max_speed=None,
-                                 next_cam_road="", next_cam_distance=""):
+                                 next_cam_road="", next_cam_distance="", process_next_cam=False):
 
         if 0 <= distance <= 100:
             SpeedCamWarnerThread.CAM_IN_PROGRESS = True
@@ -582,7 +587,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True) if not next_cam_road \
+                    self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
@@ -643,7 +648,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True) if not next_cam_road \
+                    self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
@@ -704,7 +709,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True) if not next_cam_road \
+                    self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
@@ -743,7 +748,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.update_bar_widget_300m(color=2)
                     self.update_bar_widget_100m(color=2)
                     self.update_bar_widget_meters('')
-                    self.update_cam_road(reset=True) if not next_cam_road \
+                    self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
                                                   color=(0, 1, .3, .8))
                     self.update_max_speed(reset=True)
@@ -771,7 +776,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_bar_widget_300m(color=2)
             self.update_bar_widget_100m(color=2)
             self.update_bar_widget_meters('')
-            self.update_cam_road(reset=True) if not next_cam_road \
+            self.update_cam_road(reset=True) if not process_next_cam \
                 else self.update_cam_road(road=f"{next_cam_road}:{next_cam_distance}",
                                           color=(0, 1, .3, .8))
             self.update_max_speed(reset=True)
