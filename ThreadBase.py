@@ -442,12 +442,17 @@ class SpeedCamQueue(object):
         cv.release()
 
 
+logger = Logger("VoicePromptQueue")
+
+
 class VoicePromptQueue(object):
     def __init__(self):
         self.GPSSIGNALQUEUE = deque()
         self.MAXSPEEDEXCEEDEDQUEUE = deque()
         self.ONLINEQUEUE = deque()
         self.POIQUEUE = deque()
+        self.CAMERAQUEUE = deque()
+        self.INFOQUEUE = deque()
 
     def an_item_is_available_gpssignal(self):
         return bool(self.GPSSIGNALQUEUE)
@@ -461,6 +466,12 @@ class VoicePromptQueue(object):
     def an_item_is_available_poi(self):
         return bool(self.POIQUEUE)
 
+    def an_item_is_available_info(self):
+        return bool(self.INFOQUEUE)
+
+    def an_item_is_available_camera(self):
+        return bool(self.CAMERAQUEUE)
+
     def get_an_available_item_gpssignal(self):
         return self.GPSSIGNALQUEUE.pop()
 
@@ -473,8 +484,20 @@ class VoicePromptQueue(object):
     def get_an_available_item_poi(self):
         return self.POIQUEUE.pop()
 
+    def get_an_available_item_camera(self):
+        return self.CAMERAQUEUE.pop()
+
+    def get_an_available_item_info(self):
+        return self.INFOQUEUE.pop()
+
+    def make_an_item_available_camera(self, item):
+        self.CAMERAQUEUE.append(item)
+
     def make_an_item_available_gpssignal(self, item):
         self.GPSSIGNALQUEUE.append(item)
+
+    def make_an_item_available_info(self, item):
+        self.INFOQUEUE.append(item)
 
     def make_an_item_available_maxspeed_exceeded(self, item):
         self.MAXSPEEDEXCEEDEDQUEUE.append(item)
@@ -491,6 +514,12 @@ class VoicePromptQueue(object):
         cv.notify()
         cv.release()
 
+    def clear_infoqueue(self, cv):
+        cv.acquire()
+        self.INFOQUEUE.clear()
+        cv.notify()
+        cv.release()
+
     def clear_maxspeedexceededqueue(self, cv):
         cv.acquire()
         self.MAXSPEEDEXCEEDEDQUEUE.clear()
@@ -503,28 +532,63 @@ class VoicePromptQueue(object):
         cv.notify()
         cv.release()
 
+    def clear_cameraqueue(self, cv):
+        cv.acquire()
+        self.CAMERAQUEUE.clear()
+        cv.notify()
+        cv.release()
+
     def consume_items(self, cv):
         cv.acquire()
         while not self.an_item_is_available_gpssignal() \
                 and not self.an_item_is_available_maxspeed_exceeded() \
                 and not self.an_item_is_available_online() \
-                and not self.an_item_is_available_poi():
+                and not self.an_item_is_available_poi() \
+                and not self.an_item_is_available_camera() \
+                and not self.an_item_is_available_info():
             cv.wait()
+
+        if self.an_item_is_available_camera() and self.an_item_is_available_gpssignal():
+            unusedItem1 = self.get_an_available_item_gpssignal()
+            logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
+                                f"-> Prefer voice prompt (CAMERA)")
+            return self.get_an_available_item_camera()
+
+        if self.an_item_is_available_camera() and self.an_item_is_available_info():
+            unusedItem1 = self.get_an_available_item_info()
+            logger.print_log_line(f"Dismiss voice prompt(s) (INFO) "
+                                f"-> Prefer voice prompt (CAMERA)")
+            return self.get_an_available_item_camera()
+
+        if self.an_item_is_available_camera() and self.an_item_is_available_online():
+            unusedItem1 = self.get_an_available_item_online()
+            logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
+                                f"-> Prefer voice prompt (CAMERA)")
+            return self.get_an_available_item_camera()
 
         if self.an_item_is_available_gpssignal() \
                 and self.an_item_is_available_maxspeed_exceeded() \
                 and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_gpssignal()
             unusedItem2 = self.get_an_available_item_online()
+            logger.print_log_line(f"Dismiss voice prompt(s) (GPS, ONLINE) "
+                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
-        elif self.an_item_is_available_gpssignal() and self.an_item_is_available_maxspeed_exceeded():
+        elif self.an_item_is_available_gpssignal() \
+                and self.an_item_is_available_maxspeed_exceeded():
             unusedItem1 = self.get_an_available_item_gpssignal()
+            logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
+                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_gpssignal() and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_online()
+            logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
+                                f"-> Prefer voice prompt (GPS)")
             return self.get_an_available_item_gpssignal()
         elif self.an_item_is_available_maxspeed_exceeded() and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_online()
+            logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
+                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_maxspeed_exceeded():
             return self.get_an_available_item_maxspeed_exceeded()
@@ -534,12 +598,22 @@ class VoicePromptQueue(object):
             return self.get_an_available_item_online()
         elif self.an_item_is_available_poi():
             return self.get_an_available_item_poi()
+        elif self.an_item_is_available_camera():
+            return self.get_an_available_item_camera()
+        elif self.an_item_is_available_info():
+            return self.get_an_available_item_info()
         else:
             pass
 
     def produce_gpssignal(self, cv, item):
         cv.acquire()
         self.make_an_item_available_gpssignal(item)
+        cv.notify()
+        cv.release()
+
+    def produce_info(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_info(item)
         cv.notify()
         cv.release()
 
@@ -558,6 +632,12 @@ class VoicePromptQueue(object):
     def produce_poi_status(self, cv, item):
         cv.acquire()
         self.make_an_item_available_poi(item)
+        cv.notify()
+        cv.release()
+
+    def produce_camera_status(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_camera(item)
         cv.notify()
         cv.release()
 

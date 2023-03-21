@@ -789,7 +789,7 @@ class Cameralayout(BoxLayout):
                 popup.open()
                 return
 
-            self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "ADDED_POLICE")
+            self.voice_prompt_queue.produce_info(self.cv_voice, "ADDED_POLICE")
 
 
 class Gpslayout(BoxLayout):

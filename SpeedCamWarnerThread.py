@@ -392,7 +392,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
                                     "%s %s because of Angle mismatch" % (cam[0], cam[1]))
-                # self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ANGLE_MISMATCH')
+                # self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'ANGLE_MISMATCH')
                 return False
 
         # check speed cam distance to updated ccp position
@@ -430,7 +430,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if cam_attributes[1] is True:
                 self.print_log_line(" Removed %s speed cam with cam coordinates %f %f" % (
                     cam_attributes[0], cam[0], cam[1]))
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'SPEEDCAM_REMOVED')
+                self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
                 cams_to_delete.append(cam)
                 self.delete_cameras(cams_to_delete)
                 self.remove_cached_camera(cam)
@@ -458,7 +458,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def delete_cameras(self, cams_to_delete):
         if len(cams_to_delete) > 0:
-            self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'SPEEDCAM_REMOVED')
+            self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
         # delete cams
         for cam in cams_to_delete:
             self.ITEMQUEUE.pop(cam)
@@ -487,22 +487,22 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if last_distance == -1 or last_distance > 100:
                 if distance < 50:
                     if speedcam == 'fix':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_NOW')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'FIX_NOW')
                     elif speedcam == 'traffic':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_NOW')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'TRAFFIC_NOW')
                     elif speedcam == 'mobile':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_NOW')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'MOBILE_NOW')
                     else:
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_NOW')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'DISTANCE_NOW')
                 else:
                     if speedcam == 'fix':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_100')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'FIX_100')
                     elif speedcam == 'traffic':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_100')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'TRAFFIC_100')
                     elif speedcam == 'mobile':
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_100')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'MOBILE_100')
                     else:
-                        self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_100')
+                        self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'DISTANCE_100')
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
@@ -545,13 +545,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             dismiss = False
             if last_distance == -1 or last_distance > 300:
                 if speedcam == 'fix':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_300')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'FIX_300')
                 elif speedcam == 'traffic':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_300')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'TRAFFIC_300')
                 elif speedcam == 'mobile':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_300')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'MOBILE_300')
                 else:
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_300')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'DISTANCE_300')
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
@@ -606,13 +606,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             dismiss = False
             if last_distance == -1 or last_distance > 500:
                 if speedcam == 'fix':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_500')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'FIX_500')
                 elif speedcam == 'traffic':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_500')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'TRAFFIC_500')
                 elif speedcam == 'mobile':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_500')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'MOBILE_500')
                 else:
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_500')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'DISTANCE_500')
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
@@ -667,13 +667,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             dismiss = False
             if last_distance == -1 or last_distance > 1000:
                 if speedcam == 'fix':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'FIX_1000')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'FIX_1000')
                 elif speedcam == 'traffic':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'TRAFFIC_1000')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'TRAFFIC_1000')
                 elif speedcam == 'mobile':
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'MOBILE_1000')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'MOBILE_1000')
                 else:
-                    self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'DISTANCE_1000')
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'DISTANCE_1000')
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
@@ -729,7 +729,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if last_distance == -1 or last_distance > 1001:
                 self.print_log_line(" %s speed cam ahead with distance %d m" % (
                     speedcam, int(distance)))
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'CAMERA_AHEAD')
+                self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'CAMERA_AHEAD')
                 self.update_kivi_speedcam('CAMERA_AHEAD')
                 self.update_bar_widget_meters(distance)
             else:

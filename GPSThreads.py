@@ -159,6 +159,8 @@ class GPSConsumerThread(StoppableThread, Logger):
 
 
 class GPSThread(StoppableThread, Logger):
+    GPS_INACCURACY_COUNTER = 0
+
     def __init__(self, g, cv, cv_vector, cv_voice, cv_average_angle, voice_prompt_queue, ms, vdata,
                  gpsqueue, average_angle_queue, cv_map, map_queue, osm_wrapper, cv_currentspeed,
                  currentspeed_queue, cv_gps_data, gps_data_queue,  cv_speedcam, speed_cam_queue,
@@ -203,6 +205,8 @@ class GPSThread(StoppableThread, Logger):
         self.last_bearing = None
         self.current_bearings = []
         self.curr_driving_direction = None
+        self.last_speed = 0
+        self.trigger_speed_correction = False
 
         # set config items
         self.set_configs()
@@ -220,6 +224,9 @@ class GPSThread(StoppableThread, Logger):
                                      "t1374104_berliner-mauerweg.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 55
+        # Max GPS inaccuracy treshold after which the App will go into GPS_OFF mode.
+        # Note: This only applies for Weak GPS signals, not if GPS is disabled
+        self.gps_inaccuracy_treshold = 3
 
     def run(self):
 
@@ -278,31 +285,29 @@ class GPSThread(StoppableThread, Logger):
                 # Set accuracy
                 accuracy = event['data']['gps']['accuracy']
                 if int(accuracy) <= self.gps_treshold:
-                    self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
-
                     # Set members
-                    success_speed = False
                     success_coords = False
                     speed_vector = None
+                    speed = None
                     lon, lat = None, None
                     if 'speed' in event['data']['gps']:
                         speed = round((float(event['data']['gps']['speed']) * 3.6), 1)
                         speed_vector = round((float(event['data']['gps']['speed'])), 2)
-                        self.gpsqueue.produce(self.cv, {speed: 3})
-                        self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
-                        success_speed = True
                     if 'latitude' in event['data']['gps']:
                         lat = float(event['data']['gps']['latitude'])
                         lon = float(event['data']['gps']['longitude'])
                         success_coords = True
-                    if success_speed is False or success_coords is False:
+                    if speed is None or success_coords is False:
                         self.print_log_line("Could not retrieve speed or coordinates from event!. "
                                             "Skipping..")
                         return None
 
                     self.callback_gps(lon, lat)
-                    # Update our bot
-                    self.set_lon_lat_bot(lat, lon)
+                    speed = self.correct_speed(speed)
+                    self.gpsqueue.produce(self.cv, {speed: 3}) if speed != 'DISMISS' else \
+                        self.print_log_line(f"Speed dismissed due to correction")
+                    self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
+                    self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
 
                     direction, bearing = self.calculate_direction(event)
                     if direction is None:
@@ -349,6 +354,15 @@ class GPSThread(StoppableThread, Logger):
         return None
 
     def process_offroute(self, gps_accuracy):
+        if gps_accuracy != "GPS_OFF" \
+                and GPSThread.GPS_INACCURACY_COUNTER < self.gps_inaccuracy_treshold:
+            GPSThread.GPS_INACCURACY_COUNTER += 1
+            self.print_log_line(f"Processing inaccurate GPS signal number "
+                                f"({GPSThread.GPS_INACCURACY_COUNTER})")
+            return
+
+        GPSThread.GPS_INACCURACY_COUNTER = 0
+
         # Always calculate extrapolated positions
         self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
                                    float(0.0), float(0.0), '-', 'OFFLINE', 0)
@@ -380,6 +394,11 @@ class GPSThread(StoppableThread, Logger):
         :param lat:
         :return:
         """
+        # Update longitude and latitude
+        self.set_lon_lat(lat, lon)
+        # Update our bot
+        self.set_lon_lat_bot(lat, lon)
+
         if self.already_on():
             pass
         else:
@@ -390,12 +409,24 @@ class GPSThread(StoppableThread, Logger):
             self.on_state = True
             self.off_state = False
 
-            self.set_lon_lat(lat, lon)
             # update the maxspeed widget only once in case we receive a gps position immediately
             if self.startup:
                 self.startup = False
                 self.ms.maxspeed.text = ""
                 Clock.schedule_once(self.ms.maxspeed.texture_update)
+
+    def correct_speed(self, speed):
+        if speed > 0:
+            self.last_speed = speed
+            self.trigger_speed_correction = True
+        if speed == 0 and self.trigger_speed_correction is True:
+            speed = self.last_speed if self.last_speed > 0 else 'DISMISS'
+            self.print_log_line(f"Speed value corrected to {speed}")
+            self.trigger_speed_correction = False
+        elif speed == 0 and self.trigger_speed_correction is False:
+            self.trigger_speed_correction = True
+            self.last_speed = 0
+        return speed
 
     def update_map_queue(self):
         if self.map_thread_started:

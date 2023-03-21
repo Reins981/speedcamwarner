@@ -1560,8 +1560,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return 'INIT'
 
     def process_offline(self):
-        self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
-        self.update_kivi_roadname("", False)
+        current_maxspeed = self.get_kivi_maxspeed()
+        if current_maxspeed == "->->->":
+            self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
+            self.update_kivi_roadname("", False)
 
     def processDisableAllAction(self):
         if self.alternative_road_lookup:
@@ -2814,7 +2816,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(' Hazard %s found!' % hazard.upper())
 
             if not self.hazard_voice:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'HAZARD')
+                self.voice_prompt_queue.produce_info(self.cv_voice, 'HAZARD')
                 self.hazard_voice = True
             self.ms.update_cam_road(hazard.upper(), m_type="HAZARD")
         else:
@@ -2833,7 +2835,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             water = water.decode()
             self.print_log_line(' %s found' % water.upper())
             if not self.water_voice:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'WATER')
+                self.voice_prompt_queue.produce_info(self.cv_voice, 'WATER')
                 self.water_voice = True
             self.ms.update_cam_road(water.upper(), m_type="WATER")
         else:
@@ -2855,7 +2857,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if boundary_result else access
             self.print_log_line(' %s found' % access)
             if not self.access_control_voice:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, 'ACCESS_CONTROL')
+                self.voice_prompt_queue.produce_info(self.cv_voice, 'ACCESS_CONTROL')
                 self.access_control_voice = True
             self.ms.update_cam_road(access, m_type="ACCESS_CONTROL")
         else:
@@ -3955,8 +3957,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             error = True
             self.empty_dataset_received = True
             self.print_log_line(f' Empty dataset from server {self.baseurl} received!')
-            self.voice_prompt_queue.produce_gpssignal(self.cv_voice,
-                                                      'EMPTY_DATASET_FROM_SERVER')
+            self.voice_prompt_queue.produce_info(self.cv_voice, 'EMPTY_DATASET_FROM_SERVER')
         if not error:
             if isinstance(linkedListGenerator, DoubleLinkedListNodes):
                 self.start_thread_pool_speed_cam_structure(self.speed_cam_lookup,
@@ -4195,11 +4196,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if self.slow_data_reported:
                 pass
             else:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice,
-                                                          "LOW_DOWNLOAD_DATA_RATE")
+                self.voice_prompt_queue.produce_info(self.cv_voice, "LOW_DOWNLOAD_DATA_RATE")
                 self.slow_data_reported = True
         else:
             self.slow_data_reported = False
+
+    def get_kivi_maxspeed(self):
+        return self.ms.maxspeed.text
 
     def update_kivi_maxspeed(self, maxspeed=None, color=None):
         if maxspeed:
