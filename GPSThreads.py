@@ -305,8 +305,10 @@ class GPSThread(StoppableThread, Logger):
                     self.callback_gps(lon, lat)
                     speed = self.correct_speed(speed)
                     self.gpsqueue.produce(self.cv, {speed: 3}) if speed != 'DISMISS' else \
-                        self.print_log_line(f"Speed dismissed due to correction")
-                    self.currentspeed_queue.produce(self.cv_currentspeed, int(speed))
+                        self.print_log_line(f"Speed dismissed: Ignore GPS Queue Update")
+                    self.currentspeed_queue.produce(self.cv_currentspeed, int(speed)) \
+                        if speed != 'DISMISS' else \
+                        self.print_log_line(f"Speed dismissed: Ignore Current Speed Queue Update ")
                     self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
 
                     direction, bearing = self.calculate_direction(event)
