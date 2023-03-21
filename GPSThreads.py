@@ -224,7 +224,7 @@ class GPSThread(StoppableThread, Logger):
                                      "t1374104_berliner-mauerweg.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 55
-        # Max GPS inaccuracy treshold after which the App will go into GPS_OFF mode.
+        # Max GPS inaccuracy treshold after which the App will go into OFF mode.
         # Note: This only applies for Weak GPS signals, not if GPS is disabled
         self.gps_inaccuracy_treshold = 5
 
@@ -251,7 +251,7 @@ class GPSThread(StoppableThread, Logger):
         self.stop()
 
     def process(self):
-        gps_accuracy = 'GPS_OFF'
+        gps_accuracy = 'OFF'
 
         if self.startup:
             self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
@@ -360,11 +360,12 @@ class GPSThread(StoppableThread, Logger):
         if self.already_off():
             pass
         else:
-            if gps_accuracy != "GPS_OFF" \
+            if gps_accuracy != "OFF" \
                     and GPSThread.GPS_INACCURACY_COUNTER <= self.gps_inaccuracy_treshold:
                 GPSThread.GPS_INACCURACY_COUNTER += 1
                 self.print_log_line(f"Processing inaccurate GPS signal number "
                                     f"({GPSThread.GPS_INACCURACY_COUNTER})")
+                self.gpsqueue.produce(self.cv, {"...": 5})
                 return
 
             GPSThread.GPS_INACCURACY_COUNTER = 0
@@ -372,10 +373,10 @@ class GPSThread(StoppableThread, Logger):
             # Clear old gps items
             self.gpsqueue.clear_gpsqueue(self.cv)
             self.print_log_line(f"GPS status is {gps_accuracy}")
-            if gps_accuracy != "GPS_OFF":
+            if gps_accuracy != "OFF":
                 self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_LOW")
             else:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_OFF")
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "OFF")
             self.g.off_state()
 
             self.gpsqueue.produce(self.cv, {'---.-': 3})
