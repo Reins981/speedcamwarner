@@ -376,7 +376,7 @@ class GPSThread(StoppableThread, Logger):
             if gps_accuracy != "OFF":
                 self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_LOW")
             else:
-                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "OFF")
+                self.voice_prompt_queue.produce_gpssignal(self.cv_voice, "GPS_OFF")
             self.g.off_state()
 
             self.gpsqueue.produce(self.cv, {'---.-': 3})
