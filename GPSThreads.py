@@ -402,6 +402,7 @@ class GPSThread(StoppableThread, Logger):
         self.set_lon_lat(lat, lon)
         # Update our bot
         self.set_lon_lat_bot(lat, lon)
+        GPSThread.GPS_INACCURACY_COUNTER = 0
 
         if self.already_on():
             pass
