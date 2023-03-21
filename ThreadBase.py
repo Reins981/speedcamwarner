@@ -312,7 +312,8 @@ class VectorDataPoolQueue(object):
         self.vector_data = {}
         self.VECTORDATAQUEUE = deque()
 
-    def set_vector_data(self, cv, key, longitude, latitude, cspeed, bearing, direction, gpsstatus, accuracy):
+    def set_vector_data(self, cv, key, longitude, latitude, cspeed, bearing, direction, gpsstatus,
+                        accuracy):
         cv.acquire()
         if not isinstance(longitude, float):
             longitude = float(longitude)
@@ -322,7 +323,8 @@ class VectorDataPoolQueue(object):
             cspeed = float(cspeed)
         if not isinstance(bearing, float):
             bearing = float(bearing)
-        self.vector_data[key] = ([longitude, latitude], cspeed, bearing, direction, gpsstatus, accuracy)
+        self.vector_data[key] = (
+        [longitude, latitude], cspeed, bearing, direction, gpsstatus, accuracy)
         self.VECTORDATAQUEUE.append(self.vector_data)
         cv.notify()
         cv.release()
@@ -551,19 +553,19 @@ class VoicePromptQueue(object):
         if self.an_item_is_available_camera() and self.an_item_is_available_gpssignal():
             unusedItem1 = self.get_an_available_item_gpssignal()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
-                                f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_camera() and self.an_item_is_available_info():
             unusedItem1 = self.get_an_available_item_info()
             logger.print_log_line(f"Dismiss voice prompt(s) (INFO) "
-                                f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_camera() and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_gpssignal() \
@@ -572,23 +574,23 @@ class VoicePromptQueue(object):
             unusedItem1 = self.get_an_available_item_gpssignal()
             unusedItem2 = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS, ONLINE) "
-                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_gpssignal() \
                 and self.an_item_is_available_maxspeed_exceeded():
             unusedItem1 = self.get_an_available_item_gpssignal()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
-                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_gpssignal() and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                f"-> Prefer voice prompt (GPS)")
+                                  f"-> Prefer voice prompt (GPS)")
             return self.get_an_available_item_gpssignal()
         elif self.an_item_is_available_maxspeed_exceeded() and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_maxspeed_exceeded():
             return self.get_an_available_item_maxspeed_exceeded()
