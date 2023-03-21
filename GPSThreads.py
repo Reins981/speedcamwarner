@@ -356,22 +356,19 @@ class GPSThread(StoppableThread, Logger):
         return None
 
     def process_offroute(self, gps_accuracy):
-        if gps_accuracy != "GPS_OFF" \
-                and GPSThread.GPS_INACCURACY_COUNTER <= self.gps_inaccuracy_treshold:
-            GPSThread.GPS_INACCURACY_COUNTER += 1
-            self.print_log_line(f"Processing inaccurate GPS signal number "
-                                f"({GPSThread.GPS_INACCURACY_COUNTER})")
-            return
-
-        GPSThread.GPS_INACCURACY_COUNTER = 0
-
-        # Always calculate extrapolated positions
-        self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
-                                   float(0.0), float(0.0), '-', 'OFFLINE', 0)
 
         if self.already_off():
             pass
         else:
+            if gps_accuracy != "GPS_OFF" \
+                    and GPSThread.GPS_INACCURACY_COUNTER <= self.gps_inaccuracy_treshold:
+                GPSThread.GPS_INACCURACY_COUNTER += 1
+                self.print_log_line(f"Processing inaccurate GPS signal number "
+                                    f"({GPSThread.GPS_INACCURACY_COUNTER})")
+                return
+
+            GPSThread.GPS_INACCURACY_COUNTER = 0
+
             # Clear old gps items
             self.gpsqueue.clear_gpsqueue(self.cv)
             self.print_log_line(f"GPS status is {gps_accuracy}")
@@ -388,6 +385,10 @@ class GPSThread(StoppableThread, Logger):
             self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
 
             self.reset_osm_data_state()
+
+        # Always calculate extrapolated positions
+        self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
+                                   float(0.0), float(0.0), '-', 'OFFLINE', 0)
 
     def callback_gps(self, lon, lat):
         """
