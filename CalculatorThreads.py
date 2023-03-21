@@ -1560,8 +1560,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return 'INIT'
 
     def process_offline(self):
-        current_maxspeed = self.get_kivi_maxspeed()
-        if current_maxspeed == "->->->":
+        if self.last_max_speed == "->->->" or self.last_max_speed is None:
             self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
             self.update_kivi_roadname("", False)
 
@@ -1583,6 +1582,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            facility=False)
             if self.cam_in_progress is False and self.internet_available():
                 self.update_kivi_maxspeed("->->->")
+                self.last_max_speed = "->->->"
+            else:
+                self.last_max_speed = "KEEP"
             RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
@@ -4200,9 +4202,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.slow_data_reported = True
         else:
             self.slow_data_reported = False
-
-    def get_kivi_maxspeed(self):
-        return self.ms.maxspeed.text
 
     def update_kivi_maxspeed(self, maxspeed=None, color=None):
         if maxspeed:

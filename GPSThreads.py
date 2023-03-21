@@ -226,7 +226,7 @@ class GPSThread(StoppableThread, Logger):
         self.gps_treshold = 55
         # Max GPS inaccuracy treshold after which the App will go into GPS_OFF mode.
         # Note: This only applies for Weak GPS signals, not if GPS is disabled
-        self.gps_inaccuracy_treshold = 3
+        self.gps_inaccuracy_treshold = 5
 
     def run(self):
 
@@ -306,7 +306,7 @@ class GPSThread(StoppableThread, Logger):
                     speed = self.correct_speed(speed)
                     self.gpsqueue.produce(self.cv, {speed: 3}) if speed != 'DISMISS' else \
                         self.print_log_line(f"Speed dismissed: Ignore GPS Queue Update")
-                    self.currentspeed_queue.produce(self.cv_currentspeed, int(speed)) \
+                    self.currentspeed_queue.produce(self.cv_currentspeed, round(speed)) \
                         if speed != 'DISMISS' else \
                         self.print_log_line(f"Speed dismissed: Ignore Current Speed Queue Update ")
                     self.gpsqueue.produce(self.cv, {str(round(float(accuracy), 1)): 5})
@@ -357,7 +357,7 @@ class GPSThread(StoppableThread, Logger):
 
     def process_offroute(self, gps_accuracy):
         if gps_accuracy != "GPS_OFF" \
-                and GPSThread.GPS_INACCURACY_COUNTER < self.gps_inaccuracy_treshold:
+                and GPSThread.GPS_INACCURACY_COUNTER <= self.gps_inaccuracy_treshold:
             GPSThread.GPS_INACCURACY_COUNTER += 1
             self.print_log_line(f"Processing inaccurate GPS signal number "
                                 f"({GPSThread.GPS_INACCURACY_COUNTER})")
