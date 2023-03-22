@@ -61,6 +61,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # report only cames in driving direction,
         # cams outside the defined angles relative to CCP will be ignored
         self.enable_inside_relevant_angle_feature = True
+        # Emergency angle distance. If the camera is outside the defined angle but inside the
+        # emergency distance in meters, it will be reported. Set to a low value.
+        # This parameter is only evaluated
+        # when self.enable_inside_relevant_angle_feature is set to True
+        self.emergency_angle_distance = 80
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
@@ -376,6 +381,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         try:
             cam_attributes = self.ITEMQUEUE[cam]
+            cam_road_name = cam_attributes[7] if cam_attributes[7] else ""
         except KeyError:
             return False
 
@@ -388,7 +394,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.update_bar_widget_300m(color=2)
                 self.update_bar_widget_100m(color=2)
                 self.update_bar_widget_meters('')
-                self.update_cam_road(road="Camera dismissed (Angle)", color=(0, 1, .3, .8))
+                self.update_cam_road(road=f"X -> {cam_road_name}", color=(0, 1, .3, .8))
                 self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
                                     "%s %s because of Angle mismatch" % (cam[0], cam[1]))
@@ -956,7 +962,15 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         try:
             cam_direction = self.ITEMQUEUE[cam][9]
             cam_type = self.ITEMQUEUE[cam][0]
+            cam_distance = self.ITEMQUEUE[cam][8]
         except Exception as e:
+            return True
+
+        if cam_distance < self.emergency_angle_distance:
+            self.print_log_line(f" Emergency report triggered for Speed Camera "
+                                f"'{cam_type}' ({str(cam)}): "
+                                f"Distance: {str(cam_distance)} < "
+                                f"{str(self.emergency_angle_distance)} meters")
             return True
 
         if self.ccp_bearing is not None and cam_direction is not None:
