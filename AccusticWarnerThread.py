@@ -58,6 +58,7 @@ class VoicePromptThread(StoppableThread, Logger):
         elif voice_entry == "OSM_DATA_ERROR":
             # sound = os.path.join(BASE_PATH, 'data_error.wav')
             sound = None
+            self.print_log_line(f"Ignore sound for: OSM_DATA_ERROR")
         elif voice_entry == "INTERNET_CONN_FAILED":
             sound = os.path.join(BASE_PATH, 'inet_failed.wav')
         elif voice_entry == "HAZARD":
@@ -66,6 +67,7 @@ class VoicePromptThread(StoppableThread, Logger):
         elif voice_entry == "EMPTY_DATASET_FROM_SERVER":
             # sound = os.path.join(BASE_PATH, 'empty_data.wav')
             sound = None
+            self.print_log_line(f"Ignore sound for: EMPTY_DATASET_FROM_SERVER")
         elif voice_entry == "LOW_DOWNLOAD_DATA_RATE":
             sound = os.path.join(BASE_PATH, 'low_download_rate.wav')
         elif voice_entry == "GPS_OFF":
@@ -77,6 +79,7 @@ class VoicePromptThread(StoppableThread, Logger):
         elif voice_entry == "SPEEDCAM_REMOVED":
             # sound = os.path.join(BASE_PATH, 'speed_cam_removed.wav')
             sound = None
+            self.print_log_line(f"Ignore sound for: SPEEDCAM_REMOVED")
         elif voice_entry == "FIX_100":
             sound = os.path.join(BASE_PATH, 'fix_100.wav')
         elif voice_entry == "TRAFFIC_100":

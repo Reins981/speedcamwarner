@@ -456,6 +456,8 @@ class maps(Logger):
                 markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                    self.markers_cams))
                 if any(markers):
+                    self.print_log_line(f"Ignore adding marker ({marker.lon, marker.lat}), "
+                                        f"already added into map")
                     return
                 self.print_log_line("Adding Marker for Speedcam %s" % key)
                 self.markers_cams.append(marker)
