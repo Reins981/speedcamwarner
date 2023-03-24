@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 21.8
+version = 21.9
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -37,7 +37,7 @@ version = 21.8
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3==3.10.0,kivy,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna
+requirements = python3==3.10.6,kivy,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
