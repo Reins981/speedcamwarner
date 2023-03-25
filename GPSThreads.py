@@ -12,7 +12,7 @@ import time
 import os
 from kivy.clock import Clock
 from ThreadBase import StoppableThread
-from gps_data import GpsTestDataGenerator
+from GpsData import GpsTestDataGenerator
 from Logger import Logger
 
 

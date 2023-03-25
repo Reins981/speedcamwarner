@@ -670,6 +670,10 @@ class ResultMapper(Logger):
         self.print_log_line(" Adding building results..")
         self.server_response[task_counter] = current_rect
 
+    def set_google_drive_upload_response(self, task_counter, result):
+        self.print_log_line(" Adding google drive result..")
+        self.server_response[task_counter] = result
+
     def get_server_response(self):
         return self.server_response
 
@@ -711,10 +715,11 @@ class Worker(StoppableThread, Logger):
                         self.rect = kwargs['rect_preferred']
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(**kwargs)
-                    elif self.action == 'SPEED':
+                    elif self.action == 'SPEED' \
+                            or self.action == 'DISABLE':
                         func(**kwargs)
-                    elif self.action == 'DISABLE':
-                        func(**kwargs)
+                    elif self.action == 'UPLOAD':
+                        self.status = func(**kwargs)
                     elif self.action == 'LOOKUP':
                         _ = func(**kwargs)
                     else:
@@ -727,10 +732,11 @@ class Worker(StoppableThread, Logger):
                         self.rect = kwargs['rect_preferred']
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(*args, **kwargs)
-                    elif self.action == 'SPEED':
+                    elif self.action == 'SPEED' \
+                            or self.action == 'DISABLE':
                         func(*args, **kwargs)
-                    elif self.action == 'DISABLE':
-                        func(*args, **kwargs)
+                    elif self.action == 'UPLOAD':
+                        self.status = func(*args, **kwargs)
                     elif self.action == 'LOOKUP':
                         _ = func(*args, **kwargs)
                     else:
@@ -752,6 +758,11 @@ class Worker(StoppableThread, Logger):
                 elif self.action == 'CACHE':
                     self.ResultMap.set_build_response(self.TaskCounter.get_task_counter(),
                                                       self.rect)
+                elif self.action == 'UPLOAD':
+                    self.ResultMap.set_google_drive_upload_response(
+                        self.TaskCounter.get_task_counter(),
+                        self.status
+                    )
                 else:
                     pass
 

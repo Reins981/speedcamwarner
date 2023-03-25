@@ -789,6 +789,8 @@ class Cameralayout(BoxLayout):
                 popup.open()
                 return
 
+            calculator.start_thread_pool_upload_speed_camera_to_drive(
+                calculator.upload_camera_to_drive, 1)
             self.voice_prompt_queue.produce_info(self.cv_voice, "ADDED_POLICE")
 
 
@@ -2616,7 +2618,10 @@ class MainTApp(App):
             self.poireader = POIReader(self.cv_speedcam,
                                        self.speed_cam_queue,
                                        self.gps_producer,
-                                       self.calculator)
+                                       self.calculator,
+                                       self.osm_wrapper,
+                                       self.map_queue,
+                                       self.cv_map)
             self.started = True
             self.stopped = False
 

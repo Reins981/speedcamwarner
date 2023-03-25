@@ -112,8 +112,7 @@ class OSMThread(StoppableThread, Logger):
                 OSMThread.pois_drawn = False
             # draw POS immediately once
             self.osm_wrapper.draw_map(
-                geo_rectangle_available=self.calculator_thread.get_osm_data_state(),
-                speed_cams_available=self.calculator_thread.get_speed_cam_state())
+                geo_rectangle_available=self.calculator_thread.get_osm_data_state())
         elif isinstance(pois, tuple):
             OSMThread.trigger = "CALCULATE_ROUTE_TO_NEAREST_POI"
             if pois is not None:
@@ -124,8 +123,7 @@ class OSMThread(StoppableThread, Logger):
         elif item == 'UPDATE':
             # update map
             self.osm_wrapper.draw_map(
-                geo_rectangle_available=self.calculator_thread.get_osm_data_state(),
-                speed_cams_available=self.calculator_thread.get_speed_cam_state())
+                geo_rectangle_available=self.calculator_thread.get_osm_data_state())
 
 
 class maps(Logger):
@@ -141,6 +139,8 @@ class maps(Logger):
         self.markers_pois = []
         self.line_layers = []
         self.speed_cams = []
+        self.speed_cams_user_added = []
+        self.speed_cams_db = []
         self.geoBounds = []
         self.geoBounds_extrapolated = []
         self.extrapolated = False
@@ -211,8 +211,20 @@ class maps(Logger):
     def update_speed_cams(self, speed_cams):
         self.speed_cams = speed_cams
 
+    def update_speed_cams_user_added(self, speed_cams):
+        self.speed_cams_user_added = speed_cams
+
+    def update_speed_cams_db(self, speed_cams):
+        self.speed_cams_db = speed_cams
+
     def get_speed_cams(self):
         return self.speed_cams
+
+    def get_speed_cams_user_added(self):
+        return self.speed_cams_user_added
+
+    def get_speed_cams_db(self):
+        return self.speed_cams_db
 
     def osm_update_geoBounds_extrapolated(self, geoBounds, most_propable_heading, rect_name):
         geo_attr = (geoBounds, most_propable_heading, rect_name)
@@ -406,69 +418,75 @@ class maps(Logger):
 
     def draw_speed_cams(self, *args, **kwargs):
 
-        speed_cams_available = args[0]
-
         # remove duplicate speed cameras
         speed_cam_list = self.get_unique_speed_cam_list()
+        speed_cam_list_user_added = self.get_unique_speed_cam_list(user_added=True)
+        speed_cam_list_db = self.get_unique_speed_cam_list(db=True)
+        to_be_drawn = [speed_cam_list, speed_cam_list_user_added, speed_cam_list_db]
 
-        # if speed_cams_available:
-        if len(speed_cam_list) > 0:
-            '''f_handle.write('\t\tvar FixCamIcon = L.icon({\n')
-            f_handle.write("\t\ticonUrl: 'images/fixcamera.png',\n")
-            f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
-            f_handle.write('\t\t});\n')
-            f_handle.write('\t\tvar DistanceCamIcon = L.icon({\n')
-            f_handle.write("\t\ticonUrl: 'images/distancecamera.png',\n")
-            f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
-            f_handle.write('\t\t});\n')
-            f_handle.write('\t\tvar TrafficCamIcon = L.icon({\n')
-            f_handle.write("\t\ticonUrl: 'images/trafficlightcamera.png',\n")
-            f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
-            f_handle.write('\t\t});\n')'''
+        for cameras in to_be_drawn:
+            # if speed_cams_available:
+            if len(cameras) > 0:
+                '''f_handle.write('\t\tvar FixCamIcon = L.icon({\n')
+                f_handle.write("\t\ticonUrl: 'images/fixcamera.png',\n")
+                f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
+                f_handle.write('\t\t});\n')
+                f_handle.write('\t\tvar DistanceCamIcon = L.icon({\n')
+                f_handle.write("\t\ticonUrl: 'images/distancecamera.png',\n")
+                f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
+                f_handle.write('\t\t});\n')
+                f_handle.write('\t\tvar TrafficCamIcon = L.icon({\n')
+                f_handle.write("\t\ticonUrl: 'images/trafficlightcamera.png',\n")
+                f_handle.write('\t\ticonSize:     [38, 38], // size of the icon\n')
+                f_handle.write('\t\t});\n')'''
 
-            source = None
-            for attributes in speed_cam_list:
-                key = attributes[0]
-                coord_0 = attributes[1]
-                coord_1 = attributes[2]
-                road_name = ""
+                source = None
+                for attributes in cameras:
+                    key = attributes[0]
+                    coord_0 = attributes[1]
+                    coord_1 = attributes[2]
+                    road_name = ""
 
-                if key.find("FIX") == 0:
-                    source = FIX_ICON
-                    '''f_handle.write(
-                        '\t\tL.marker([%f,%f], {icon: FixCamIcon}).addTo(map).bindPopup("Fix Speed Cam: %s");\n' % (
-                            coord_0, coord_1, road_name))'''
-                elif key.find("TRAFFIC") == 0:
-                    source = TRAFFIC_ICON
-                    '''f_handle.write(
-                        '\t\tL.marker([%f,%f], {icon: TrafficCamIcon}).addTo(map).bindPopup("Trafficlight Speed Cam: %s");\n' % (
-                            coord_0, coord_1, road_name))'''
-                elif key.find("DISTANCE") == 0:
-                    source = DISTANCE_ICON
-                    '''f_handle.write(
-                        '\t\tL.marker([%f,%f], {icon: DistanceCamIcon}).addTo(map).bindPopup("Distance Speed Cam: %s");\n' % (
-                            coord_0, coord_1, road_name))'''
-                else:
-                    source = MOBILE_ICON
+                    if key.find("FIX") == 0:
+                        source = FIX_ICON
+                        '''f_handle.write(
+                            '\t\tL.marker([%f,%f], {icon: FixCamIcon}).addTo(map).bindPopup("Fix Speed Cam: %s");\n' % (
+                                coord_0, coord_1, road_name))'''
+                    elif key.find("TRAFFIC") == 0:
+                        source = TRAFFIC_ICON
+                        '''f_handle.write(
+                            '\t\tL.marker([%f,%f], {icon: TrafficCamIcon}).addTo(map).bindPopup("Trafficlight Speed Cam: %s");\n' % (
+                                coord_0, coord_1, road_name))'''
+                    elif key.find("DISTANCE") == 0:
+                        source = DISTANCE_ICON
+                        '''f_handle.write(
+                            '\t\tL.marker([%f,%f], {icon: DistanceCamIcon}).addTo(map).bindPopup("Distance Speed Cam: %s");\n' % (
+                                coord_0, coord_1, road_name))'''
+                    else:
+                        source = MOBILE_ICON
 
-                marker = MapMarker(lon=float(coord_1), lat=float(coord_0), source=source)
-                # if the Marker already exists, do not draw it
-                markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
-                                   self.markers_cams))
-                if any(markers):
-                    self.print_log_line(f"Ignore adding marker ({marker.lon, marker.lat}), "
-                                        f"already added into map")
-                    return
-                self.print_log_line("Adding Marker for Speedcam %s" % key)
-                self.markers_cams.append(marker)
-                self.map_layout.map_view.add_marker(marker)
+                    marker = MapMarker(lon=float(coord_1), lat=float(coord_0), source=source)
+                    # if the Marker already exists, do not draw it
+                    markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
+                                       self.markers_cams))
+                    if any(markers):
+                        self.print_log_line(f"Ignore adding marker ({marker.lon, marker.lat}), "
+                                            f"already added into map")
+                        return
+                    self.print_log_line("Adding Marker for Speedcam %s" % key)
+                    self.markers_cams.append(marker)
+                    self.map_layout.map_view.add_marker(marker)
         return
 
     # remove duplication
-    def get_unique_speed_cam_list(self):
+    def get_unique_speed_cam_list(self, user_added=False, db=False):
         speed_cams = []
-        for i in range(0, len(self.speed_cams)):
-            for key, coords in self.speed_cams[i].items():
+        if db:
+            processing_cams = self.speed_cams_db
+        else:
+            processing_cams = self.speed_cams if not user_added else self.speed_cams_user_added
+        for i in range(0, len(processing_cams)):
+            for key, coords in processing_cams[i].items():
                 speed_cams.append((key, coords[0], coords[1]))
 
         return list(set(speed_cams))
@@ -534,7 +552,7 @@ class maps(Logger):
         f_handle.write('\t\t}\n')
         f_handle.write('\n\n')
 
-    def draw_map(self, geo_rectangle_available=False, speed_cams_available=False):
+    def draw_map(self, geo_rectangle_available=False):
         '''f = None
 
         try:
@@ -616,7 +634,7 @@ class maps(Logger):
         if geo_rectangle_available and self.draw_rects:
             # self.draw_geoBounds()
             pass
-        Clock.schedule_once(partial(self.draw_speed_cams, speed_cams_available))
+        Clock.schedule_once(partial(self.draw_speed_cams))
         if OSMThread.trigger == "DRAW_POIS":
             Clock.schedule_once(
                 partial(self.draw_pois))

@@ -9,9 +9,35 @@ Created on 01.07.2014
 
 import sqlite3
 import os
+import json
 from threading import Timer
 from CalculatorThreads import Rect
 from Logger import Logger
+from ServiceAccount import download_file_from_google_drive, FILE_ID, FILENAME
+
+
+class UserCamera(object):
+    def __init__(self, c_id, name, lon, lat):
+        self.__id = c_id
+        self.__name = name
+        self.__lon = lon
+        self.__lat = lat
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def c_id(self):
+        return self.__id
+
+    @property
+    def lon(self):
+        return self.__lon
+
+    @property
+    def lat(self):
+        return self.__lat
 
 
 class POIReader(Logger):
@@ -19,12 +45,18 @@ class POIReader(Logger):
                  cv_speedcam,
                  speedcamqueue,
                  gps_producer,
-                 calculator):
+                 calculator,
+                 osm_wrapper,
+                 map_queue,
+                 cv_map):
         Logger.__init__(self, self.__class__.__name__)
         self.cv_speedcam = cv_speedcam
         self.speed_cam_queue = speedcamqueue
         self.gps_producer = gps_producer
         self.calculator = calculator
+        self.osm_wrapper = osm_wrapper
+        self.map_queue = map_queue
+        self.cv_map = cv_map
         # global members
         self.connection = None
         self.poi_raw_data = None
@@ -35,8 +67,14 @@ class POIReader(Logger):
         self.pois_converted_mobile = []
         self.result_pois_fix = []
         self.result_pois_mobile = []
-        # timer instance
-        self.timer = None
+        self.user_pois = []
+        self.speed_cam_dict = dict()
+        self.speed_cam_list = list()
+        self.speed_cam_dict_db = dict()
+        self.speed_cam_list_db = list()
+        # timer instances
+        self.timer_1 = None
+        self.timer_2 = None
         # OSM layer
         self.zoom = 17
         # OSM Rect
@@ -46,16 +84,21 @@ class POIReader(Logger):
 
     # called from main GUI thread
     def stop_timer(self):
-        self.timer.cancel()
+        self.timer_1.cancel()
+        self.timer_2.cancel()
 
     def process(self):
         self.open_connection()
         self.execute()
         self.convert_cam_morton_codes()
-        self.update_pois()
+        self.update_pois_from_db()
+        self.update_user_added_pois()
 
-        self.timer = Timer(10.0, self.update_pois)
-        self.timer.start()
+        self.timer_1 = Timer(30.0, self.update_pois_from_db)
+        self.timer_1.start()
+
+        self.timer_2 = Timer(60.0, self.update_user_added_pois)
+        self.timer_2.start()
 
     def open_connection(self):
         if not os.path.isfile(os.path.join(os.path.abspath(os.path.dirname(__file__)),
@@ -76,7 +119,8 @@ class POIReader(Logger):
             catids = ('2014', '2015')
 
             self.connection.execute(
-                'SELECT a.catId, a.mortonCode from pPoiCategoryTable c inner join pPoiAddressTable a on c.catId = a.catId and c.catId between ? and ?',
+                'SELECT a.catId, a.mortonCode from pPoiCategoryTable c '
+                'inner join pPoiAddressTable a on c.catId = a.catId and c.catId between ? and ?',
                 catids)
             self.poi_raw_data = self.connection.fetchall()
         else:
@@ -96,7 +140,8 @@ class POIReader(Logger):
                     pass
             self.print_log_line(" Number of fix cams: %d" % len(self.pois_converted_fix))
             self.print_log_line(" Number of mobile cams: %d" % len(self.pois_converted_mobile))
-            self.print_log_line("#######################################################################")
+            self.print_log_line(
+                "#######################################################################")
 
     # Inverse of Part1By1 - "delete" all odd-indexed bits
     def Compact1By1(self, x):
@@ -128,7 +173,130 @@ class POIReader(Logger):
         self.print_log_line(' Mobile cameras:')
         self.print_log_line(self.pois_converted_mobile)
 
-    def update_pois(self):
+    def propagate_camera(self, longitude, latitude, camera_type):
+        self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': ('IGNORE',
+                                                                'IGNORE'),
+                                                        'fix_cam': (
+                                                            True if camera_type == 'fix_cam' else False,
+                                                            float(longitude),
+                                                            float(latitude),
+                                                            True),
+                                                        'traffic_cam': (False,
+                                                                        float(longitude),
+                                                                        float(latitude),
+                                                                        True),
+                                                        'distance_cam': (False,
+                                                                         float(longitude),
+                                                                         float(latitude),
+                                                                         True),
+                                                        'mobile_cam': (
+                                                            True if camera_type == 'mobile_cam' else False,
+                                                            float(longitude),
+                                                            float(latitude),
+                                                            True),
+                                                        'ccp_node': ('IGNORE',
+                                                                     'IGNORE'),
+                                                        'list_tree': (None,
+                                                                      None)})
+
+    def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat, camera_source='user_added'):
+        if camera_source == 'user_added':
+            self.speed_cam_dict[camera_key] = [lat,
+                                               lon,
+                                               lat,
+                                               lon,
+                                               True,
+                                               None,
+                                               None]
+        elif camera_source == 'db':
+            self.speed_cam_dict_db[camera_key] = [lat,
+                                                  lon,
+                                                  lat,
+                                                  lon,
+                                                  True,
+                                                  None,
+                                                  None]
+
+    def cleanup_speed_cams(self):
+        # do a cleanup if the speed cam structure increases this limit
+        cameras = [self.speed_cam_list, self.speed_cam_list_db]
+        for camera_list in cameras:
+            if len(camera_list) >= 100:
+                self.print_log_line(" Limit of speed camera list (100) reached! "
+                                    "Deleting all speed cameras")
+                del camera_list[:]
+
+    def update_map_queue(self):
+        self.map_queue.produce(self.cv_map, "UPDATE")
+
+    def update_osm_wrapper(self, camera_source='user_added'):
+        processing_dict = self.speed_cam_dict if camera_source == 'user_added' \
+            else self.speed_cam_dict_db
+        processing_list = self.speed_cam_list if camera_source == 'user_added' \
+            else self.speed_cam_list_db
+        if len(processing_dict) > 0:
+            processing_list.append(processing_dict)
+        self.osm_wrapper.update_speed_cams_user_added(processing_list) \
+            if camera_source == 'user_added' \
+            else self.osm_wrapper.update_speed_cams_db(processing_list)
+        self.update_map_queue()
+        self.cleanup_speed_cams()
+
+    def process_user_pois(self):
+        self.print_log_line(f"Processing user added POI's..")
+        with open(FILENAME, 'r') as fp:
+            user_pois = json.load(fp)
+
+        if 'cameras' not in user_pois:
+            self.print_log_line(f"Processing user added POI's failed: "
+                                f"No POI's to process in {FILENAME}", log_level="WARNING")
+            return
+
+        self.print_log_line(f"Found {len(user_pois['cameras'])} user added cameras")
+        cam_id = 200000
+        for camera in user_pois['cameras']:
+            try:
+                name = camera.get['name']
+                lat = camera['coordinates'][0]['latitude']
+                lon = camera['coordinates'][0]['longitude']
+            except KeyError:
+                self.print_log_line(f"Ignore adding camera {camera} because of missing attributes",
+                                    log_level="WARNING")
+                continue
+
+            user_cam = UserCamera(cam_id, name, lon, lat)
+
+            # if the user camera already exists, do not propagate it
+            user_poi_list = list(map(lambda p: p.lon == user_cam.lon and p.lat == user_cam.lat,
+                                     self.user_pois))
+            if any(user_poi_list):
+                self.print_log_line(f"Ignore adding user camera ({user_cam.lon, user_cam.lat}), "
+                                    f"already added into map")
+                return
+
+            self.print_log_line(f"Adding and propagating user camera "
+                                f"({user_cam.name, user_cam.lon, user_cam.lat})")
+            self.user_pois.append(user_cam)
+            self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id), user_cam.lon, user_cam.lat)
+            self.update_osm_wrapper()
+            self.propagate_camera(user_cam.lon, user_cam.lat, 'mobile_cam')
+            cam_id += 1
+
+    def update_user_added_pois(self):
+        self.print_log_line(f"Updating user added POI's..")
+
+        status = download_file_from_google_drive()
+        if status != 'success':
+            self.print_log_line(f"Updating cameras (file_id: {FILE_ID}) "
+                                f"from https://docs.google.com/uc?export=download failed! "
+                                f"({status})", log_level="ERROR")
+        else:
+            self.print_log_line(f"Updating cameras (file_id: {FILE_ID}) "
+                                f"from https://docs.google.com/uc?export=download success!",
+                                log_level="ERROR")
+            self.process_user_pois()
+
+    def update_pois_from_db(self):
         del self.result_pois_fix[:]
         del self.result_pois_mobile[:]
 
@@ -197,60 +365,29 @@ class POIReader(Logger):
                 self.result_pois_mobile.append(camera)
 
         self.print_log_line(" fix cameras: %d, mobile cameras %d"
-              % (len(self.result_pois_fix), len(self.result_pois_mobile)))
+                            % (len(self.result_pois_fix), len(self.result_pois_mobile)))
         self.calculator.update_kivi_info_page(len(self.result_pois_fix),
                                               len(self.result_pois_mobile))
 
         # update the SpeedWarner Thread
-        for camera_fix in self.result_pois_fix:
+        for index, camera_fix in enumerate(self.result_pois_fix):
             longitude = camera_fix[0]
             latitude = camera_fix[1]
-            self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': ('IGNORE',
-                                                                    'IGNORE'),
-                                                            'fix_cam': (True,
-                                                                        float(longitude),
-                                                                        float(latitude),
-                                                                        True),
-                                                            'traffic_cam': (False,
-                                                                            float(longitude),
-                                                                            float(latitude),
-                                                                            True),
-                                                            'distance_cam': (False,
-                                                                             float(longitude),
-                                                                             float(latitude),
-                                                                             True),
-                                                            'mobile_cam': (False,
-                                                                           float(longitude),
-                                                                           float(latitude),
-                                                                           True),
-                                                            'ccp_node': ('IGNORE',
-                                                                         'IGNORE'),
-                                                            'list_tree': (None,
-                                                                          None)})
+            self.print_log_line(f"Adding and propagating fix camera from db"
+                                f"({longitude, latitude})")
+            self.propagate_camera(longitude, latitude, 'fix_cam')
 
-        for camera_mobile in self.result_pois_mobile:
+            self.prepare_camera_for_osm_wrapper('FIX_DB' + str(index),
+                                                longitude, latitude, camera_source='db')
+
+        for index, camera_mobile in enumerate(self.result_pois_mobile):
             longitude = camera_mobile[0]
             latitude = camera_mobile[1]
-            self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': ('IGNORE',
-                                                                    'IGNORE'),
-                                                            'fix_cam': (False,
-                                                                        float(longitude),
-                                                                        float(latitude),
-                                                                        True),
-                                                            'traffic_cam': (False,
-                                                                            float(longitude),
-                                                                            float(latitude),
-                                                                            True),
-                                                            'distance_cam': (False,
-                                                                             float(longitude),
-                                                                             float(latitude),
-                                                                             True),
-                                                            'mobile_cam': (True,
-                                                                           float(longitude),
-                                                                           float(latitude),
-                                                                           True),
-                                                            'ccp_node': ('IGNORE',
-                                                                         'IGNORE'),
-                                                            'list_tree': (None,
-                                                                          None)})
-        return
+            self.print_log_line(f"Adding and propagating mobile camera from db"
+                                f"({longitude, latitude})")
+            self.propagate_camera(longitude, latitude, 'mobile_cam')
+
+            self.prepare_camera_for_osm_wrapper('MOBILE_DB' + str(index),
+                                                longitude, latitude, camera_source='db')
+        # Finally inform the osm wrapper about cameras originating from the database
+        self.update_osm_wrapper(camera_source='db')

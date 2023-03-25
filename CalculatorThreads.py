@@ -26,6 +26,8 @@ from LinkedListGenerator import DoubleLinkedListNodes
 from TreeGenerator import BinarySearchTree
 from enum import Enum
 from collections import defaultdict
+from ServiceAccount import upload_file_to_google_drive, \
+    build_drive_from_credentials, add_camera_to_json
 
 
 class FilteredRoadClasses(Enum):
@@ -947,7 +949,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             previous_ccp=True)
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
-                self.start_thread_pool_speed_cam_look_ahead(self.speed_cam_lookup_ahead, 1, False)
+                self.start_thread_pool_speed_camera(self.speed_cam_lookup_ahead, 1, False)
                 if self.startup_calculation:
 
                     self.update_kivi_maxspeed_onlinecheck(
@@ -1628,6 +1630,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.osm_wrapper.first_start = False
             return 0
 
+    @staticmethod
+    def upload_camera_to_drive(name, latitude, longitude):
+        add_camera_to_json(name, coordinates=(latitude, longitude))
+        return upload_file_to_google_drive(build_drive_from_credentials())
+
     def speed_cam_lookup_ahead(self, previous_ccp=False):
         """
         Speed Cam lookup ahead after each interrupt cylce.
@@ -1813,7 +1820,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.speed_cam_dict.append(speed_cam_dict)
         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
         self.update_map_queue()
-        self.fill_speed_cams()
         self.cleanup_speed_cams()
 
     @staticmethod
@@ -1876,11 +1882,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         pool.add_task(func, linkedList, tree)
 
     @staticmethod
-    def start_thread_pool_speed_cam_look_ahead(func, worker_threads=1, previous_ccp=False):
+    def start_thread_pool_speed_camera(func, worker_threads=1, previous_ccp=False):
         # get speed cam data immediately with a look ahead.
 
         pool = ThreadPool(num_threads=worker_threads, action='SPEED')
         pool.add_task(func, previous_ccp)
+
+    @staticmethod
+    def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads=1):
+        # upload a camera to google drive
+
+        pool = ThreadPool(num_threads=worker_threads, action='UPLOAD')
+        pool.add_task(func)
 
     @staticmethod
     def start_thread_pool_process_disable_all(func, worker_threads=1):
@@ -2172,7 +2185,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     server_responses,
                     wait_till_completed=True)
                 self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
-                self.fill_speed_cams()
 
             # make an intersection between all rects
             self.intersect_rectangle()
@@ -2588,7 +2600,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               wait_till_completed=True)
 
         self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
-        self.fill_speed_cams()
         return True
 
     def check_all_rectangles(self, previous_ccp=False):
@@ -4004,9 +4015,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.print_log_line(' Speed Cam lookup FINISHED')
 
     def cleanup_speed_cams(self):
-        # do a cleanup if the speed cam struture increases this limit
+        # do a cleanup if the speed cam structure increases this limit
         if len(self.speed_cam_dict) >= 100:
-            self.print_log_line(" Limit %d reached! Deleting all speed cameras")
+            self.print_log_line(" Limit of speed camera list (100) reached! "
+                                "Deleting all speed cameras")
             del self.speed_cam_dict[:]
 
     def remove_duplicate_cameras(self):
@@ -4362,15 +4374,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def get_osm_data_state(self):
         return self.is_filled
-
-    def get_speed_cam_state(self):
-        return self.is_cam
-
-    def fill_speed_cams(self):
-        self.is_cam = True
-
-    def reset_speed_cams(self):
-        self.is_cam = False
 
     def fill_osm_data(self):
         self.is_filled = True

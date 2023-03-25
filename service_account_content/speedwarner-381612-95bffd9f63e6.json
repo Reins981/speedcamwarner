@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "speedwarner-381612",
+  "private_key_id": "95bffd9f63e6e1f0b621ff2e5c0aeeae6866a8ce",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCgzt3N9bzCndY9\nFxQ7hwcEn6GwaelNnNfrKvFNzgd7PmIKyH2AdWfGv+CVMhmx/hDl5Spb069uLtDc\nz4MU7+4cIRbVMDqtnaE/AXgENA7DX5ESpwvGB8UIyjrTGpOPYh8Gi737SMNTATTg\n7Y4491zuiMiYl5djwH20IwwrwaJzC9fN7Elair4WLhNQt4uEdT2B0UM6sMAIuqgL\ncQJ6lyTVb7nUKXOKfvsfs1iqSM3RqeYreeKfLtKp/jUgUbEWXPJzgf+tp6zlsHCC\nl60+mXNgcCJZfD9UZOJY1/A00kcTtA2xMrxEeZzUyC7wHHG5wYXm54fQQauDSyaA\nlmTDGZNVAgMBAAECggEADfqNm3bOJtjTo9Hax2XwfT1nL8+1ITMOLfo4qbvMOLFu\nkmNlTYJnOAa7/hwx0aA1Vda6/OqE6H4XV+qOCYbl2vohYvzjTO5T8wcsqKjh06f+\nE3ID+v336dCylmFMDH3KFqaVKD/mAtQrBZaA84DFSlMHpQQge+JiywL07uTRO1Db\n8g4aZ87IogWcuYsgC7pugENGRxr7Sn/+JBCwjPnMTlneikhw7hXXqGiEayqgPBTc\n6Nl1zJI4IeserGV73uKw3kdds4r4GtxNV2NQJBxlOdg3dl9Xs4nMyZq3Z5d9RAjt\nCGVRqepFD+fvD1UT4/BnAoexf8gxkESsRw7+kL9xQQKBgQDRHG5957H2YuGeV0Z9\n3AJLDpFMPZOhad0p/7HJgFQ9qR8etjnv+g1XSbQ5V/9/4e/0Z/XSc5BSyEnKHIRe\nJpjsXSQJczLefWEOVE1+1KhJzqfVkVhiSpYYs81a5KxI1FTlocAAf4aNmWieIQrj\nDnuNV/PijDlhhCCMCKm1w0JJUQKBgQDE3bTGjfrG2vdQkbx5a8OYxZUjl9EGd+Sb\nvvWFvkGWU6A8vqCYy5b+R9s58A3tEVWDUvrMuFuO7dN8skf8sBx4AFaA3BsKRQ/h\nRggOiQN7KY5dHKxgHyy768r0HTIh27H4ae7vB9yus589zNxMV8Tqz6C8ynMWEzJ8\n0qNR8tqoxQKBgFcCEoN21ZikWiZtQBp8YcPjQtfLQ1NFXk3sY4hpSiQB6732qrLM\ng6KPO1sk313Rn+s9Go6/oQyg4/sh1H3sZ3Lp6mW4NjFXT/wLXddpGsDjKPh3KqRz\nTnLm1Yp9XaZMGysVG3PZnB3s+BfbvdDuJMCSGRtppzKJLJW3wQ2tOjaRAoGAAOFQ\n3pZh6aOu+WA9bHmL3VH80bTrDVFZ50xaQqfQGUD0dXEQvL4kRazCkSa+mTG7pSOo\n1WN5nVD44hTV944+AldWC6twP4KBiKtMe+wm5NURut7W8nMROyHZvW+n+rjFueuX\nUuBBH1LUQm15CqpVygr1mAJ7szyQvDgg3MvuKFUCgYBefT6XWDbpysM/c2R8CAt0\nnDY3oLip0oDNI+pV4Oc7F/QMW8LveT8ImYS+3IKf73rzv8VVfmrc6wwmtJkxyalq\nrLTEGb6+Lyfpu+dE8hEu5r2Lug10adO5BQ4gcIMSFchJWJFbVG0CcvMHeFnpISuz\n+3kB6AO8n7AamvJFbEY1Gg==\n-----END PRIVATE KEY-----\n",
+  "client_email": "development-speedwarner@speedwarner-381612.iam.gserviceaccount.com",
+  "client_id": "115437587610225726088",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/development-speedwarner%40speedwarner-381612.iam.gserviceaccount.com"
+}
