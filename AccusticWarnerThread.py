@@ -53,6 +53,8 @@ class VoicePromptThread(StoppableThread, Logger):
             sound = os.path.join(BASE_PATH, 'app_exit.wav')
         elif voice_entry == "ADDED_POLICE":
             sound = os.path.join(BASE_PATH, 'police_added.wav')
+        elif voice_entry == "ADDING_POLICE_FAILED":
+            sound = os.path.join(BASE_PATH, 'police_failed.wav')
         elif voice_entry == "STOP_APPLICATION":
             sound = os.path.join(BASE_PATH, 'app_stopped.wav')
         elif voice_entry == "OSM_DATA_ERROR":

@@ -1,21 +1,22 @@
 import json
 import os
-import requests
+import io
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
+from httplib2 import HttpLib2Error
 from typing import Any, Tuple, Union
 
-BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "service_account_content")
-SERVICE_ACCOUNT = os.path.join(BASE_PATH, 'speedwarner-381612-95bffd9f63e6.json') # Please set the file of your credentials of service account.
-FOLDER_ID = '0B5psWkXNfcOycFdhNThOUHJvb1E' # Please set the folder ID that you shared your folder with the service account.
+BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "service_account")
+SERVICE_ACCOUNT = os.path.join(BASE_PATH, 'osmwarner-a28ef48350cb.json') # Please set the file of your credentials of service account.
+FOLDER_ID = '1VlWuYw_lGeZzrVt5P-dvw8ZzZWSXpaQR' # Please set the folder ID that you shared your folder with the service account.
 FILENAME = os.path.join(BASE_PATH, 'cameras.json') # Please set the filename with the path you want to upload.
-URL = "https://docs.google.com/uc?export=download"
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 # Define the file ID of the file you want to update
-FILE_ID = '1dErX2CqcStxMMyKyEke1UkrqvMBznr_T'
+FILE_ID = '1SetcX-p12V7apMD8v8CLWEfdA2SY2bU-'
 
 
 def build_drive_from_credentials():
@@ -72,56 +73,49 @@ def upload_file_to_google_drive(drive: Any, file_name: str = None) -> str:
         return f'An error occurred: {error}'
 
 
-def download_file_from_google_drive(f_id: str = None, destination: str = None) -> str:
-    session = requests.Session()
-
-    if f_id is None:
-        f_id = FILE_ID
-    if destination is None:
-        destination = FILENAME
-
+def download_file_from_google_drive(f_id: str, drive: Any) -> str:
+    # Get metadata of the file
     try:
-        response = session.get(URL, params={'id': f_id}, stream=True)
-    except Exception as error:
+        file = drive.files().get(fileId=f_id).execute()
+    except HttpError as error:
         return str(error)
-    token = get_confirm_token(response)
 
-    if token:
-        params = {'id': f_id, 'confirm': token}
+    # Create a buffer to download the file to
+    file_content = io.BytesIO()
+
+    # Get the request instance and URI
+    try:
+        request = drive.files().get_media(fileId=f_id)
+    except HttpError as error:
+        return str(error)
+
+    downloader = MediaIoBaseDownload(file_content, request)
+    done = False
+    # Download the file
+    while done is False:
         try:
-            response = session.get(URL, params=params, stream=True)
-        except Exception as error:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}.")
+        except (HttpError, HttpLib2Error) as error:
             return str(error)
 
-    return save_response_content(response, destination)
-
-
-def get_confirm_token(response: Any) -> Union[str, None]:
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-
-    return None
-
-
-def save_response_content(response: Any, destination: str) -> str:
-    CHUNK_SIZE = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:   # filter out keep-alive new chunks
-                #  File has been deleted from drive
-                if chunk.decode().startswith("<!doctype html>"):
-                    return 'File deleted from google drive'
-                else:
-                    f.write(chunk)
+    try:
+        save_response_content(file, file_content)
+    except Exception as error:
+        return str(error)
     return 'success'
+
+
+def save_response_content(file_meta: Any, file_content: Union[io.BytesIO]):
+    # Write the downloaded content to a file
+    with open(file_meta['name'], 'wb') as f:
+        f.write(file_content.getbuffer())
 
 
 if __name__ == "__main__":
     add_camera_to_json('FrannkfurterStree', coordinates=(43.758896, -44.985130))
     status = upload_file_to_google_drive(build_drive_from_credentials())
     if status == 'success':
-        success = download_file_from_google_drive(FILE_ID, FILENAME)
+        success = download_file_from_google_drive(FILE_ID, build_drive_from_credentials())
 
 

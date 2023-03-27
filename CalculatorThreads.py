@@ -1889,11 +1889,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         pool.add_task(func, previous_ccp)
 
     @staticmethod
-    def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads=1):
+    def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads,
+                                                       name, latitude, longitude):
         # upload a camera to google drive
 
         pool = ThreadPool(num_threads=worker_threads, action='UPLOAD')
-        pool.add_task(func)
+        pool.add_task(func, name, latitude, longitude)
 
     @staticmethod
     def start_thread_pool_process_disable_all(func, worker_threads=1):

@@ -13,7 +13,8 @@ import json
 from threading import Timer
 from CalculatorThreads import Rect
 from Logger import Logger
-from ServiceAccount import download_file_from_google_drive, FILE_ID, FILENAME
+from ServiceAccount import download_file_from_google_drive, FILE_ID, \
+    FILENAME, build_drive_from_credentials
 
 
 class UserCamera(object):
@@ -285,15 +286,14 @@ class POIReader(Logger):
     def update_user_added_pois(self):
         self.print_log_line(f"Updating user added POI's..")
 
-        status = download_file_from_google_drive()
+        status = download_file_from_google_drive(FILE_ID, build_drive_from_credentials())
         if status != 'success':
             self.print_log_line(f"Updating cameras (file_id: {FILE_ID}) "
-                                f"from https://docs.google.com/uc?export=download failed! "
+                                f"from service account failed! "
                                 f"({status})", log_level="ERROR")
         else:
             self.print_log_line(f"Updating cameras (file_id: {FILE_ID}) "
-                                f"from https://docs.google.com/uc?export=download success!",
-                                log_level="ERROR")
+                                f"from service account success!")
             self.process_user_pois()
 
     def update_pois_from_db(self):

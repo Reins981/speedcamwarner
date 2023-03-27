@@ -788,9 +788,14 @@ class Cameralayout(BoxLayout):
                               size_hint=(None, None), size=(600, 600))
                 popup.open()
                 return
+            road_name = calculator.get_road_name_via_nominatim(lat, lon)
+            if "ERROR:" in road_name:
+                self.voice_prompt_queue.produce_info(self.cv_voice, "ADDING_POLICE_FAILED")
+                return
+            road_name = "" if road_name is None else road_name
 
             calculator.start_thread_pool_upload_speed_camera_to_drive(
-                calculator.upload_camera_to_drive, 1)
+                calculator.upload_camera_to_drive, 1, road_name, lat, lon)
             self.voice_prompt_queue.produce_info(self.cv_voice, "ADDED_POLICE")
 
 
