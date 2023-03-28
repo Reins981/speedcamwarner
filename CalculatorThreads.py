@@ -27,7 +27,7 @@ from TreeGenerator import BinarySearchTree
 from enum import Enum
 from collections import defaultdict
 from ServiceAccount import upload_file_to_google_drive, \
-    build_drive_from_credentials, add_camera_to_json
+    build_drive_from_credentials, add_camera_to_json, FILE_ID, FOLDER_ID
 
 
 class FilteredRoadClasses(Enum):
@@ -1633,7 +1633,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     @staticmethod
     def upload_camera_to_drive(name, latitude, longitude):
         add_camera_to_json(name, coordinates=(latitude, longitude))
-        return upload_file_to_google_drive(build_drive_from_credentials())
+        return upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
 
     def speed_cam_lookup_ahead(self, previous_ccp=False):
         """

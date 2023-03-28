@@ -49,7 +49,7 @@ def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
         json.dump(content, fp, indent=4, sort_keys=False)
 
 
-def upload_file_to_google_drive(drive: Any, file_name: str = None) -> str:
+def upload_file_to_google_drive(f_id: str, folder_id: str, drive: Any, file_name: str = None) -> str:
     if isinstance(drive, str):
         return drive
 
@@ -58,16 +58,16 @@ def upload_file_to_google_drive(drive: Any, file_name: str = None) -> str:
 
     try:
         # Retrieve the current parent folder IDs for the file
-        file = drive.files().get(fileId=FILE_ID, fields='parents').execute()
+        file = drive.files().get(fileId=f_id, fields='parents').execute()
         current_parents = ",".join(file.get('parents'))
 
         # Add the file to the new parent folder
         file = MediaFileUpload(file_name, resumable=True)
-        response = drive.files().update(fileId=FILE_ID, addParents=FOLDER_ID,
+        response = drive.files().update(fileId=f_id, addParents=folder_id,
                                         removeParents=current_parents, media_body=file).execute()
         file_id = response.get('id')
 
-        print(f'Camera upload success: File ID {file_id} has been moved to folder ID {FOLDER_ID}.')
+        print(f'Camera upload success: File ID {file_id} has been moved to folder ID {folder_id}.')
         return 'success'
     except HttpError as error:
         return f'An error occurred: {error}'
