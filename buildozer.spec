@@ -37,7 +37,7 @@ version = 23.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3==3.9.9,kivy,google-api-python-client,httplib2,pyparsing,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna
+requirements = python3==3.9.9,kivy,google-api-python-client,httplib2,pyparsing,pyasn1,pyasn1-modules,pycparser,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
