@@ -415,6 +415,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  cv_poi,
                  poi_queue,
                  cv_map,
+                 cv_map_osm,
                  map_queue,
                  ms,
                  s,
@@ -440,6 +441,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.currentspeed_queue = currentspeed_queue
         self.poi_queue = poi_queue
         self.cv_map = cv_map
+        self.cv_map_osm = cv_map_osm
         self.map_queue = map_queue
         self.cv_poi = cv_poi
         self.ms = ms
@@ -986,6 +988,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.cleanup()
         self.print_log_line(" terminating")
         self.stop()
+
+    def update_speed_cams(self, speed_cams):
+        self.print_log_line(f"Propagating cameras from OSM to speedwarner ..")
+        self.map_queue.produce_osm(self.cv_map_osm, speed_cams)
 
     def cleanup(self):
         self.RECT_SPEED_CAM_LOOKAHAEAD = None
@@ -1818,7 +1824,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
-        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+        self.update_speed_cams(self.speed_cam_dict)
         self.update_map_queue()
         self.cleanup_speed_cams()
 
@@ -2185,7 +2191,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     num_threads + 1,
                     server_responses,
                     wait_till_completed=True)
-                self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+                self.update_speed_cams(self.speed_cam_dict)
 
             # make an intersection between all rects
             self.intersect_rectangle()
@@ -2600,7 +2606,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               extrapolated,
                                               wait_till_completed=True)
 
-        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+        self.update_speed_cams(self.speed_cam_dict)
         return True
 
     def check_all_rectangles(self, previous_ccp=False):
@@ -3233,7 +3239,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                       treeGenerator,
                                                       linkedListGenerator)'''
         # Update speed cameras on the way
-        self.osm_wrapper.update_speed_cams(self.speed_cam_dict)
+        self.update_speed_cams(self.speed_cam_dict)
 
         return True
 

@@ -8,6 +8,7 @@ Created on 01.07.2014
 '''
 
 import threading
+import time
 from threading import Condition, currentThread
 from collections import deque
 from queue import Queue, Empty
@@ -275,6 +276,75 @@ class CurrentSpeedQueue(object):
 class MapQueue(object):
     def __init__(self):
         self.MAPQUEUE = deque()
+        self.CAMERAQUEUE_OSM = Queue()
+        self.CAMERASQUEUE_CLOUD = Queue()
+        self.CAMERASQUEUE_DB = Queue()
+
+    def get_an_available_item_osm(self):
+        return self.CAMERAQUEUE_OSM.get(block=False)
+
+    def make_an_item_available_osm(self, item):
+        self.CAMERAQUEUE_OSM.put(item, block=False)
+
+    def clear_osm(self, cv):
+        pass
+
+    def consume_osm(self, cv):
+        cv.acquire()
+        try:
+            return self.get_an_available_item_osm()
+        except Empty:
+            return []
+
+    def produce_osm(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_osm(item)
+        cv.notify()
+        cv.release()
+
+    def get_an_available_item_cloud(self):
+        return self.CAMERASQUEUE_CLOUD.get(block=False)
+
+    def make_an_item_available_cloud(self, item):
+        self.CAMERASQUEUE_CLOUD.put(item, block=False)
+
+    def clear_cloud(self, cv):
+        pass
+
+    def consume_cloud(self, cv):
+        cv.acquire()
+        try:
+            return self.get_an_available_item_cloud()
+        except Empty:
+            return []
+
+    def produce_cloud(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_cloud(item)
+        cv.notify()
+        cv.release()
+
+    def get_an_available_item_db(self):
+        return self.CAMERASQUEUE_DB.get(block=False)
+
+    def make_an_item_available_db(self, item):
+        self.CAMERASQUEUE_DB.put(item, block=False)
+
+    def clear_db(self, cv):
+        pass
+
+    def consume_db(self, cv):
+        cv.acquire()
+        try:
+            return self.get_an_available_item_db()
+        except Empty:
+            return []
+
+    def produce_db(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_db(item)
+        cv.notify()
+        cv.release()
 
     def an_item_is_available(self):
         return bool(self.MAPQUEUE)
@@ -541,7 +611,7 @@ class VoicePromptQueue(object):
         cv.release()
 
     def consume_items(self, cv):
-        cv.acquire()
+        cv.acquire(blocking=False)
         while not self.an_item_is_available_gpssignal() \
                 and not self.an_item_is_available_maxspeed_exceeded() \
                 and not self.an_item_is_available_online() \
@@ -608,37 +678,37 @@ class VoicePromptQueue(object):
             pass
 
     def produce_gpssignal(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_gpssignal(item)
         cv.notify()
         cv.release()
 
     def produce_info(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_info(item)
         cv.notify()
         cv.release()
 
     def produce_maxspeed_exceeded(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_maxspeed_exceeded(item)
         cv.notify()
         cv.release()
 
     def produce_online_status(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_online(item)
         cv.notify()
         cv.release()
 
     def produce_poi_status(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_poi(item)
         cv.notify()
         cv.release()
 
     def produce_camera_status(self, cv, item):
-        cv.acquire()
+        cv.acquire(blocking=False)
         self.make_an_item_available_camera(item)
         cv.notify()
         cv.release()
@@ -676,6 +746,29 @@ class ResultMapper(Logger):
 
     def get_server_response(self):
         return self.server_response
+
+
+class CyclicThread(threading.Thread, Logger):
+    def __init__(self, cycle_time, task, *args, **kwargs):
+        threading.Thread.__init__(self)
+        Logger.__init__(self, self.__class__.__name__)
+        self._stop_event = threading.Event()
+        self.cycle_time = cycle_time
+        self.task = task
+        self.args = args
+        self.kwargs = kwargs
+
+    def __str__(self):
+        return "Cyclic Thread with {cycle_time} sec cycle time".format(cycle_time=self.cycle_time)
+
+    def stop(self):
+        self.print_log_line(f"Stopping {self}")
+        self._stop_event.set()
+
+    def run(self):
+        while not self._stop_event.is_set():
+            time.sleep(self.cycle_time)
+            self.task(*self.args, **self.kwargs)
 
 
 class Worker(StoppableThread, Logger):

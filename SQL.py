@@ -13,6 +13,7 @@ import json
 from threading import Timer
 from CalculatorThreads import Rect
 from Logger import Logger
+from ThreadBase import CyclicThread
 from ServiceAccount import download_file_from_google_drive, FILE_ID, \
     FILENAME, build_drive_from_credentials
 
@@ -49,7 +50,9 @@ class POIReader(Logger):
                  calculator,
                  osm_wrapper,
                  map_queue,
-                 cv_map):
+                 cv_map,
+                 cv_map_cloud,
+                 cv_map_db):
         Logger.__init__(self, self.__class__.__name__)
         self.cv_speedcam = cv_speedcam
         self.speed_cam_queue = speedcamqueue
@@ -58,6 +61,8 @@ class POIReader(Logger):
         self.osm_wrapper = osm_wrapper
         self.map_queue = map_queue
         self.cv_map = cv_map
+        self.cv_map_cloud = cv_map_cloud
+        self.cv_map_db = cv_map_db
         # global members
         self.connection = None
         self.poi_raw_data = None
@@ -80,25 +85,40 @@ class POIReader(Logger):
         self.zoom = 17
         # OSM Rect
         self.POI_RECT = None
+        # initial download status
+        self.__initial_download_finished = False
+
+        # set config items
+        self.set_configs()
 
         self.process()
+
+    @property
+    def initial_download_finished(self):
+        return self.__initial_download_finished
+
+    def set_configs(self):
+        # Cloud cyclic update time in seconds (Runs every x seconds).
+        # The first time after x seconds
+        self.u_time_from_cloud = 60
+        # POIs from database update time in seconds (Runs after x seconds one time)
+        self.u_time_from_db = 30
 
     # called from main GUI thread
     def stop_timer(self):
         self.timer_1.cancel()
-        self.timer_2.cancel()
+        self.timer_2.stop()
+        self.timer_2.join()
 
     def process(self):
         self.open_connection()
         self.execute()
         self.convert_cam_morton_codes()
-        self.update_pois_from_db()
-        self.update_user_added_pois()
 
-        self.timer_1 = Timer(30.0, self.update_pois_from_db)
+        self.timer_1 = Timer(self.u_time_from_db, self.update_pois_from_db)
         self.timer_1.start()
 
-        self.timer_2 = Timer(60.0, self.update_user_added_pois)
+        self.timer_2 = CyclicThread(self.u_time_from_cloud, self.update_pois_from_cloud)
         self.timer_2.start()
 
     def open_connection(self):
@@ -200,8 +220,8 @@ class POIReader(Logger):
                                                         'list_tree': (None,
                                                                       None)})
 
-    def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat, camera_source='user_added'):
-        if camera_source == 'user_added':
+    def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat, camera_source='cloud'):
+        if camera_source == 'cloud':
             self.speed_cam_dict[camera_key] = [lat,
                                                lon,
                                                lat,
@@ -230,39 +250,47 @@ class POIReader(Logger):
     def update_map_queue(self):
         self.map_queue.produce(self.cv_map, "UPDATE")
 
-    def update_osm_wrapper(self, camera_source='user_added'):
-        processing_dict = self.speed_cam_dict if camera_source == 'user_added' \
+    def update_speed_cams_cloud(self, speed_cams):
+        self.map_queue.produce_cloud(self.cv_map, speed_cams)
+
+    def update_speed_cams_db(self, speed_cams):
+        self.map_queue.produce_db(self.cv_map, speed_cams)
+
+    def update_osm_wrapper(self, camera_source='cloud'):
+        processing_dict = self.speed_cam_dict if camera_source == 'cloud' \
             else self.speed_cam_dict_db
-        processing_list = self.speed_cam_list if camera_source == 'user_added' \
+        processing_list = self.speed_cam_list if camera_source == 'cloud' \
             else self.speed_cam_list_db
         if len(processing_dict) > 0:
             processing_list.append(processing_dict)
-        self.osm_wrapper.update_speed_cams_user_added(processing_list) \
-            if camera_source == 'user_added' \
-            else self.osm_wrapper.update_speed_cams_db(processing_list)
+        self.update_speed_cams_cloud(processing_list) \
+            if camera_source == 'cloud' \
+            else self.update_speed_cams_db(processing_list)
         self.update_map_queue()
         self.cleanup_speed_cams()
 
-    def process_user_pois(self):
-        self.print_log_line(f"Processing user added POI's..")
+    def process_pois_from_cloud(self):
+        self.print_log_line(f"Processing POI's from cloud..")
         with open(FILENAME, 'r') as fp:
             user_pois = json.load(fp)
 
         if 'cameras' not in user_pois:
-            self.print_log_line(f"Processing user added POI's failed: "
+            self.print_log_line(f"Processing POI's from cloud failed: "
                                 f"No POI's to process in {FILENAME}", log_level="WARNING")
             return
 
-        self.print_log_line(f"Found {len(user_pois['cameras'])} user added cameras")
+        self.print_log_line(f"Found {len(user_pois['cameras'])} cameras from cloud!")
+        self.__initial_download_finished = True
+
         cam_id = 200000
         for camera in user_pois['cameras']:
             try:
-                name = camera.get['name']
+                name = camera['name']
                 lat = camera['coordinates'][0]['latitude']
                 lon = camera['coordinates'][0]['longitude']
             except KeyError:
-                self.print_log_line(f"Ignore adding camera {camera} because of missing attributes",
-                                    log_level="WARNING")
+                self.print_log_line(f"Ignore adding camera {camera} from cloud "
+                                    f"because of missing attributes", log_level="WARNING")
                 continue
 
             user_cam = UserCamera(cam_id, name, lon, lat)
@@ -271,20 +299,20 @@ class POIReader(Logger):
             user_poi_list = list(map(lambda p: p.lon == user_cam.lon and p.lat == user_cam.lat,
                                      self.user_pois))
             if any(user_poi_list):
-                self.print_log_line(f"Ignore adding user camera ({user_cam.lon, user_cam.lat}), "
-                                    f"already added into map")
-                return
+                self.print_log_line(f"Ignore adding camera from cloud "
+                                    f"({user_cam.lon, user_cam.lat}), already added into map")
+                continue
 
-            self.print_log_line(f"Adding and propagating user camera "
-                                f"({user_cam.name, user_cam.lon, user_cam.lat})")
+            self.print_log_line(f"Adding and propagating camera from cloud"
+                                f"({user_cam.name, user_cam.lat, user_cam.lon})")
             self.user_pois.append(user_cam)
             self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id), user_cam.lon, user_cam.lat)
             self.update_osm_wrapper()
             self.propagate_camera(user_cam.lon, user_cam.lat, 'mobile_cam')
             cam_id += 1
 
-    def update_user_added_pois(self):
-        self.print_log_line(f"Updating user added POI's..")
+    def update_pois_from_cloud(self, *args, **kwargs):
+        self.print_log_line(f"Updating POI's from cloud ..")
 
         status = download_file_from_google_drive(FILE_ID, build_drive_from_credentials())
         if status != 'success':
@@ -294,9 +322,11 @@ class POIReader(Logger):
         else:
             self.print_log_line(f"Updating cameras (file_id: {FILE_ID}) "
                                 f"from service account success!")
-            self.process_user_pois()
+            self.process_pois_from_cloud()
 
     def update_pois_from_db(self):
+        self.print_log_line(f"Updating POI's from database ..")
+
         del self.result_pois_fix[:]
         del self.result_pois_mobile[:]
 

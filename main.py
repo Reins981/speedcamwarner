@@ -6,7 +6,6 @@ __version__ = '0.1'
 import os
 from kivy.app import App
 from kivy_garden.mapview import MapView
-from kivy.uix.popup import Popup
 from kivy.properties import ObjectProperty
 from kivy.uix.button import Button
 from kivy.graphics import Color, Rectangle, Line
@@ -18,6 +17,8 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
 from kivy.uix.modalview import ModalView
 from kivy.uix.gridlayout import GridLayout
+from kivy_garden.mapview import MapMarker
+from kivy.uix.popup import Popup
 from kivy.clock import Clock, mainthread, _default_time as time
 from oscpy.server import OSCThreadServer
 from oscpy.client import OSCClient
@@ -624,7 +625,7 @@ class Poilayout(GridLayout):
         self.stop_thread = False
         self.main_app.map_layout.map_view.re_center = False
 
-        gps_producer, calculator, speedwarner = self.main_app.pass_bot_objects()
+        gps_producer, calculator, speedwarner, _ = self.main_app.pass_bot_objects()
 
         if isinstance(gps_producer, GPSThread) and isinstance(calculator,
                                                               RectangleCalculatorThread) and \
@@ -737,7 +738,7 @@ class Poilayout(GridLayout):
             self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
 
     def prepare_route(self, poi):
-        gps_producer, _, speedwarner = self.main_app.pass_bot_objects()
+        gps_producer, _, speedwarner, _ = self.main_app.pass_bot_objects()
 
         while not self.stop_thread:
             time.sleep(2)
@@ -777,10 +778,11 @@ class Cameralayout(BoxLayout):
         self.sm.current = 'Operative'
 
     def callback_police(self, instance):
-        gps_producer, calculator, _ = self.main_app.pass_bot_objects()
+        gps_producer, calculator, _, poi_reader = self.main_app.pass_bot_objects()
 
         if isinstance(gps_producer, GPSThread) and isinstance(calculator,
                                                               RectangleCalculatorThread):
+
             lon, lat = gps_producer.get_lon_lat_bot()
             if lon is None and lat is None:
                 popup = Popup(title='Attention',
@@ -788,6 +790,14 @@ class Cameralayout(BoxLayout):
                               size_hint=(None, None), size=(600, 600))
                 popup.open()
                 return
+
+            if not poi_reader.initial_download_finished:
+                popup = Popup(title='Attention',
+                              content=Label(text='Initial POI download in progress!'),
+                              size_hint=(None, None), size=(600, 600))
+                popup.open()
+                return
+
             road_name = calculator.get_road_name_via_nominatim(lat, lon)
             if "ERROR:" in road_name:
                 self.voice_prompt_queue.produce_info(self.cv_voice, "ADDING_POLICE_FAILED")
@@ -1787,6 +1797,25 @@ class MyMapView(MapView):
         lon = kwargs['lon']
         super().__init__(zoom=zoom, lat=lat, lon=lon, cache_dir=self.cache_path)
 
+    def add_custom_marker(self, coord_0, coord_1, source, text):
+        marker = MapMarker(lon=float(coord_1), lat=float(coord_0), source=source)
+        marker.on_release = lambda marker: self.show_popup(marker, text)  # Assign on_release event
+        self.add_marker(marker)  # Add MapMarker to MapView
+
+        return marker
+
+    @staticmethod
+    def show_popup(marker, text):
+        # Create a new Popup instance
+        popup = Popup(title='Details', content=Label(text=text), size_hint=(None, None),
+                      size=(400, 400))
+
+        # Set the position of the Popup to the location of the MapMarker
+        popup.pos = marker.pos
+
+        # Open the Popup
+        popup.open()
+
 
 class Maplayout(RelativeLayout):
 
@@ -2055,6 +2084,9 @@ class MainTApp(App):
         self.cv_currentspeed = Condition()
         self.cv_osm = Condition()
         self.cv_map = Condition()
+        self.cv_map_osm = Condition()
+        self.cv_map_cloud = Condition()
+        self.cv_map_db = Condition()
         self.cv_border = Condition()
         self.cv_border_reverse = Condition()
         self.cv_poi = Condition()
@@ -2124,7 +2156,8 @@ class MainTApp(App):
         self.ml = MainView(self.sm)
         self.root_table = Poilayout(self.sm, self.ml, self, self.voice_prompt_queue, self.cv_voice)
         self.map_layout = Maplayout(self.sm)
-        self.osm_wrapper = maps(self.map_layout)
+        self.osm_wrapper = maps(self.map_layout, self.cv_map_osm,
+                                self.cv_map_cloud, self.cv_map_db, self.map_queue)
 
         self.b.add_widget(self.menubutton)
         self.b.add_widget(self.infobutton)
@@ -2163,7 +2196,7 @@ class MainTApp(App):
         return self.sm
 
     def pass_bot_objects(self):
-        return self.gps_producer, self.calculator, self.speedwarner
+        return self.gps_producer, self.calculator, self.speedwarner, self.poireader
 
     def init_osm(self, gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue):
         self.osm_init = OSM_INIT(gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue)
@@ -2271,6 +2304,7 @@ class MainTApp(App):
                         cv_poi,
                         poi_queue,
                         cv_map,
+                        cv_map_osm,
                         map_queue,
                         ms,
                         s,
@@ -2294,6 +2328,7 @@ class MainTApp(App):
                                                     cv_poi,
                                                     poi_queue,
                                                     cv_map,
+                                                    cv_map_osm,
                                                     map_queue,
                                                     ms,
                                                     s,
@@ -2386,7 +2421,8 @@ class MainTApp(App):
         self.sm.current = 'Operative'
 
     def callback_exit(self, instance):
-        gps.stop()
+        if platform == "android":
+            gps.stop()
         self.q.set_terminate_state(True)
         self.root_table.stop_thread = True
 
@@ -2441,7 +2477,8 @@ class MainTApp(App):
         if self.stopped:
             pass
         else:
-            gps.stop()
+            if platform == "android":
+                gps.stop()
             RectangleCalculatorThread.thread_lock = False
             self.stopped = True
             self.started = False
@@ -2521,7 +2558,8 @@ class MainTApp(App):
         if self.started:
             pass
         else:
-            gps.start(1000, 0)
+            if platform == "android":
+                gps.start(1000, 0)
             # send a message to our service
             self.send_ping()
             self.q.set_terminate_state(False)
@@ -2547,6 +2585,7 @@ class MainTApp(App):
                                               self.cv_poi,
                                               self.poi_queue,
                                               self.cv_map,
+                                              self.cv_map_osm,
                                               self.map_queue,
                                               self.ms,
                                               self.s,
@@ -2626,7 +2665,9 @@ class MainTApp(App):
                                        self.calculator,
                                        self.osm_wrapper,
                                        self.map_queue,
-                                       self.cv_map)
+                                       self.cv_map,
+                                       self.cv_map_cloud,
+                                       self.cv_map_db)
             self.started = True
             self.stopped = False
 

@@ -131,16 +131,18 @@ class maps(Logger):
     TRIGGER_RECT_DRAW = False
     TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
-    def __init__(self, map_layout):
+    def __init__(self, map_layout, cv_map_osm, cv_map_cloud, cv_map_db, map_queue):
         Logger.__init__(self, self.__class__.__name__)
         self.map_layout = map_layout
+        self.cv_map_osm = cv_map_osm
+        self.cv_map_cloud = cv_map_cloud
+        self.cv_map_db = cv_map_db
+        self.map_queue = map_queue
+        # globals
         self.markers = []
         self.markers_cams = []
         self.markers_pois = []
         self.line_layers = []
-        self.speed_cams = []
-        self.speed_cams_user_added = []
-        self.speed_cams_db = []
         self.geoBounds = []
         self.geoBounds_extrapolated = []
         self.extrapolated = False
@@ -207,24 +209,6 @@ class maps(Logger):
         if not isinstance(accuracy, float):
             accuracy = float(accuracy)
         self.accuracy = accuracy
-
-    def update_speed_cams(self, speed_cams):
-        self.speed_cams = speed_cams
-
-    def update_speed_cams_user_added(self, speed_cams):
-        self.speed_cams_user_added = speed_cams
-
-    def update_speed_cams_db(self, speed_cams):
-        self.speed_cams_db = speed_cams
-
-    def get_speed_cams(self):
-        return self.speed_cams
-
-    def get_speed_cams_user_added(self):
-        return self.speed_cams_user_added
-
-    def get_speed_cams_db(self):
-        return self.speed_cams_db
 
     def osm_update_geoBounds_extrapolated(self, geoBounds, most_propable_heading, rect_name):
         geo_attr = (geoBounds, most_propable_heading, rect_name)
@@ -420,9 +404,9 @@ class maps(Logger):
 
         # remove duplicate speed cameras
         speed_cam_list = self.get_unique_speed_cam_list()
-        speed_cam_list_user_added = self.get_unique_speed_cam_list(user_added=True)
+        speed_cam_list_cloud = self.get_unique_speed_cam_list(cloud=True)
         speed_cam_list_db = self.get_unique_speed_cam_list(db=True)
-        to_be_drawn = [speed_cam_list, speed_cam_list_user_added, speed_cam_list_db]
+        to_be_drawn = [speed_cam_list, speed_cam_list_cloud, speed_cam_list_db]
 
         for cameras in to_be_drawn:
             # if speed_cams_available:
@@ -470,21 +454,28 @@ class maps(Logger):
                     markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                        self.markers_cams))
                     if any(markers):
-                        self.print_log_line(f"Ignore adding marker ({marker.lon, marker.lat}), "
+                        self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
                                             f"already added into map")
-                        return
-                    self.print_log_line("Adding Marker for Speedcam %s" % key)
+                        continue
+                    self.print_log_line(f"Adding Marker for Speedcam {key}: "
+                                        f"({marker.lat, marker.lon})")
                     self.markers_cams.append(marker)
                     self.map_layout.map_view.add_marker(marker)
         return
 
     # remove duplication
-    def get_unique_speed_cam_list(self, user_added=False, db=False):
+    def get_unique_speed_cam_list(self, cloud=False, db=False):
         speed_cams = []
         if db:
-            processing_cams = self.speed_cams_db
+            processing_cams = self.map_queue.consume_db(self.cv_map_db)
+            self.cv_map_db.release()
         else:
-            processing_cams = self.speed_cams if not user_added else self.speed_cams_user_added
+            processing_cams = self.map_queue.consume_osm(self.cv_map_osm) if not cloud else \
+                self.map_queue.consume_cloud(self.cv_map_cloud)
+            if cloud:
+                self.cv_map_cloud.release()
+            else:
+                self.cv_map_osm.release()
         for i in range(0, len(processing_cams)):
             for key, coords in processing_cams[i].items():
                 speed_cams.append((key, coords[0], coords[1]))

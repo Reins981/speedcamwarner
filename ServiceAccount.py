@@ -8,6 +8,9 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 from httplib2 import HttpLib2Error
 from typing import Any, Tuple, Union
+from Logger import Logger
+
+logger = Logger("ServiceAccount")
 
 BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "service_account")
 SERVICE_ACCOUNT = os.path.join(BASE_PATH, 'osmwarner-a28ef48350cb.json') # Please set the file of your credentials of service account.
@@ -38,7 +41,7 @@ def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
             }
           ]
         }
-    print(f"Adding new camera: {new_camera}")
+    logger.print_log_line(f"Adding new camera: {new_camera}")
 
     with open(FILENAME, 'r') as fp:
         content = json.load(fp)
@@ -67,7 +70,8 @@ def upload_file_to_google_drive(f_id: str, folder_id: str, drive: Any, file_name
                                         removeParents=current_parents, media_body=file).execute()
         file_id = response.get('id')
 
-        print(f'Camera upload success: File ID {file_id} has been moved to folder ID {folder_id}.')
+        logger.print_log_line(f'Camera upload success: File ID {file_id} has been moved to '
+                              f'folder ID {folder_id}.')
         return 'success'
     except HttpError as error:
         return f'An error occurred: {error}'
@@ -95,7 +99,7 @@ def download_file_from_google_drive(f_id: str, drive: Any) -> str:
     while done is False:
         try:
             status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}.")
+            logger.print_log_line(f"Download {int(status.progress() * 100)} % complete.")
         except (HttpError, HttpLib2Error) as error:
             return str(error)
 
