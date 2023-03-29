@@ -1781,6 +1781,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     if lookup_type == "distance_cam":
                         prefix = "DISTANCE_"
                         name = self.get_road_name_via_nominatim(lat, lon)
+                    if "ERROR" in name:
+                        name = "---"
 
                     key = prefix + str(counter)
                     if prefix == 'FIX_':
@@ -3266,7 +3268,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(f" Road lookup via Nominatim failed! -> "
                                 f"{str(e)}", log_level="ERROR")
             self.internet_connection = False
-            return "ERROR: " + str(e)
+            return "ERROR: Road lookup TIMEOUT"
 
         if location:
             loc = location.address.split(",")

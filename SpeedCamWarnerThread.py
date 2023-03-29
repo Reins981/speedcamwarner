@@ -50,6 +50,10 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.INSERTED_SPEEDCAMS = []
         self.longitude = float(0.0)
         self.latitude = float(0.0)
+        # Dismiss counter for cameras that are not reported because of an angle mismatch
+        self.dismiss_counter = 0
+        # Pointer to current cam coordinates
+        self.current_cam_pointer = None
 
         self.set_configs()
 
@@ -78,6 +82,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.max_storage_time = 14400
         # Traversed cameras will be checked every X seconds
         self.traversed_cameras_interval = 3
+        # Max dismiss counter for cameras with angle mismatch after which the cam road name text
+        # will be resetted
+        self.max_dismiss_counter = 5
 
         # SpeedLimits Base URL example##
         self.baseurl = 'http://overpass-api.de/api/interpreter?'
@@ -311,7 +318,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 if current_distance < last_distance:
                     self.print_log_line(f"Reinserting {cam_attributes[0]} camera {str(cam)} "
                                         f"with new distance "
-                                        f"{current_distance} km")
+                                        f"{current_distance} meters")
                     self.ITEMQUEUE[cam] = cam_attributes
                     self.ITEMQUEUE[cam][1] = False
                     self.ITEMQUEUE[cam][6] = start_time
@@ -357,6 +364,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.delete_cameras(cams_to_delete)
         # Sort cameras based on distance
         cam, cam_entry = self.sort_pois(cam_list)
+        # Reset the camera dismiss counter
+        if cam != self.current_cam_pointer:
+            self.dismiss_counter = 0
+        # Point to the current camera
+        self.current_cam_pointer = cam
         # Nothing to sort
         if cam is None:
             self.print_log_line("Sorting speed cameras failed -> "
@@ -390,11 +402,17 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if not self.inside_relevant_angle(cam, current_distance_to_cam):
                 SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                 self.trigger_free_flow()
-                self.update_cam_road(road=f"X -> {cam_road_name}", color=(0, 1, .3, .8))
+                if self.calculator.internet_available and "---" not in cam_road_name:
+                    if self.dismiss_counter <= self.max_dismiss_counter:
+                        self.update_cam_road(road=f"DISMISS -> {cam_road_name}",
+                                             color=(0, 1, .3, .8))
+                        self.dismiss_counter += 1
+                    else:
+                        self.update_cam_road(reset=True)
                 self.update_max_speed(reset=True)
                 self.print_log_line(" Leaving Speed Camera with coordinates: "
-                                    "%s %s because of Angle mismatch" % (cam[0], cam[1]),
-                                    log_level="WARNING")
+                                    "(%s %s), road name: %s because of Angle mismatch"
+                                    % (cam[0], cam[1], cam_road_name), log_level="WARNING")
                 # self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'ANGLE_MISMATCH')
                 return False
 
@@ -715,6 +733,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             last_distance = 1001
         else:
             if last_distance == -1 and distance < self.max_absolute_distance:
+                self.update_cam_road(reset=True) if not process_next_cam \
+                    else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
+                                              color=(0, 1, .3, .8))
                 SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                 return
             self.print_log_line(" %s speed cam OUTSIDE relevant radius -> distance %d m" % (
