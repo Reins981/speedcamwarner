@@ -1533,7 +1533,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                  self.cspeed_converted,
                                                  float(self.bearing_cached),
                                                  1)
-
+            # In case the calculator thread is busy and can not send position updates immediately
+            # to the speed camera warner, make sure that we always send the position updates
+            # in the GPSThread as well.
             self.speed_cam_queue.produce(self.cv_speedcam, {
                 'ccp': (self.longitude_cached, self.latitude_cached),
                 'fix_cam': (False, 0, 0),

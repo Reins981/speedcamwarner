@@ -217,7 +217,7 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = False
+        self.gps_test_data = True
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__),
                                      "gpx",
@@ -328,17 +328,16 @@ class GPSThread(StoppableThread, Logger):
                                                    direction,
                                                    'CALCULATE',
                                                    int(accuracy))
-                        if self.calculator.thread_lock:
-                            self.speed_cam_queue.produce(self.cv_speedcam, {
-                                'ccp': (lon, lat),
-                                'fix_cam': (False, 0, 0),
-                                'traffic_cam': (False, 0, 0),
-                                'distance_cam': (False, 0, 0),
-                                'mobile_cam': (False, 0, 0),
-                                'ccp_node': (None, None),
-                                'list_tree': (None, None),
-                                'stable_ccp': None,
-                                'bearing': bearing})
+                        self.speed_cam_queue.produce(self.cv_speedcam, {
+                            'ccp': (lon, lat),
+                            'fix_cam': (False, 0, 0),
+                            'traffic_cam': (False, 0, 0),
+                            'distance_cam': (False, 0, 0),
+                            'mobile_cam': (False, 0, 0),
+                            'ccp_node': (None, None),
+                            'list_tree': (None, None),
+                            'stable_ccp': None,
+                            'bearing': bearing})
 
                     self.gpsqueue.produce(self.cv, {str(bearing) + ' ' + direction: 4})
                     self.produce_bearing_set(bearing)
