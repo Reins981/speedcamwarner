@@ -399,21 +399,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             return False
 
         if self.enable_inside_relevant_angle_feature:
-            if not self.inside_relevant_angle(cam, current_distance_to_cam):
-                SpeedCamWarnerThread.CAM_IN_PROGRESS = False
-                self.trigger_free_flow()
-                if self.calculator.internet_available and "---" not in cam_road_name:
-                    if self.dismiss_counter <= self.max_dismiss_counter:
-                        self.update_cam_road(road=f"DISMISS -> {cam_road_name}",
-                                             color=(0, 1, .3, .8))
-                        self.dismiss_counter += 1
-                    else:
-                        self.update_cam_road(reset=True)
-                self.update_max_speed(reset=True)
-                self.print_log_line(" Leaving Speed Camera with coordinates: "
-                                    "(%s %s), road name: %s because of Angle mismatch"
-                                    % (cam[0], cam[1], cam_road_name), log_level="WARNING")
-                # self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'ANGLE_MISMATCH')
+            success = self.match_camera_against_angle(cam, current_distance_to_cam, cam_road_name)
+            if not success:
                 return False
 
         # check speed cam distance to updated ccp position
@@ -462,6 +449,25 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_cam_road(reset=True)
             self.update_max_speed(reset=True)
             del self.INSERTED_SPEEDCAMS[:]
+
+        return True
+
+    def match_camera_against_angle(self, cam, current_distance_to_cam, cam_road_name):
+        if not self.inside_relevant_angle(cam, current_distance_to_cam):
+            SpeedCamWarnerThread.CAM_IN_PROGRESS = False
+            self.trigger_free_flow()
+            if self.dismiss_counter <= self.max_dismiss_counter:
+                self.update_cam_road(road=f"DISMISS -> {cam_road_name}",
+                                     color=(0, 1, .3, .8))
+                self.dismiss_counter += 1
+            else:
+                self.update_cam_road(reset=True)
+            self.update_max_speed(reset=True)
+            self.print_log_line(" Leaving Speed Camera with coordinates: "
+                                "(%s %s), road name: %s because of Angle mismatch"
+                                % (cam[0], cam[1], cam_road_name), log_level="WARNING")
+            # self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'ANGLE_MISMATCH')
+            return False
 
         return True
 
@@ -830,7 +836,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def update_max_speed(self, max_speed=None, reset=False):
         if reset:
-            if self.ms.maxspeed.text != "->->->":
+            if self.ms.maxspeed.text != "->->->" and self.calculator.internet_available():
                 font_size = 230
                 self.ms.maxspeed.text = "->->->"
                 self.ms.maxspeed.color = (0, 1, .3, .8)
