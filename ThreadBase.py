@@ -770,6 +770,9 @@ class CyclicThread(threading.Thread, Logger):
             time.sleep(self.cycle_time)
             self.task(*self.args, **self.kwargs)
 
+    def set_time(self, m_time):
+        self.cycle_time = m_time
+
 
 class Worker(StoppableThread, Logger):
     # executing tasks from a given tasks queue
