@@ -673,6 +673,7 @@ class Poilayout(GridLayout):
             rectangle_radius = calculator.calculate_rectangle_radius(
                 CURRENT_RECT.rect_height(),
                 CURRENT_RECT.rect_width())
+            self.logger.print_log_line(f"POI radius is {rectangle_radius} km")
 
             osm_lookup_properties = [(LON_MIN,
                                       LAT_MIN,
@@ -815,7 +816,7 @@ class Gpslayout(BoxLayout):
         super(Gpslayout, self).__init__(**kwargs)
         self.sm = args[0]
         self.main_app = args[1]
-        self.imgps = Image(source='images/gps.png', color=(1, .9, 0, 2))
+        self.imgps = Image(source='images/gps.jpg', color=(1, .9, 0, 2))
         self.camera = Image(source='images/freeflow.png', color=(1, .9, 0, 2))
         self.plusbutton = Button(text='+', bold=True, font_size=600,
                                  background_color=(.5, .5, .5, .5))
@@ -847,12 +848,12 @@ class Gpslayout(BoxLayout):
         Clock.schedule_once(self.callback_offline)
 
     def callback_online(self, instance):
-        self.imgps.source = 'images/gps.png'
+        self.imgps.source = 'images/gps.jpg'
         self.imgps.color = (0, 1, .3, .8)
         self.imgps.texture_update()
 
     def callback_offline(self, instance):
-        self.imgps.source = 'images/gps.png'
+        self.imgps.source = 'images/gps.jpg'
         self.imgps.color = (1, 0, 0, 3)
         self.imgps.texture_update()
 
@@ -1795,7 +1796,7 @@ class MyMapView(MapView):
         zoom = kwargs['zoom']
         lat = kwargs['lat']
         lon = kwargs['lon']
-        super().__init__(zoom=zoom, lat=lat, lon=lon, cache_dir=self.cache_path)
+        super().__init__(zoom=zoom, lat=lat, lon=lon, map_source="osm", cache_dir=self.cache_path)
 
     def add_custom_marker(self, coord_0, coord_1, source, text):
         marker = MapMarker(lon=float(coord_1), lat=float(coord_0), source=source)
@@ -1882,23 +1883,23 @@ class MainView(FloatLayout):
         self.list_view_modal12 = ListViewModal(pos=(0, 420), size_hint=(1, .10))
         self.speedcam_fix_number = Label(text='0', pos=(0, 423), size_hint=(1.8, .10),
                                          font_size=50, bold=True)
-        self.img_speedcam_fix = Image(source='images/fixcamera.png', pos=(0, 420),
-                                      size_hint=(.4, .10))
+        self.img_speedcam_fix = Label(text="Fix Cameras", pos=(0, 420),
+                                      size_hint=(.4, .10), font_size=50)
         self.list_view_modal13 = ListViewModal(pos=(0, 750), size_hint=(1, .10))
         self.speedcam_trafficlight_number = Label(text='0', pos=(0, 753), size_hint=(1.8, .10),
                                                   font_size=50, bold=True)
-        self.img_speedcam_trafficlight = Image(source='images/trafficlightcamera.png',
-                                               pos=(0, 750), size_hint=(.4, .10))
+        self.img_speedcam_trafficlight = Label(text="Red Light Cameras",
+                                               pos=(0, 750), size_hint=(.4, .10), font_size=50)
         self.list_view_modal14 = ListViewModal(pos=(0, 1050), size_hint=(1, .10))
         self.speedcam_distance_number = Label(text='0', pos=(0, 1053), size_hint=(1.8, .10),
                                               font_size=50, bold=True)
-        self.img_speedcam_distance = Image(source='images/distancecamera.png', pos=(0, 1050),
-                                           size_hint=(.4, .10))
+        self.img_speedcam_distance = Label(text="Distance Cameras", pos=(0, 1050),
+                                           size_hint=(.4, .10), font_size=50)
         self.list_view_modal15 = ListViewModal(pos=(0, 1350), size_hint=(1, .10))
         self.speedcam_mobil_number = Label(text='0', pos=(0, 1353), size_hint=(1.8, .10),
                                            font_size=50, bold=True)
-        self.img_speedcam_mobil = Image(source='images/mobilcamera.png', pos=(0, 1350),
-                                        size_hint=(.4, .10))
+        self.img_speedcam_mobil = Label(text="Mobile Cameras", pos=(0, 1350),
+                                        size_hint=(.4, .10), font_size=50)
         self.list_view_modal16 = ListViewModal(pos=(0, 1650), size_hint=(1, .10))
         self.poi_number = Label(text='0', pos=(0, 1653), size_hint=(1.8, .10),
                                 font_size=50, bold=True)
@@ -2018,7 +2019,7 @@ class MainTApp(App):
 
     def set_configs(self):
         # Distance for POI lookup in km
-        self.poi_distance = 30
+        self.poi_distance = 50
 
     @mainthread
     def on_location(self, **kwargs):

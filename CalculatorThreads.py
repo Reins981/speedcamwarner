@@ -1752,6 +1752,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     name = None
                     direction = None
                     maxspeed = None
+                    maxspeed_conditional = None
+                    description = None
                     try:
                         lat = element['lat']
                         lon = element['lon']
@@ -1777,6 +1779,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             maxspeed = element['tags']['maxspeed']
                         except KeyError:
                             pass
+                        try:
+                            maxspeed_conditional = element['tags']['maxspeed:conditional']
+                        except KeyError:
+                            pass
+                        try:
+                            description = element['tags']['description']
+                        except KeyError:
+                            pass
 
                     if lookup_type == "distance_cam":
                         prefix = "DISTANCE_"
@@ -1797,7 +1807,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            lon,
                                            True,
                                            None,
-                                           None]
+                                           None,
+                                           name if name else "---",
+                                           direction + " °" if direction else "---",
+                                           maxspeed + " Km/h" if maxspeed else "--- Km/h",
+                                           maxspeed_conditional if maxspeed_conditional else "@ Always",
+                                           description if description else "---"]
                     counter += 1
                     self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
                                                                     'fix_cam': (True if prefix == 'FIX_' else False,

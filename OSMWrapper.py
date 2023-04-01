@@ -15,18 +15,21 @@ from kivy_garden.mapview import MapMarker, MapLayer
 from kivy.graphics import Color, Line
 from kivy.clock import Clock
 from kivy.graphics.context_instructions import Translate, Scale
+from kivy.metrics import dp
+from MapUtils import *
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 CAR_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "car1.png")
-FIX_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "fixcamera1.png")
+FIX_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "fixcamera_map.png")
 TRAFFIC_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
-                            "trafficlightcamera1.png")
+                            "trafficlightcamera_map.jpg")
 MOBILE_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
-                           "mobilcamera1.png")
+                           "mobilecamera_map.jpg")
 DISTANCE_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
-                             "distancecamera1.png")
-HOSPITAL_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "hospital.png")
-GAS_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "fuel.png")
+                             "distancecamera_map.jpg")
+HOSPITAL_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "hospital.jpg")
+GAS_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "fuel.jpg")
+UNDEFINED_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "undefined.jpg")
 
 
 class LineMapLayer(MapLayer):
@@ -49,26 +52,30 @@ class LineMapLayer(MapLayer):
 
     def draw_lines(self, *args, **kwargs):
 
-        first = self.mapview.get_window_xy_from(self.coordinates[0], self.coordinates[1], self.mapview.zoom)
-        second = self.mapview.get_window_xy_from(self.coordinates[2], self.coordinates[3], self.mapview.zoom)
-        third = self.mapview.get_window_xy_from(self.coordinates[0], self.coordinates[2], self.mapview.zoom)
-        fourth = self.mapview.get_window_xy_from(self.coordinates[1], self.coordinates[3], self.mapview.zoom)
+        first = self.mapview.get_window_xy_from(self.coordinates[0], self.coordinates[1],
+                                                self.mapview.zoom)
+        second = self.mapview.get_window_xy_from(self.coordinates[2], self.coordinates[3],
+                                                 self.mapview.zoom)
+        third = self.mapview.get_window_xy_from(self.coordinates[0], self.coordinates[2],
+                                                self.mapview.zoom)
+        fourth = self.mapview.get_window_xy_from(self.coordinates[1], self.coordinates[3],
+                                                 self.mapview.zoom)
 
         scatter = self.mapview._scatter
-        x,y,s = scatter.x, scatter.y, scatter.scale
-        point_list = [first[0], first[1], second[0], second[1], third[0], third[1], fourth[0], fourth[1]]
+        x, y, s = scatter.x, scatter.y, scatter.scale
+        point_list = [first[0], first[1], second[0], second[1], third[0], third[1], fourth[0],
+                      fourth[1]]
 
         with self.canvas:
             self.canvas.clear()
-            Scale(1/s, 1/s, 1)
-            Translate(-x,-y)
+            Scale(1 / s, 1 / s, 1)
+            Translate(-x, -y)
             LineMapLayer.colors[self.color_index]
             # LineMapLayer.colors[self.color_index]
             Line(points=point_list, width=8, joint="bevel")
 
 
 class OSMThread(StoppableThread, Logger):
-
     pois_drawn = False
     route_calc = True
     POIS = []
@@ -127,7 +134,6 @@ class OSMThread(StoppableThread, Logger):
 
 
 class maps(Logger):
-
     TRIGGER_RECT_DRAW = False
     TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
@@ -190,7 +196,6 @@ class maps(Logger):
         for l in self.line_layers:
             self.map_layout.map_view.remove_layer(l)
         self.line_layers.clear()
-
 
     def osm_update_center(self, lat, lng):
         self.centerLat = lat
@@ -286,7 +291,8 @@ class maps(Logger):
                     p2 = geoBounds[0][1][0]
                     p3 = geoBounds[0][1][1]
                     coordinattes = [p0, p1, p2, p3]
-                    line_layer = LineMapLayer(coordinattes, color_index, self.map_layout.map_view, self.line_layers)
+                    line_layer = LineMapLayer(coordinattes, color_index, self.map_layout.map_view,
+                                              self.line_layers)
                     self.line_layers.append(line_layer)
                     self.map_layout.map_view.add_layer(line_layer)
                     self.print_log_line("Draw lines!")
@@ -322,7 +328,8 @@ class maps(Logger):
                         p2 = geoBounds[0][1][0]
                         p3 = geoBounds[0][1][1]
                         coordinattes = [p0, p1, p2, p3]
-                        line_layer = LineMapLayer(coordinattes, color_index, self.map_layout.map_view, self.line_layers)
+                        line_layer = LineMapLayer(coordinattes, color_index,
+                                                  self.map_layout.map_view, self.line_layers)
                         self.line_layers.append(line_layer)
                         self.map_layout.map_view.add_layer(line_layer)
                         self.print_log_line("Draw lines!")
@@ -343,7 +350,13 @@ class maps(Logger):
             return
 
         source = None
-        amenity = ""
+        amenity = "---"
+        city = "---"
+        street = "---"
+        post_code = "---"
+        name = "---"
+        phone = "---"
+
         if OSMThread.POIS is not None and len(OSMThread.POIS) > 0:
 
             for m in self.markers_pois:
@@ -357,27 +370,30 @@ class maps(Logger):
                 except KeyError:
                     continue
                 if 'tags' in element:
-                    amenity = element['tags']['amenity']
+                    try:
+                        amenity = element['tags']['amenity']
+                    except KeyError:
+                        pass
                     try:
                         city = element['tags']['addr:city']
                     except KeyError:
-                        city = ""
+                        pass
                     try:
                         post_code = element['tags']['addr:postcode']
                     except KeyError:
-                        post_code = ""
+                        pass
                     try:
                         street = element['tags']['addr:street']
                     except KeyError:
-                        street = ""
+                        pass
                     try:
                         name = element['tags']['name']
                     except KeyError:
-                        name = ""
+                        pass
                     try:
                         phone = element['tags']['phone']
                     except KeyError:
-                        phone = ""
+                        pass
 
                     if amenity == "hospital":
                         source = HOSPITAL_ICON
@@ -391,12 +407,27 @@ class maps(Logger):
                                 lat, lon, city, post_code, street, name, phone))'''
 
                 self.print_log_line("Adding Marker for POIS (%f, %f)" % (lon, lat))
-                if source is None:
-                    marker = MapMarker(lon=lon, lat=lat)
-                else:
-                    marker = MapMarker(lon=lon, lat=lat, source=source)
+                marker = CustomMarker(lon=lon, lat=lat,
+                                      popup_size=(dp(230), dp(130)))
                 self.markers_pois.append(marker)
-                self.map_layout.map_view.add_marker(marker)
+                # Add the marker to the map
+                bubble = CustomBubble()
+                image = CustomAsyncImage(
+                    source=source if source else UNDEFINED_ICON,
+                    mipmap=True)
+                label = CustomLabel(text="", markup=True, halign='center')
+                label.update_text(f"[b]{amenity}[/b]",
+                                  f"{city}",
+                                  f"{post_code}",
+                                  f"{street}",
+                                  f"{name}",
+                                  f"{phone}")
+                box = CustomLayout(orientation='horizontal', padding='5dp')
+                box.add_widget(image)
+                box.add_widget(label)
+                bubble.add_widget(box)
+                marker.add_widget(bubble)
+                self.map_layout.map_view.add_widget(marker)
 
             OSMThread.pois_drawn = True
 
@@ -429,7 +460,11 @@ class maps(Logger):
                     key = attributes[0]
                     coord_0 = attributes[1]
                     coord_1 = attributes[2]
-                    road_name = ""
+                    name = attributes[3]
+                    direction = attributes[4]
+                    maxspeed = attributes[5]
+                    maxspeed_conditional = attributes[6]
+                    description = attributes[7]
 
                     if key.find("FIX") == 0:
                         source = FIX_ICON
@@ -449,7 +484,8 @@ class maps(Logger):
                     else:
                         source = MOBILE_ICON
 
-                    marker = MapMarker(lon=float(coord_1), lat=float(coord_0), source=source)
+                    marker = CustomMarker(lon=float(coord_1), lat=float(coord_0),
+                                          popup_size=(dp(230), dp(130)))
                     # if the Marker already exists, do not draw it
                     markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                        self.markers_cams))
@@ -460,7 +496,23 @@ class maps(Logger):
                     self.print_log_line(f"Adding Marker for Speedcam {key}: "
                                         f"({marker.lat, marker.lon})")
                     self.markers_cams.append(marker)
-                    self.map_layout.map_view.add_marker(marker)
+                    # Add the marker to the map
+                    bubble = CustomBubble()
+                    image = CustomAsyncImage(
+                        source=source,
+                        mipmap=True)
+                    label = CustomLabel(text="", markup=True, halign='center')
+                    label.update_text(f"[b]{name}[/b]",
+                                      f"{direction}",
+                                      f"{maxspeed}",
+                                      f"{maxspeed_conditional}",
+                                      f"{description}")
+                    box = CustomLayout(orientation='horizontal', padding='5dp')
+                    box.add_widget(image)
+                    box.add_widget(label)
+                    bubble.add_widget(box)
+                    marker.add_widget(bubble)
+                    self.map_layout.map_view.add_widget(marker)
         return
 
     # remove duplication
@@ -477,8 +529,18 @@ class maps(Logger):
             else:
                 self.cv_map_osm.release()
         for i in range(0, len(processing_cams)):
-            for key, coords in processing_cams[i].items():
-                speed_cams.append((key, coords[0], coords[1]))
+            for key, attributes in processing_cams[i].items():
+                speed_cams.append(
+                    (key,
+                     attributes[0],
+                     attributes[1],
+                     attributes[7] if len(attributes) >= 8 else "---",
+                     attributes[8] if len(attributes) >= 9 else "---",
+                     attributes[9] if len(attributes) >= 10 else "--- Km/h",
+                     attributes[10] if len(attributes) >= 11 else "@ Always",
+                     attributes[11] if len(attributes) >= 12 else "---"
+                     )
+                )
 
         return list(set(speed_cams))
 
