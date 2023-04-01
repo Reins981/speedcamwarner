@@ -119,6 +119,7 @@ class POIReader(Logger):
         self.timer_1.start()
 
         self.timer_2 = CyclicThread(self.u_time_from_cloud, self.update_pois_from_cloud)
+        self.timer_2.setDaemon(True)
         self.timer_2.start()
 
     def open_connection(self):
