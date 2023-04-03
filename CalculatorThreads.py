@@ -1725,7 +1725,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.RECT_SPEED_CAM_LOOKAHAEAD = CURRENT_RECT
 
         # check osm data reception status of favoured rectangle
-        speed_cam_dict = dict()
         lookup_types = ["camera_ahead", "distance_cam"]
 
         for lookup_type in lookup_types:
@@ -1767,6 +1766,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
                 counter = 80000
                 for element in data:
+                    speed_cam_dict = dict()
                     name = None
                     direction = None
                     maxspeed = None
@@ -1862,11 +1862,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
                     self.update_kivi_info_page()
 
-        if len(speed_cam_dict) > 0:
-            self.speed_cam_dict.append(speed_cam_dict)
-        self.update_speed_cams(self.speed_cam_dict)
-        self.update_map_queue()
-        self.cleanup_map_content()
+                    if len(speed_cam_dict) > 0:
+                        self.speed_cam_dict.append(speed_cam_dict)
+                    self.update_speed_cams(self.speed_cam_dict)
+                    self.update_map_queue()
+                    self.cleanup_map_content()
 
     def constructions_lookup_ahead(self, previous_ccp=False):
         """
@@ -2011,7 +2011,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                 self.print_log_line(f"Failed to resolve node id {node}, "
                                                     f"Trying to resolve with REST call ..",
                                                     log_level="WARNING")
-                                RectangleCalculatorThread.thread_lock = True
+                                # Do not block any other operations running since the number
+                                # of requests could be very high
                                 (online_available, status, data, internal_error,
                                  current_rect) = self.trigger_osm_lookup(LON_MIN,
                                                                          LAT_MIN,
@@ -2021,7 +2022,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                          "node",
                                                                          node,
                                                                          current_rect='CURRENT_CONSTRUCTION')
-                                RectangleCalculatorThread.thread_lock = False
 
                                 if status == 'OK' and len(data) > 0:
                                     element = data[0]
