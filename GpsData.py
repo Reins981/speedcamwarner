@@ -1,12 +1,14 @@
 import gpxpy
 import gpxpy.gpx
 import os
-from random import randint, uniform
+from random import randint
+from Logger import Logger
 
 
-class GpsTestDataGenerator(object):
+class GpsTestDataGenerator(Logger):
 
     def __init__(self, max_num=50000, gpx_f=None):
+        super().__init__(self.__class__.__name__)
         self.events = list()
         self.event_index = -1
         self.startup = True
@@ -16,7 +18,7 @@ class GpsTestDataGenerator(object):
             self._fill_events(max_num)
 
     def _fill_events_from_gpx(self, gpx_f):
-        print("Generating Test GPS Data from %s...." % gpx_f)
+        self.print_log_line("Generating Test GPS Data from %s...." % gpx_f)
         gpx_f_handle = open(gpx_f, 'r')
 
         gpx = gpxpy.parse(gpx_f_handle)
@@ -24,7 +26,7 @@ class GpsTestDataGenerator(object):
         for track in gpx.tracks:
             for segment in track.segments:
                 for point in segment.points:
-                    print('Point at ({0},{1}) -> {2}'.format(point.latitude, point.longitude,
+                    self.print_log_line('Point at ({0},{1}) -> {2}'.format(point.latitude, point.longitude,
                                                              point.elevation))
                     event = {'data': {'gps': {'accuracy': randint(2, 25),
                                               'latitude': point.latitude,
@@ -37,7 +39,7 @@ class GpsTestDataGenerator(object):
                     self.events.append(event)
 
     def _fill_events(self, max_num):
-        print("Generating %d Test GPS Data...." % max_num)
+        self.print_log_line("Generating %d Test GPS Data...." % max_num)
         # London
         # start_lat = 52.520008
         # start_long = 13.404954
