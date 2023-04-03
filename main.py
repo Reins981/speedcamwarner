@@ -1909,6 +1909,9 @@ class MainView(FloatLayout):
                                         bold=True, background_color=(.5, .5, .5, .5))
         self.returnbutton_main.bind(on_press=self.callback_return)
 
+        # Globals
+        self.construction_areas_number = 0
+
         # self.add_widget(self.speed_camera)
         self.add_widget(self.list_view_modal12)
         self.add_widget(self.img_speedcam_fix)
@@ -1952,6 +1955,12 @@ class MainView(FloatLayout):
 
     def update_pois(self, number):
         self.poi_number.text = str(number)
+        self.poi_number.text += str(self.construction_areas_number)
+        Clock.schedule_once(self.poi_number.texture_update)
+
+    def update_construction_areas(self):
+        self.construction_areas_number += 1
+        self.poi_number.text += str(self.construction_areas_number)
         Clock.schedule_once(self.poi_number.texture_update)
 
     def update_speed_cam_txt(self, l_range):
@@ -2086,6 +2095,7 @@ class MainTApp(App):
         self.cv_osm = Condition()
         self.cv_map = Condition()
         self.cv_map_osm = Condition()
+        self.cv_map_construction = Condition()
         self.cv_map_cloud = Condition()
         self.cv_map_db = Condition()
         self.cv_border = Condition()
@@ -2157,7 +2167,7 @@ class MainTApp(App):
         self.ml = MainView(self.sm)
         self.root_table = Poilayout(self.sm, self.ml, self, self.voice_prompt_queue, self.cv_voice)
         self.map_layout = Maplayout(self.sm)
-        self.osm_wrapper = maps(self.map_layout, self.cv_map_osm,
+        self.osm_wrapper = maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
                                 self.cv_map_cloud, self.cv_map_db, self.map_queue)
 
         self.b.add_widget(self.menubutton)
@@ -2306,6 +2316,7 @@ class MainTApp(App):
                         poi_queue,
                         cv_map,
                         cv_map_osm,
+                        cv_map_construction,
                         map_queue,
                         ms,
                         s,
@@ -2330,6 +2341,7 @@ class MainTApp(App):
                                                     poi_queue,
                                                     cv_map,
                                                     cv_map_osm,
+                                                    cv_map_construction,
                                                     map_queue,
                                                     ms,
                                                     s,
@@ -2587,6 +2599,7 @@ class MainTApp(App):
                                               self.poi_queue,
                                               self.cv_map,
                                               self.cv_map_osm,
+                                              self.cv_map_construction,
                                               self.map_queue,
                                               self.ms,
                                               self.s,

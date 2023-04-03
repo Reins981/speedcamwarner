@@ -416,6 +416,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  poi_queue,
                  cv_map,
                  cv_map_osm,
+                 cv_map_construction,
                  map_queue,
                  ms,
                  s,
@@ -442,6 +443,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.poi_queue = poi_queue
         self.cv_map = cv_map
         self.cv_map_osm = cv_map_osm
+        self.cv_map_construction = cv_map_construction
         self.map_queue = map_queue
         self.cv_poi = cv_poi
         self.ms = ms
@@ -467,7 +469,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.RECT_VALUES_EXTRAPOLATED = []
         self.RECT_ATTRIBUTES_INTERSECTED = {}
         self.RECT_SPEED_CAM_LOOKAHAEAD = None
+        self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD = None
         self.speed_cam_dict = []
+        self.construction_areas = []
         self.road_candidates = []
 
         # default timeout
@@ -558,6 +562,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.osm_timeout_motorway = 30
         # speed cam lookahead distance in km
         self.speed_cam_look_ahead_distance = 300
+        # construction area lookahead distance in km
+        # Use the radius with CAUTION! Do not provide a radius of more than 30 km due performance
+        # reasons
+        self.construction_area_lookahead_distance = 10
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
@@ -692,6 +700,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.querystring_hazard5 = 'node["hazard"="ice"]'
         self.querystring_hazard6 = 'node["hazard"="fog"]'
         self.querystring_distance_cams = 'data=[out:json][timeout:25];(relation["enforcement"="mindistance"]'
+        self.querystring_construction_areas = 'data=[out:json][timeout:25];(way["highway"="construction"]'
+        self.querystring_construction_areas2 = 'relation["highway"="construction"]'
+        self.node_lookup = 'data=[out:json][timeout:25];(node(*););out+body;'
 
         # rect boundaries
         self.rectangle_periphery_poi_reader = {'TOP-N': (20, 20),
@@ -952,6 +963,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 self.start_thread_pool_speed_camera(self.speed_cam_lookup_ahead, 1, False)
+                self.start_thread_pool_construction_areas(self.constructions_lookup_ahead, 1, False)
                 if self.startup_calculation:
 
                     self.update_kivi_maxspeed_onlinecheck(
@@ -990,11 +1002,16 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.stop()
 
     def update_speed_cams(self, speed_cams):
-        self.print_log_line(f"Propagating cameras from OSM to speedwarner ..")
+        self.print_log_line(f"Propagating cameras from OSM to OSM Wrapper ..")
         self.map_queue.produce_osm(self.cv_map_osm, speed_cams)
+
+    def update_construction_areas(self, construction_areas):
+        self.print_log_line(f"Propagating construction areas from OSM to OSM Wrapper ..")
+        self.map_queue.produce_construction(self.cv_map_construction, construction_areas)
 
     def cleanup(self):
         self.RECT_SPEED_CAM_LOOKAHAEAD = None
+        self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD = None
         self.RECT_ATTRIBUTES_EXTRAPOLATED = {}
         self.RECT_ATTRIBUTES_EXTRAPOLATED_KEYS = []
         self.RECT_ATTRIBUTES = {}
@@ -1493,12 +1510,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return None
 
         self.longitude, \
-        self.latitude, \
-        self.cspeed, \
-        self.bearing, \
-        self.direction, \
-        self.gpsstatus, \
-        self.accuracy = self.get_vector_sections(updated_vector)
+            self.latitude, \
+            self.cspeed, \
+            self.bearing, \
+            self.direction, \
+            self.gpsstatus, \
+            self.accuracy = self.get_vector_sections(updated_vector)
 
         if update_ccp_only:
             self.print_log_line(" Update CCP only..")
@@ -1582,7 +1599,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 if road_name.startswith("ERROR:"):
                     if self.cam_in_progress is False:
                         self.update_maxspeed_status("ERROR",
-                                                    internal_error=road_name[road_name.find(":") + 2:])
+                                                    internal_error=road_name[
+                                                                   road_name.find(":") + 2:])
                 else:
                     self.process_road_name(found_road_name=True,
                                            road_name=road_name,
@@ -1815,18 +1833,21 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            description if description else "---"]
                     counter += 1
                     self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
-                                                                    'fix_cam': (True if prefix == 'FIX_' else False,
-                                                                                float(lon),
-                                                                                float(lat),
-                                                                                True),
-                                                                    'traffic_cam': (True if prefix == 'TRAFFIC_' else False,
-                                                                                    float(lon),
-                                                                                    float(lat),
-                                                                                    True),
-                                                                    'distance_cam': (True if prefix == 'DISTANCE_' else False,
-                                                                                     float(lon),
-                                                                                     float(lat),
-                                                                                     True),
+                                                                    'fix_cam': (
+                                                                        True if prefix == 'FIX_' else False,
+                                                                        float(lon),
+                                                                        float(lat),
+                                                                        True),
+                                                                    'traffic_cam': (
+                                                                        True if prefix == 'TRAFFIC_' else False,
+                                                                        float(lon),
+                                                                        float(lat),
+                                                                        True),
+                                                                    'distance_cam': (
+                                                                        True if prefix == 'DISTANCE_' else False,
+                                                                        float(lon),
+                                                                        float(lat),
+                                                                        True),
                                                                     'mobile_cam': (False,
                                                                                    float(lon),
                                                                                    float(lat),
@@ -1845,7 +1866,197 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.speed_cam_dict.append(speed_cam_dict)
         self.update_speed_cams(self.speed_cam_dict)
         self.update_map_queue()
-        self.cleanup_speed_cams()
+        self.cleanup_map_content()
+
+    def constructions_lookup_ahead(self, previous_ccp=False):
+        """
+        Construction areas lookup ahead after each interrupt cylce.
+        This lookup is independent of a matching Rectangle
+        :return:
+        """
+        if previous_ccp:
+            if self.longitude_cached > 0 and self.latitude_cached > 0:
+                ccp_lat = self.latitude_cached
+                ccp_lon = self.longitude_cached
+            else:
+                return
+            if self.xtile_cached is not None and self.ytile_cached is not None:
+                xtile = self.xtile_cached
+                ytile = self.ytile_cached
+            else:
+                return
+        else:
+            # convert CCP longitude,latitude to (x,y).
+            xtile, ytile = self.longlat2tile(self.latitude, self.longitude, self.zoom)
+            self.cache_tiles(xtile, ytile)
+            ccp_lat = self.latitude
+            ccp_lon = self.longitude
+
+        if self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD \
+                and isinstance(self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD, Rect):
+            inside_rect = self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD.point_in_rect(xtile, ytile)
+            close_to_border = self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD.points_close_to_border(
+                xtile,
+                ytile,
+                look_ahead=True)
+
+            if inside_rect and not close_to_border:
+                self.print_log_line("Construction area lookahead not triggered -> "
+                                    "CCP within rectangle 'CURRENT_CONSTRUCTION'")
+                return
+        self.print_log_line("Trigger Construction area lookahead")
+
+        xtile_min, xtile_max, ytile_min, ytile_max = self.calculatepoints2angle(
+            xtile,
+            ytile,
+            self.construction_area_lookahead_distance,
+            self.current_rect_angle)
+        LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = self.createGeoJsonTilePolygonAngle(
+            self.zoom,
+            xtile_min,
+            ytile_min,
+            xtile_max,
+            ytile_max)
+
+        # convert each of the 2 points to (x,y).
+        pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN, self.zoom)
+        pt2_xtile, pt2_ytile = self.longlat2tile(LAT_MAX, LON_MAX, self.zoom)
+        # calculate a rectangle from these 2 points
+        CURRENT_RECT = self.calculate_rectangle_border(
+            [pt1_xtile, pt1_ytile], [pt2_xtile, pt2_ytile])
+        CURRENT_RECT.set_rectangle_ident(self.direction)
+        CURRENT_RECT.set_rectangle_string('CURRENT_CONSTRUCTION')
+        # calculate the radius of the rectangle in km
+        rectangle_radius = self.calculate_rectangle_radius(
+            CURRENT_RECT.rect_height(),
+            CURRENT_RECT.rect_width())
+        self.print_log_line(
+            f"Rectangle radius for rect 'CURRENT_CONSTRUCTION' is {rectangle_radius}")
+        self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD = CURRENT_RECT
+
+        # check osm data reception status of favoured rectangle
+        RectangleCalculatorThread.thread_lock = True
+        (online_available, status, data, internal_error,
+         current_rect) = self.trigger_osm_lookup(LON_MIN,
+                                                 LAT_MIN,
+                                                 LON_MAX,
+                                                 LAT_MAX,
+                                                 self.direction,
+                                                 "constructions_ahead",
+                                                 current_rect='CURRENT_CONSTRUCTION')
+        RectangleCalculatorThread.thread_lock = False
+        self.update_kivi_maxspeed_onlinecheck(
+            online_available=online_available,
+            status=status,
+            internal_error=internal_error,
+            alternative_image="UNDEFINED")
+
+        if status != 'OK':
+            if self.osm_error_reported:
+                pass
+            else:
+                self.ms.update_online_image_layout("INETFAILED")
+                self.voice_prompt_queue.produce_online_status(
+                    self.cv_voice, "INTERNET_CONN_FAILED")
+                self.osm_error_reported = True
+
+            # Reset the speed cam rect for a new try if the internet connection got broken or
+            # no data was received
+            self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD = None
+            return
+
+        if status == 'OK' and len(data) > 0:
+            self.osm_error_reported = False
+            self.print_log_line("Construction are lookup finished!! Found %d construction areas "
+                                "ahead (%d km)" % (len(data), self.speed_cam_look_ahead_distance))
+
+            counter = 90000
+            prefix = 'CONSTRUCTION_'
+            for element in data:
+                construction_areas_dict = dict()
+                construction = None
+                name = None
+                surface = None
+                check_date = None
+                lat = None
+                lon = None
+                if 'type' in element and element.get('type') == "way":
+                    if 'tags' in element:
+                        try:
+                            construction = element['tags']['construction']
+                        except KeyError:
+                            pass
+                        try:
+                            name = element['tags']['name']
+                        except KeyError:
+                            pass
+                        try:
+                            surface = element['tags']['surface']
+                        except KeyError:
+                            pass
+                        try:
+                            check_date = element['tags']['check_date']
+                        except KeyError:
+                            pass
+
+                    if "nodes" in element:
+                        for node in element['nodes']:
+                            result_node = list(
+                                filter(lambda el: el['type'] == 'node' and el['id'] == node, data))
+                            if result_node:
+                                result_node = result_node[0]
+                                lat = result_node['lat']
+                                lon = result_node['lon']
+                            else:
+                                self.print_log_line(f"Failed to resolve node id {node}, "
+                                                    f"Trying to resolve with REST call ..",
+                                                    log_level="WARNING")
+                                RectangleCalculatorThread.thread_lock = True
+                                (online_available, status, data, internal_error,
+                                 current_rect) = self.trigger_osm_lookup(LON_MIN,
+                                                                         LAT_MIN,
+                                                                         LON_MAX,
+                                                                         LAT_MAX,
+                                                                         self.direction,
+                                                                         "node",
+                                                                         node,
+                                                                         current_rect='CURRENT_CONSTRUCTION')
+                                RectangleCalculatorThread.thread_lock = False
+
+                                if status == 'OK' and len(data) > 0:
+                                    element = data[0]
+                                    lat = element['lat']
+                                    lon = element['lon']
+
+                                else:
+                                    self.print_log_line(f"Failed to resolve node id {node}. "
+                                                        f"Giving up.", log_level="WARNING")
+                                    continue
+
+                            key = prefix + str(counter)
+                            construction_areas_dict[key] = \
+                                [
+                                    lat,
+                                    lon,
+                                    lat,
+                                    lon,
+                                    True,
+                                    None,
+                                    None,
+                                    construction if construction else "---",
+                                    name if name else "---",
+                                    surface if surface else "---",
+                                    check_date if check_date else "---"
+                                ]
+                            counter += 1
+
+                self.update_kivi_info_page(update_construction_areas=True)
+                # Update construction areas one by one
+                if len(construction_areas_dict) > 0:
+                    self.construction_areas.append(construction_areas_dict)
+                self.update_construction_areas(self.construction_areas)
+                self.update_map_queue()
+                self.cleanup_map_content()
 
     @staticmethod
     def start_thread_pool_lookup(func,
@@ -1914,6 +2125,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         pool.add_task(func, previous_ccp)
 
     @staticmethod
+    def start_thread_pool_construction_areas(func, worker_threads=1, previous_ccp=False):
+        # get speed cam data immediately with a look ahead.
+
+        pool = ThreadPool(num_threads=worker_threads, action='CONSTRUCTIONS')
+        pool.add_task(func, previous_ccp)
+
+    @staticmethod
     def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads,
                                                        name, latitude, longitude):
         # upload a camera to google drive
@@ -1927,7 +2145,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             pass
         pool = ThreadPool(num_threads=worker_threads, action='DISABLE')
         pool.add_task(func)
-        #_ = pool.wait_completion()
+        # _ = pool.wait_completion()
 
     @staticmethod
     def start_thread_pool_data_lookup(func,
@@ -2292,7 +2510,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def isExtrapolatedRectPrevious(self):
         return self.previous_rect != "NOTSET" \
-               and 'EXTRAPOLATED' in self.previous_rect.get_rectangle_string()
+            and 'EXTRAPOLATED' in self.previous_rect.get_rectangle_string()
 
     def delete_old_instances(self, delete_rects=False, mode='CURRENT'):
 
@@ -3093,7 +3311,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     urban = True
 
         return found_road_name, road_name, maxspeed, reset_maxspeed, found_maxspeed, \
-               found_combined_tags, road_class, poi, urban, facility, motorway, ramp
+            found_combined_tags, road_class, poi, urban, facility, motorway, ramp
 
     def process_road_name(self, found_road_name,
                           road_name,
@@ -3221,17 +3439,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             self.process_max_speed_for_road_class(way, treeGenerator)
                     else:
                         found_road_name, \
-                        road_name, \
-                        maxspeed, \
-                        reset_maxspeed, \
-                        found_maxspeed, \
-                        found_combined_tags, \
-                        road_class, \
-                        poi, \
-                        urban, \
-                        facility, \
-                        motorway, \
-                        ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
+                            road_name, \
+                            maxspeed, \
+                            reset_maxspeed, \
+                            found_maxspeed, \
+                            found_combined_tags, \
+                            road_class, \
+                            poi, \
+                            urban, \
+                            facility, \
+                            motorway, \
+                            ramp = self.resolve_roadname_and_max_speed(way, treeGenerator)
 
                         self.process_road_name(found_road_name,
                                                road_name,
@@ -4037,15 +4255,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         # update specific cams per rect (sum of all rects)
         self.update_kivi_info_page()
-        self.cleanup_speed_cams()
+        self.cleanup_map_content()
         self.print_log_line(' Speed Cam lookup FINISHED')
 
-    def cleanup_speed_cams(self):
-        # do a cleanup if the speed cam structure increases this limit
-        if len(self.speed_cam_dict) >= 100:
-            self.print_log_line(" Limit of speed camera list (100) reached! "
-                                "Deleting all speed cameras")
-            del self.speed_cam_dict[:]
+    def cleanup_map_content(self):
+        # Do a cleanup if the map structures increase this limit
+        map_content = [self.speed_cam_dict, self.construction_areas]
+        for content in map_content:
+            if len(content) >= 100:
+                self.print_log_line(" Limit of map content reached 100 items! "
+                                    "Deleting all speed cameras and construction areas")
+                del content[:]
 
     def remove_duplicate_cameras(self):
         # Remove duplicate cameras for Map Renderer per speed cam dict
@@ -4129,51 +4349,71 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         lon_max = args[2]
         lat_max = args[3]
         direction = args[4]
-        amenity = None
-
-        self.print_log_line(f"Trigger OSM lookup ({self.baseurl}) with direction {direction}")
+        lookup_type = None
+        node_id = None
 
         if len(args) == 6:
-            amenity = args[5]
+            lookup_type = args[5]
+        elif len(args) > 6:
+            lookup_type = args[5]
+            node_id = args[6]
+
         current_rect = kwargs['current_rect']
+
+        if lookup_type == "node" and node_id is None:
+            return False, 'ERROR', None, "Node id is missing", current_rect
 
         querystring = self.querystring1
         querystring2 = self.querystring2
-        if amenity is not None:
-            if amenity == "camera_ahead":
+        if lookup_type is not None:
+            if lookup_type == "camera_ahead":
                 querystring = self.querystring_cameras1
                 querystring2 = ");out+body;"
-            elif amenity == "hazard":
+            elif lookup_type == "constructions_ahead":
+                querystring = self.querystring_construction_areas
+                querystring2 = ");out+body;"
+            elif lookup_type == "hazard":
                 querystring = self.querystring_hazard1
                 querystring2 = ");out+body;"
-            elif amenity == "distance_cam":
+            elif lookup_type == "distance_cam":
                 querystring = self.querystring_distance_cams
                 querystring2 = ");out+body;"
+            elif lookup_type == "node":
+                querystring = self.node_lookup
             else:
-                querystring = self.querystring_amenity.replace("*", amenity)
-        if amenity == "camera_ahead":
+                querystring = self.querystring_amenity.replace("*", lookup_type)
+        if lookup_type == "camera_ahead":
             bbox = '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + self.querystring_cameras2 + bbox + \
-                self.querystring_cameras3 + bbox + querystring2
-        elif amenity == "hazard":
+                      self.querystring_cameras3 + bbox + querystring2
+        elif lookup_type == "constructions_ahead":
+            bbox = '(' + str(
+                lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
+                lon_max) + ');'
+            osm_url = self.baseurl + querystring + bbox + \
+                self.querystring_construction_areas2 + bbox + querystring2
+        elif lookup_type == "hazard":
             bbox = '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + self.querystring_hazard2 + bbox + \
-                self.querystring_hazard3 + bbox + self.querystring_hazard4 + bbox + \
-                self.querystring_hazard5 + bbox + self.querystring_hazard6 + bbox + querystring2
-        elif amenity == "distance_cam":
+                      self.querystring_hazard3 + bbox + self.querystring_hazard4 + bbox + \
+                      self.querystring_hazard5 + bbox + self.querystring_hazard6 + bbox + querystring2
+        elif lookup_type == "distance_cam":
             bbox = '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + querystring2
+        elif lookup_type == "node":
+            osm_url = self.baseurl + querystring.replace("*", str(node_id))
         else:
             osm_url = self.baseurl + querystring + '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ')' + querystring2
 
+        self.print_log_line(f"Trigger OSM lookup ({osm_url}) with direction {direction}")
         s_time = calendar.timegm(time.gmtime())
 
         try:
@@ -4305,14 +4545,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if isinstance(radius, int) or isinstance(radius, float):
             self.ml.update_speed_cam_txt(radius)
 
-    def update_kivi_info_page(self, poi_cams=None, poi_cams_mobile=0):
+    def update_kivi_info_page(self,
+                              poi_cams=None,
+                              poi_cams_mobile=0,
+                              update_construction_areas=False):
         if poi_cams is not None and isinstance(poi_cams, int):
             self.fix_cams += poi_cams
-
         self.mobile_cams += poi_cams_mobile
 
-        self.ml.update_speed_cams(self.fix_cams, self.mobile_cams,
-                                  self.traffic_cams, self.distance_cams)
+        if update_construction_areas:
+            self.ml.update_construction_areas()
+        else:
+            self.ml.update_speed_cams(self.fix_cams, self.mobile_cams,
+                                      self.traffic_cams, self.distance_cams)
 
     def update_kivi_maxspeed_onlinecheck(self, online_available=True,
                                          status='OK', internal_error='', alternative_image=None):

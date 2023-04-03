@@ -29,7 +29,13 @@ DISTANCE_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images
                              "distancecamera_map.jpg")
 HOSPITAL_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "hospital.jpg")
 GAS_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "fuel.jpg")
-UNDEFINED_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "undefined.jpg")
+UNDEFINED_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
+                              "undefined.jpg")
+CONSTRUCTION_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
+                                 "constructions.jpg")
+CONSTRUCTION_MARKER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images",
+                                   "construction_marker.png")
+POI_MARKER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "poi_marker.png")
 
 
 class LineMapLayer(MapLayer):
@@ -137,10 +143,12 @@ class maps(Logger):
     TRIGGER_RECT_DRAW = False
     TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
-    def __init__(self, map_layout, cv_map_osm, cv_map_cloud, cv_map_db, map_queue):
+    def __init__(self, map_layout, cv_map_osm, cv_map_construction,
+                 cv_map_cloud, cv_map_db, map_queue):
         Logger.__init__(self, self.__class__.__name__)
         self.map_layout = map_layout
         self.cv_map_osm = cv_map_osm
+        self.cv_map_construction = cv_map_construction
         self.cv_map_cloud = cv_map_cloud
         self.cv_map_db = cv_map_db
         self.map_queue = map_queue
@@ -148,6 +156,7 @@ class maps(Logger):
         self.markers = []
         self.markers_cams = []
         self.markers_pois = []
+        self.markers_construction_areas = []
         self.line_layers = []
         self.geoBounds = []
         self.geoBounds_extrapolated = []
@@ -407,8 +416,13 @@ class maps(Logger):
                                 lat, lon, city, post_code, street, name, phone))'''
 
                 self.print_log_line("Adding Marker for POIS (%f, %f)" % (lon, lat))
-                marker = CustomMarker(lon=lon, lat=lat,
-                                      popup_size=(dp(230), dp(130)))
+                marker = CustomMarkerPois(self.markers_pois,
+                                          list(),
+                                          list(),
+                                          lon=lon,
+                                          lat=lat,
+                                          popup_size=(dp(230), dp(130)),
+                                          source=POI_MARKER)
                 self.markers_pois.append(marker)
                 # Add the marker to the map
                 bubble = CustomBubble()
@@ -484,8 +498,12 @@ class maps(Logger):
                     else:
                         source = MOBILE_ICON
 
-                    marker = CustomMarker(lon=float(coord_1), lat=float(coord_0),
-                                          popup_size=(dp(230), dp(130)))
+                    marker = CustomMarkerCams(list(),
+                                              self.markers_cams,
+                                              list(),
+                                              lon=float(coord_1),
+                                              lat=float(coord_0),
+                                              popup_size=(dp(230), dp(130)))
                     # if the Marker already exists, do not draw it
                     markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                        self.markers_cams))
@@ -514,6 +532,75 @@ class maps(Logger):
                     marker.add_widget(bubble)
                     self.map_layout.map_view.add_widget(marker)
         return
+
+    def draw_construction_areas(self, *args, **kwargs):
+        # remove duplicate construction areas
+        construction_areas = self.get_unique_constrcution_areas_list()
+
+        if len(construction_areas) > 0:
+            source = CONSTRUCTION_ICON
+            for attributes in construction_areas:
+                key = attributes[0]
+                coord_0 = attributes[1]
+                coord_1 = attributes[2]
+                construction = attributes[3]
+                name = attributes[4]
+                surface = attributes[5]
+                check_date = attributes[6]
+
+                marker = CustomMarkerConstructionAreas(
+                    list(),
+                    list(),
+                    self.markers_construction_areas,
+                    lon=float(coord_1),
+                    lat=float(coord_0),
+                    popup_size=(dp(230), dp(130)),
+                    source=CONSTRUCTION_MARKER)
+                # if the Marker already exists, do not draw it
+                markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
+                                   self.markers_construction_areas))
+                if any(markers):
+                    self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
+                                        f"already added into map")
+                    continue
+                self.print_log_line(f"Adding Marker for Construction Area {key}: "
+                                    f"({marker.lat, marker.lon})")
+                self.markers_construction_areas.append(marker)
+                # Add the marker to the map
+                bubble = CustomBubble()
+                image = CustomAsyncImage(
+                    source=source,
+                    mipmap=True)
+                label = CustomLabel(text="", markup=True, halign='center')
+                label.update_text(f"[b]{construction}[/b]",
+                                  f"{name}",
+                                  f"{surface}",
+                                  f"{check_date}")
+                box = CustomLayout(orientation='horizontal', padding='5dp')
+                box.add_widget(image)
+                box.add_widget(label)
+                bubble.add_widget(box)
+                marker.add_widget(bubble)
+                self.map_layout.map_view.add_widget(marker)
+
+    def get_unique_constrcution_areas_list(self):
+        construction_areas = []
+        processing_cams = self.map_queue.consume_construction(self.cv_map_construction)
+        self.cv_map_construction.release()
+        for i in range(0, len(processing_cams)):
+            for key, attributes in processing_cams[i].items():
+                construction_areas.append(
+                    (key,
+                     attributes[0],
+                     attributes[1],
+                     attributes[7] if len(attributes) >= 8 else "---",
+                     attributes[8] if len(attributes) >= 9 else "---",
+                     attributes[9] if len(attributes) >= 10 else "---",
+                     attributes[10] if len(attributes) >= 11 else "---"
+                     )
+                )
+
+        return list(set(construction_areas))
 
     # remove duplication
     def get_unique_speed_cam_list(self, cloud=False, db=False):
@@ -688,6 +775,7 @@ class maps(Logger):
             # self.draw_geoBounds()
             pass
         Clock.schedule_once(partial(self.draw_speed_cams))
+        Clock.schedule_once(partial(self.draw_construction_areas))
         if OSMThread.trigger == "DRAW_POIS":
             Clock.schedule_once(
                 partial(self.draw_pois))

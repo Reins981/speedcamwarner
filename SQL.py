@@ -224,7 +224,8 @@ class POIReader(Logger):
                                                         'list_tree': (None,
                                                                       None)})
 
-    def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat, camera_source='cloud'):
+    def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat,
+                                       name=None, camera_source='cloud'):
         if camera_source == 'cloud':
             self.speed_cam_dict[camera_key] = [lat,
                                                lon,
@@ -232,7 +233,8 @@ class POIReader(Logger):
                                                lon,
                                                True,
                                                None,
-                                               None]
+                                               None,
+                                               name if name else "---"]
         elif camera_source == 'db':
             self.speed_cam_dict_db[camera_key] = [lat,
                                                   lon,
@@ -240,7 +242,8 @@ class POIReader(Logger):
                                                   lon,
                                                   True,
                                                   None,
-                                                  None]
+                                                  None,
+                                                  name if name else "---"]
 
     def cleanup_speed_cams(self):
         # do a cleanup if the speed cam structure increases this limit
@@ -310,7 +313,8 @@ class POIReader(Logger):
             self.print_log_line(f"Adding and propagating camera from cloud"
                                 f"({user_cam.name, user_cam.lat, user_cam.lon})")
             self.user_pois.append(user_cam)
-            self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id), user_cam.lon, user_cam.lat)
+            self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id),
+                                                user_cam.lon, user_cam.lat, name)
             self.update_osm_wrapper()
             self.propagate_camera(user_cam.lon, user_cam.lat, 'mobile_cam')
             cam_id += 1

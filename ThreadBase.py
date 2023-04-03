@@ -279,6 +279,7 @@ class MapQueue(object):
         self.CAMERAQUEUE_OSM = Queue()
         self.CAMERASQUEUE_CLOUD = Queue()
         self.CAMERASQUEUE_DB = Queue()
+        self.CONSTRUCTIONAREAQUEUE = Queue()
 
     def get_an_available_item_osm(self):
         return self.CAMERAQUEUE_OSM.get(block=False)
@@ -299,6 +300,28 @@ class MapQueue(object):
     def produce_osm(self, cv, item):
         cv.acquire()
         self.make_an_item_available_osm(item)
+        cv.notify()
+        cv.release()
+
+    def get_an_available_item_construction(self):
+        return self.CONSTRUCTIONAREAQUEUE.get(block=False)
+
+    def make_an_item_available_construction(self, item):
+        self.CONSTRUCTIONAREAQUEUE.put(item, block=False)
+
+    def clear_construction(self, cv):
+        pass
+
+    def consume_construction(self, cv):
+        cv.acquire()
+        try:
+            return self.get_an_available_item_construction()
+        except Empty:
+            return []
+
+    def produce_construction(self, cv, item):
+        cv.acquire()
+        self.make_an_item_available_construction(item)
         cv.notify()
         cv.release()
 
@@ -812,7 +835,8 @@ class Worker(StoppableThread, Logger):
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(**kwargs)
                     elif self.action == 'SPEED' \
-                            or self.action == 'DISABLE':
+                            or self.action == 'DISABLE' \
+                            or self.action == 'CONSTRUCTIONS':
                         func(**kwargs)
                     elif self.action == 'UPLOAD':
                         self.status = func(**kwargs)
@@ -829,7 +853,8 @@ class Worker(StoppableThread, Logger):
                         self.print_log_line(' Building data structure for rect %s' % self.rect)
                         func(*args, **kwargs)
                     elif self.action == 'SPEED' \
-                            or self.action == 'DISABLE':
+                            or self.action == 'DISABLE' \
+                            or self.action == 'CONSTRUCTIONS':
                         func(*args, **kwargs)
                     elif self.action == 'UPLOAD':
                         self.status = func(*args, **kwargs)
