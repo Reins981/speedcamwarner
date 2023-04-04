@@ -565,7 +565,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # construction area lookahead distance in km
         # Use the radius with CAUTION! Do not provide a radius of more than 30 km due performance
         # reasons
-        self.construction_area_lookahead_distance = 6
+        self.construction_area_lookahead_distance = 9
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded

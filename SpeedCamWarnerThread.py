@@ -85,6 +85,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Max dismiss counter for cameras with angle mismatch after which the cam road name text
         # will be resetted
         self.max_dismiss_counter = 5
+        # Maximal distance in meters to be displayed to a future speed camera
+        self.max_distance_to_future_camera = 5000
 
         # SpeedLimits Base URL example##
         self.baseurl = 'http://overpass-api.de/api/interpreter?'
@@ -351,7 +353,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.ITEMQUEUE[cam][6] = start_time
                     self.ITEMQUEUE[cam][11] = False
 
-                    # Add the camera to the backup cameras and delete if for this processing cycle
+                    # Add the camera to the backup cameras and delete it for this processing cycle
                     if cam_attributes[1] == "to_be_stored":
                         cams_to_delete.append(cam)
                         self.backup_camera(cam, distance)
@@ -382,11 +384,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # Set up the road name and the distance for the next camera
         next_cam_road = ""
         next_cam_distance = ""
+        next_cam_distance_as_int = 0
         process_next_cam = False
         if next_cam is not None and next_cam in self.ITEMQUEUE:
             tmp = deepcopy(self.ITEMQUEUE)
             next_cam_road = tmp[next_cam][7]
             next_cam_distance = str(next_cam_entry[1]) + "m"
+            next_cam_distance_as_int = next_cam_entry[1]
             process_next_cam = True
 
         try:
@@ -431,6 +435,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                           cam_attributes[10],
                                           next_cam_road,
                                           next_cam_distance,
+                                          next_cam_distance_as_int,
                                           process_next_cam)
             self.calculator.camera_in_progress(SpeedCamWarnerThread.CAM_IN_PROGRESS)
 
@@ -485,6 +490,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         for cam in cams_to_delete:
             self.ITEMQUEUE.pop(cam)
             self.start_times.pop(cam)
+            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
         del cams_to_delete[:]
 
     def remove_cached_camera(self, cam):
@@ -510,7 +516,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None,
                                  last_distance=-1, max_speed=None,
-                                 next_cam_road="", next_cam_distance="", process_next_cam=False):
+                                 next_cam_road="", next_cam_distance="",
+                                 next_cam_distance_as_int=0, process_next_cam=False):
 
         if 0 <= distance <= 100:
             SpeedCamWarnerThread.CAM_IN_PROGRESS = True
@@ -607,7 +614,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8))
+                                                  color=(0, 1, .3, .8)) if \
+                        next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                        self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -656,7 +665,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8))
+                                                  color=(0, 1, .3, .8)) if \
+                        next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                        self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -705,7 +716,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8))
+                                                  color=(0, 1, .3, .8)) if \
+                        next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                        self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -732,7 +745,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8))
+                                                  color=(0, 1, .3, .8)) if \
+                        next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                        self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
                     dismiss = "to_be_stored"
 
@@ -741,7 +756,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if last_distance == -1 and distance < self.max_absolute_distance:
                 self.update_cam_road(reset=True) if not process_next_cam \
                     else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                              color=(0, 1, .3, .8))
+                                              color=(0, 1, .3, .8)) if \
+                    next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                    self.update_cam_road(reset=True)
                 SpeedCamWarnerThread.CAM_IN_PROGRESS = False
                 return
             self.print_log_line(" %s speed cam OUTSIDE relevant radius -> distance %d m" % (
@@ -751,7 +768,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.trigger_free_flow()
             self.update_cam_road(reset=True) if not process_next_cam \
                 else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                          color=(0, 1, .3, .8))
+                                          color=(0, 1, .3, .8)) if \
+                next_cam_distance_as_int <= self.max_distance_to_future_camera else \
+                self.update_cam_road(reset=True)
             self.update_max_speed(reset=True)
 
             last_distance = self.max_absolute_distance
@@ -992,7 +1011,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     if abs(distance) >= self.max_absolute_distance:
                         try:
                             self.print_log_line(" Deleting obsolete camera: %s "
-                                                "(max distance %d m > current distance %d m)"
+                                                "(max distance %d m < current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance, abs(distance)))
                             if index == 0:
                                 self.ITEMQUEUE.pop(cam)
@@ -1002,6 +1021,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                             else:
                                 self.ITEMQUEUE_BACKUP.pop(cam)
                                 self.start_times_backup.pop(cam)
+                            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                         except Exception as e:
                             pass
                     else:
@@ -1022,6 +1042,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                     else:
                                         self.ITEMQUEUE_BACKUP.pop(cam)
                                         self.start_times_backup.pop(cam)
+                                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                                 except Exception as e:
                                     pass
                             else:
@@ -1034,7 +1055,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     if distance < 0 and abs(distance) >= self.max_absolute_distance:
                         try:
                             self.print_log_line(" Deleting obsolete camera: %s "
-                                                "(max distance %d m > current distance %d m)"
+                                                "(max distance %d m < current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance, abs(distance)))
                             if index == 0:
                                 self.ITEMQUEUE.pop(cam)
@@ -1044,6 +1065,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                             else:
                                 self.ITEMQUEUE_BACKUP.pop(cam)
                                 self.start_times_backup.pop(cam)
+                            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                         except Exception as e:
                             pass
                     else:
@@ -1065,6 +1087,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                     else:
                                         self.ITEMQUEUE_BACKUP.pop(cam)
                                         self.start_times_backup.pop(cam)
+                                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                                 except Exception as e:
                                     pass
                             else:

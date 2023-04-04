@@ -583,6 +583,15 @@ class maps(Logger):
                 marker.add_widget(bubble)
                 self.map_layout.map_view.add_widget(marker)
 
+    def remove_marker_from_map(self, lon, lat):
+        self.print_log_line(f"Removing Speed camera marker "
+                            f"{lon, lat} from Map")
+
+        markers = list(filter(lambda m: m.lon == lon and m.lat == lat, self.markers_cams))
+        if markers:
+            marker_to_delete = markers[0]
+            self.map_layout.map_view.remove_marker(marker_to_delete)
+
     def get_unique_constrcution_areas_list(self):
         construction_areas = []
         processing_cams = self.map_queue.consume_construction(self.cv_map_construction)
