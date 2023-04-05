@@ -88,7 +88,7 @@ class OSMThread(StoppableThread, Logger):
     trigger = "DRAW_POIS"
 
     def __init__(self, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
-                 poi_queue, gps_producer, cond):
+                 poi_queue, gps_producer, voice_consumer, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
         self.resume = resume
@@ -99,6 +99,7 @@ class OSMThread(StoppableThread, Logger):
         self.map_queue = map_queue
         self.poi_queue = poi_queue
         self.cond = cond
+        self.voice_consumer = voice_consumer
         self.gps_thread = gps_producer
         self.startup = True
         self.last_route = None
@@ -117,6 +118,9 @@ class OSMThread(StoppableThread, Logger):
         self.cv_map.release()
         pois = self.poi_queue.consume(self.cv_poi)
         self.cv_poi.release()
+
+        while self.voice_consumer._lock:
+            pass
 
         if isinstance(pois, list):
             OSMThread.trigger = "DRAW_POIS"

@@ -2213,9 +2213,9 @@ class MainTApp(App):
         self.osm_init = OSM_INIT(gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue)
 
     def init_osm_thread(self, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
-                        poi_queue, gps_producer, cond):
+                        poi_queue, gps_producer, voice_consumer, cond):
         self.osm_thread = OSMThread(resume, osm_wrapper, calculator_thread, cv_map, cv_poi,
-                                    map_queue, poi_queue, gps_producer, cond)
+                                    map_queue, poi_queue, gps_producer, voice_consumer, cond)
         self.threads.append(self.osm_thread)
         logger.print_log_line(" Start osm thread")
         self.osm_thread.setDaemon(True)
@@ -2277,12 +2277,14 @@ class MainTApp(App):
         self.gps_consumer.setDaemon(True)
         self.gps_consumer.start()
 
-    def init_voice_consumer(self, resume, cv_voice, voice_prompt_queue, cond):
-        self.voice_consumer = VoicePromptThread(resume, cv_voice, voice_prompt_queue, cond)
+    def init_voice_consumer(self, resume, cv_voice, voice_prompt_queue, calculator, cond):
+        self.voice_consumer = VoicePromptThread(resume, cv_voice, voice_prompt_queue,
+                                                calculator, cond)
         self.threads.append(self.voice_consumer)
         logger.print_log_line(" Start accustic voice thread")
         self.voice_consumer.setDaemon(True)
         self.voice_consumer.start()
+        return self.voice_consumer
 
     def init_deviation_checker(self, resume, cv_average_angle, cv_interrupt, average_angle_queue,
                                interruptqueue, av_bearing_value, cond):
@@ -2644,7 +2646,8 @@ class MainTApp(App):
                                    self.s,
                                    self.cl,
                                    self.q)
-            self.init_voice_consumer(self.resume, self.cv_voice, self.voice_prompt_queue, self.q)
+            voice_consumer = self.init_voice_consumer(self.resume, self.cv_voice,
+                                                      self.voice_prompt_queue, calculator, self.q)
             self.init_osm_thread(self.resume,
                                  self.osm_wrapper,
                                  self.calculator,
@@ -2653,6 +2656,7 @@ class MainTApp(App):
                                  self.map_queue,
                                  self.poi_queue,
                                  self.gps_producer,
+                                 voice_consumer,
                                  self.q)
             self.init_speed_cam_warner(self.cv_voice,
                                        self.cv_speedcam,

@@ -16,12 +16,13 @@ BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sounds")
 
 
 class VoicePromptThread(StoppableThread, Logger):
-    def __init__(self, resume, cv_voice, voice_prompt_queue, cond):
+    def __init__(self, resume, cv_voice, voice_prompt_queue, calculator, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
         self.resume = resume
         self.cv_voice = cv_voice
         self.voice_prompt_queue = voice_prompt_queue
+        self.calculator = calculator
         self.cond = cond
         # thread lock
         self._lock = False
@@ -45,7 +46,7 @@ class VoicePromptThread(StoppableThread, Logger):
         voice_entry = self.voice_prompt_queue.consume_items(self.cv_voice)
         self.cv_voice.release()
 
-        while self._lock:
+        while self._lock or self.calculator.busy_lock:
             pass
 
         sound = None
@@ -147,8 +148,10 @@ class VoicePromptThread(StoppableThread, Logger):
             self._lock = True
             self.print_log_line(f" Trigger sound {sound}")
             s = SoundLoader.load(sound)
+            s.buffer = 16384
             if s:
                 s.play()
                 while s.get_pos() != 0:
                     pass
+                s.on_stop = lambda: self.print_log_line('Playback finished')
             self._lock = False

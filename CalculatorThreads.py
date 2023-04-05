@@ -397,6 +397,7 @@ class Rect(object):
 
 class RectangleCalculatorThread(StoppableThread, Logger):
     thread_lock = False
+    busy_lock = False
 
     def __init__(self,
                  cv_vector,
@@ -1972,6 +1973,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
             counter = 90000
             prefix = 'CONSTRUCTION_'
+
             for element in data:
                 construction_areas_dict = dict()
                 construction = None
@@ -2013,6 +2015,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                     log_level="WARNING")
                                 # Do not block any other operations running since the number
                                 # of requests could be very high
+                                RectangleCalculatorThread.busy_lock = True
                                 (online_available, status, data, internal_error,
                                  current_rect) = self.trigger_osm_lookup(LON_MIN,
                                                                          LAT_MIN,
@@ -2022,6 +2025,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                          "node",
                                                                          node,
                                                                          current_rect='CURRENT_CONSTRUCTION')
+                                RectangleCalculatorThread.busy_lock = False
 
                                 if status == 'OK' and len(data) > 0:
                                     element = data[0]
