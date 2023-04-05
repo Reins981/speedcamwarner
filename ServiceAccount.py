@@ -79,6 +79,10 @@ def upload_file_to_google_drive(f_id: str, folder_id: str, drive: Any, file_name
 
 def download_file_from_google_drive(f_id: str, drive: Any) -> str:
     # Get metadata of the file
+    if isinstance(drive, str):
+        error = drive
+        return error
+
     try:
         file = drive.files().get(fileId=f_id).execute()
     except HttpError as error:
