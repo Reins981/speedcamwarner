@@ -198,7 +198,7 @@ class POIReader(Logger):
         self.print_log_line(' Mobile cameras:')
         self.print_log_line(self.pois_converted_mobile)
 
-    def propagate_camera(self, longitude, latitude, camera_type):
+    def propagate_camera(self, name, longitude, latitude, camera_type):
         self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': ('IGNORE',
                                                                 'IGNORE'),
                                                         'fix_cam': (
@@ -222,7 +222,8 @@ class POIReader(Logger):
                                                         'ccp_node': ('IGNORE',
                                                                      'IGNORE'),
                                                         'list_tree': (None,
-                                                                      None)})
+                                                                      None),
+                                                        'name': name if name else ""})
 
     def prepare_camera_for_osm_wrapper(self, camera_key, lon, lat,
                                        name=None, camera_source='cloud'):
@@ -316,7 +317,7 @@ class POIReader(Logger):
             self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id),
                                                 user_cam.lon, user_cam.lat, name)
             self.update_osm_wrapper()
-            self.propagate_camera(user_cam.lon, user_cam.lat, 'mobile_cam')
+            self.propagate_camera(user_cam.name, user_cam.lon, user_cam.lat, 'mobile_cam')
             cam_id += 1
 
     def update_pois_from_cloud(self, *args, **kwargs):
@@ -413,7 +414,7 @@ class POIReader(Logger):
             latitude = camera_fix[1]
             self.print_log_line(f"Adding and propagating fix camera from db"
                                 f"({longitude, latitude})")
-            self.propagate_camera(longitude, latitude, 'fix_cam')
+            self.propagate_camera(None, longitude, latitude, 'fix_cam')
 
             self.prepare_camera_for_osm_wrapper('FIX_DB' + str(index),
                                                 longitude, latitude, camera_source='db')
@@ -423,7 +424,7 @@ class POIReader(Logger):
             latitude = camera_mobile[1]
             self.print_log_line(f"Adding and propagating mobile camera from db"
                                 f"({longitude, latitude})")
-            self.propagate_camera(longitude, latitude, 'mobile_cam')
+            self.propagate_camera(None, longitude, latitude, 'mobile_cam')
 
             self.prepare_camera_for_osm_wrapper('MOBILE_DB' + str(index),
                                                 longitude, latitude, camera_source='db')
