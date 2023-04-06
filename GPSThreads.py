@@ -217,7 +217,7 @@ class GPSThread(StoppableThread, Logger):
 
     def set_configs(self):
         # use gps test data
-        self.gps_test_data = True
+        self.gps_test_data = False
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__), "gpx", "t1374104_berliner-mauerweg.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
