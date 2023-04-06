@@ -584,7 +584,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # disable road lookup in case the performance on your phone is not good
         self.disable_road_lookup = False
         # Disable all rectangle operations except the Nominatim road lookup if explicitly
-        # enabled via parameter alternative_road_lookup. This option safes the most bandwidth.
+        # enabled via parameter alternative_road_lookup. This option it the most effective one.
+        # Concept:
+        # If enabled, the cameras and construction areas are fetched and processed from OSM
+        # using a bounding rectangle but not added to a linked list and binary search tree.
+        #------------------------------------------------------------------------------------------
+        # If disabled, OSM data in general is fetched from OSM based on bounding rectangles and
+        # cameras and other items are stored in and fetched from a binary search tree
+        # for every CCP update.
         self.disable_all = True
         # Use the Nominatim library as alternative method to retrieve a road name
         # Note: This will use more bandwidth
@@ -963,8 +970,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             previous_ccp=True)
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
-                self.start_thread_pool_speed_camera(self.speed_cam_lookup_ahead, 1, False)
-                self.start_thread_pool_construction_areas(self.constructions_lookup_ahead, 1, False)
+                if self.disable_all:
+                    self.process_lookahead_items()
                 if self.startup_calculation:
 
                     self.update_kivi_maxspeed_onlinecheck(
@@ -1662,12 +1669,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         add_camera_to_json(name, coordinates=(latitude, longitude))
         return upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
 
-    def speed_cam_lookup_ahead(self, previous_ccp=False):
-        """
-        Speed Cam lookup ahead after each interrupt cylce.
-        This lookup is independent of a matching Rectangle
-        :return:
-        """
+    def process_lookahead_items(self, previous_ccp=False):
         if previous_ccp:
             if self.longitude_cached > 0 and self.latitude_cached > 0:
                 ccp_lat = self.latitude_cached
@@ -1686,16 +1688,248 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             ccp_lat = self.latitude
             ccp_lon = self.longitude
 
-        if self.RECT_SPEED_CAM_LOOKAHAEAD and isinstance(self.RECT_SPEED_CAM_LOOKAHAEAD, Rect):
-            inside_rect = self.RECT_SPEED_CAM_LOOKAHAEAD.point_in_rect(xtile, ytile)
-            close_to_border = self.RECT_SPEED_CAM_LOOKAHAEAD.points_close_to_border(xtile,
-                                                                                    ytile,
-                                                                                    look_ahead=True)
+        for rectangle, thread_pool_func, msg, trigger_func in zip(
+                (self.RECT_SPEED_CAM_LOOKAHAEAD, self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD),
+                (self.start_thread_pool_speed_camera, self.start_thread_pool_construction_areas),
+                ("Speed Camera", "Construction area"),
+                (self.speed_cam_lookup_ahead, self.constructions_lookup_ahead)
+        ):
+            if rectangle and isinstance(rectangle, Rect):
+                inside_rect = rectangle.point_in_rect(xtile, ytile)
+                close_to_border = rectangle.points_close_to_border(
+                    xtile, ytile, look_ahead=True)
 
-            if inside_rect and not close_to_border:
-                self.print_log_line("Speed cam lookahead not triggered -> CCP within rectangle "
-                                    "'CURRENT_CAM'")
-                return
+                if inside_rect and not close_to_border:
+                    self.print_log_line(f"{msg} not triggered -> CCP within rectangle "
+                                        "'CURRENT_CAM'")
+                    continue
+
+            thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+
+    def process_construction_areas_lookup_ahead_results(self, data,
+                                                        lon_min, lat_min, lon_max, lat_max):
+        """
+        process construction areas with a look ahead
+        :param lon_min:
+        :param lat_min:
+        :param lon_max:
+        :param lat_max:
+        :param data:
+        :return:
+        """
+        counter = 90000
+        prefix = 'CONSTRUCTION_'
+
+        for element in data:
+            construction_areas_dict = dict()
+            construction = None
+            name = None
+            surface = None
+            check_date = None
+            lat = None
+            lon = None
+            if 'type' in element and element.get('type') == "way":
+                if 'tags' in element:
+                    try:
+                        construction = element['tags']['construction']
+                    except KeyError:
+                        pass
+                    try:
+                        name = element['tags']['name']
+                    except KeyError:
+                        pass
+                    try:
+                        surface = element['tags']['surface']
+                    except KeyError:
+                        pass
+                    try:
+                        check_date = element['tags']['check_date']
+                    except KeyError:
+                        pass
+
+                if "nodes" in element:
+                    for node in element['nodes']:
+                        result_node = list(
+                            filter(lambda el: el['type'] == 'node' and el['id'] == node, data))
+                        if result_node:
+                            result_node = result_node[0]
+                            lat = result_node['lat']
+                            lon = result_node['lon']
+                        else:
+                            self.print_log_line(f"Failed to resolve node id {node}, "
+                                                f"Trying to resolve with REST call ..",
+                                                log_level="WARNING")
+                            # Do not block any other operations running since the number
+                            # of requests could be very high
+                            RectangleCalculatorThread.busy_lock = True
+                            (online_available, status, data, internal_error,
+                             current_rect) = self.trigger_osm_lookup(lon_min,
+                                                                     lat_min,
+                                                                     lon_max,
+                                                                     lat_max,
+                                                                     self.direction,
+                                                                     "node",
+                                                                     node,
+                                                                     current_rect='CURRENT_CONSTRUCTION')
+                            RectangleCalculatorThread.busy_lock = False
+
+                            if status == 'OK' and len(data) > 0:
+                                element = data[0]
+                                lat = element['lat']
+                                lon = element['lon']
+
+                            else:
+                                self.print_log_line(f"Failed to resolve node id {node}. "
+                                                    f"Giving up.", log_level="WARNING")
+                                continue
+
+                        key = prefix + str(counter)
+                        construction_areas_dict[key] = \
+                            [
+                                lat,
+                                lon,
+                                lat,
+                                lon,
+                                True,
+                                None,
+                                None,
+                                construction if construction else "---",
+                                name if name else "---",
+                                surface if surface else "---",
+                                check_date if check_date else "---"
+                            ]
+                        counter += 1
+
+            self.update_kivi_info_page(update_construction_areas=True)
+            # Update construction areas one by one
+            if len(construction_areas_dict) > 0:
+                self.construction_areas.append(construction_areas_dict)
+            self.update_construction_areas(self.construction_areas)
+            self.update_map_queue()
+            self.cleanup_map_content()
+
+    def process_speed_cam_lookup_ahead_results(self, data, lookup_type, ccp_lon, ccp_lat):
+        """
+        process cameras with a look ahead
+        :param data:
+        :param lookup_type:
+        :param ccp_lon:
+        :param ccp_lat:
+        :return:
+        """
+        counter = 80000
+        for element in data:
+            speed_cam_dict = dict()
+            name = None
+            direction = None
+            maxspeed = None
+            maxspeed_conditional = None
+            description = None
+            try:
+                lat = element['lat']
+                lon = element['lon']
+            except KeyError:
+                continue
+
+            prefix = 'FIX_'
+            if 'tags' in element:
+                if 'speed_camera' in element.get('tags'):
+                    value = element.get('tags')['speed_camera']
+                    if value == "traffic_signals":
+                        prefix = 'TRAFFIC_'
+
+                try:
+                    name = element['tags']['name']
+                except KeyError:
+                    name = self.get_road_name_via_nominatim(lat, lon)
+                try:
+                    direction = element['tags']['direction']
+                except KeyError:
+                    pass
+                try:
+                    maxspeed = element['tags']['maxspeed']
+                except KeyError:
+                    pass
+                try:
+                    maxspeed_conditional = element['tags']['maxspeed:conditional']
+                except KeyError:
+                    pass
+                try:
+                    description = element['tags']['description']
+                except KeyError:
+                    pass
+
+            if lookup_type == "distance_cam":
+                prefix = "DISTANCE_"
+                name = self.get_road_name_via_nominatim(lat, lon)
+            if "ERROR" in name:
+                name = "---"
+
+            key = prefix + str(counter)
+            if prefix == 'FIX_':
+                self.fix_cams += 1
+            elif prefix == 'TRAFFIC_':
+                self.traffic_cams += 1
+            else:
+                self.distance_cams += 1
+            speed_cam_dict[key] = [lat,
+                                   lon,
+                                   lat,
+                                   lon,
+                                   True,
+                                   None,
+                                   None,
+                                   name if name else "---",
+                                   direction + " °" if direction else "---",
+                                   maxspeed + " Km/h" if maxspeed else "--- Km/h",
+                                   maxspeed_conditional if maxspeed_conditional else "@ Always",
+                                   description if description else "---"]
+            counter += 1
+            self.speed_cam_queue.produce(self.cv_speedcam,
+                {
+                    'ccp': (ccp_lon, ccp_lat),
+                    'fix_cam': (
+                        True if prefix == 'FIX_' else False,
+                        float(lon),
+                        float(lat),
+                        True),
+                    'traffic_cam': (
+                        True if prefix == 'TRAFFIC_' else False,
+                        float(lon),
+                        float(lat),
+                        True),
+                    'distance_cam': (
+                        True if prefix == 'DISTANCE_' else False,
+                        float(lon),
+                        float(lat),
+                        True),
+                    'mobile_cam': (False,
+                                   float(lon),
+                                   float(lat),
+                                   True),
+                    'ccp_node': ('IGNORE',
+                                 'IGNORE'),
+                    'list_tree': (None,
+                                  None),
+                    'name': name,
+                    'direction': direction,
+                    'maxspeed': maxspeed}
+            )
+
+            self.update_kivi_info_page()
+
+            if len(speed_cam_dict) > 0:
+                self.speed_cam_dict.append(speed_cam_dict)
+            self.update_speed_cams(self.speed_cam_dict)
+            self.update_map_queue()
+            self.cleanup_map_content()
+
+    def speed_cam_lookup_ahead(self, xtile, ytile, ccp_lon, ccp_lat):
+        """
+        Speed Cam lookup ahead after each interrupt cylce.
+        This lookup is independent of a matching Rectangle
+        :return:
+        """
         self.print_log_line("Trigger Speed Cam lookahead")
 
         xtile_min, xtile_max, ytile_min, ytile_max = self.calculatepoints2angle(
@@ -1764,147 +1998,14 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.osm_error_reported = False
                 self.print_log_line("Camera lookup finished!! Found %d cameras ahead (%d km)"
                                     % (len(data), self.speed_cam_look_ahead_distance))
+                self.process_speed_cam_lookup_ahead_results(data, lookup_type, ccp_lon, ccp_lat)
 
-                counter = 80000
-                for element in data:
-                    speed_cam_dict = dict()
-                    name = None
-                    direction = None
-                    maxspeed = None
-                    maxspeed_conditional = None
-                    description = None
-                    try:
-                        lat = element['lat']
-                        lon = element['lon']
-                    except KeyError:
-                        continue
-
-                    prefix = 'FIX_'
-                    if 'tags' in element:
-                        if 'speed_camera' in element.get('tags'):
-                            value = element.get('tags')['speed_camera']
-                            if value == "traffic_signals":
-                                prefix = 'TRAFFIC_'
-
-                        try:
-                            name = element['tags']['name']
-                        except KeyError:
-                            name = self.get_road_name_via_nominatim(lat, lon)
-                        try:
-                            direction = element['tags']['direction']
-                        except KeyError:
-                            pass
-                        try:
-                            maxspeed = element['tags']['maxspeed']
-                        except KeyError:
-                            pass
-                        try:
-                            maxspeed_conditional = element['tags']['maxspeed:conditional']
-                        except KeyError:
-                            pass
-                        try:
-                            description = element['tags']['description']
-                        except KeyError:
-                            pass
-
-                    if lookup_type == "distance_cam":
-                        prefix = "DISTANCE_"
-                        name = self.get_road_name_via_nominatim(lat, lon)
-                    if "ERROR" in name:
-                        name = "---"
-
-                    key = prefix + str(counter)
-                    if prefix == 'FIX_':
-                        self.fix_cams += 1
-                    elif prefix == 'TRAFFIC_':
-                        self.traffic_cams += 1
-                    else:
-                        self.distance_cams += 1
-                    speed_cam_dict[key] = [lat,
-                                           lon,
-                                           lat,
-                                           lon,
-                                           True,
-                                           None,
-                                           None,
-                                           name if name else "---",
-                                           direction + " °" if direction else "---",
-                                           maxspeed + " Km/h" if maxspeed else "--- Km/h",
-                                           maxspeed_conditional if maxspeed_conditional else "@ Always",
-                                           description if description else "---"]
-                    counter += 1
-                    self.speed_cam_queue.produce(self.cv_speedcam, {'ccp': (ccp_lon, ccp_lat),
-                                                                    'fix_cam': (
-                                                                        True if prefix == 'FIX_' else False,
-                                                                        float(lon),
-                                                                        float(lat),
-                                                                        True),
-                                                                    'traffic_cam': (
-                                                                        True if prefix == 'TRAFFIC_' else False,
-                                                                        float(lon),
-                                                                        float(lat),
-                                                                        True),
-                                                                    'distance_cam': (
-                                                                        True if prefix == 'DISTANCE_' else False,
-                                                                        float(lon),
-                                                                        float(lat),
-                                                                        True),
-                                                                    'mobile_cam': (False,
-                                                                                   float(lon),
-                                                                                   float(lat),
-                                                                                   True),
-                                                                    'ccp_node': ('IGNORE',
-                                                                                 'IGNORE'),
-                                                                    'list_tree': (None,
-                                                                                  None),
-                                                                    'name': name,
-                                                                    'direction': direction,
-                                                                    'maxspeed': maxspeed})
-
-                    self.update_kivi_info_page()
-
-                    if len(speed_cam_dict) > 0:
-                        self.speed_cam_dict.append(speed_cam_dict)
-                    self.update_speed_cams(self.speed_cam_dict)
-                    self.update_map_queue()
-                    self.cleanup_map_content()
-
-    def constructions_lookup_ahead(self, previous_ccp=False):
+    def constructions_lookup_ahead(self, xtile, ytile, ccp_lon, ccp_lat):
         """
         Construction areas lookup ahead after each interrupt cylce.
         This lookup is independent of a matching Rectangle
         :return:
         """
-        if previous_ccp:
-            if self.longitude_cached > 0 and self.latitude_cached > 0:
-                ccp_lat = self.latitude_cached
-                ccp_lon = self.longitude_cached
-            else:
-                return
-            if self.xtile_cached is not None and self.ytile_cached is not None:
-                xtile = self.xtile_cached
-                ytile = self.ytile_cached
-            else:
-                return
-        else:
-            # convert CCP longitude,latitude to (x,y).
-            xtile, ytile = self.longlat2tile(self.latitude, self.longitude, self.zoom)
-            self.cache_tiles(xtile, ytile)
-            ccp_lat = self.latitude
-            ccp_lon = self.longitude
-
-        if self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD \
-                and isinstance(self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD, Rect):
-            inside_rect = self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD.point_in_rect(xtile, ytile)
-            close_to_border = self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD.points_close_to_border(
-                xtile,
-                ytile,
-                look_ahead=True)
-
-            if inside_rect and not close_to_border:
-                self.print_log_line("Construction area lookahead not triggered -> "
-                                    "CCP within rectangle 'CURRENT_CONSTRUCTION'")
-                return
         self.print_log_line("Trigger Construction area lookahead")
 
         xtile_min, xtile_max, ytile_min, ytile_max = self.calculatepoints2angle(
@@ -1969,98 +2070,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if status == 'OK' and len(data) > 0:
             self.osm_error_reported = False
             self.print_log_line("Construction are lookup finished!! Found %d construction areas "
-                                "ahead (%d km)" % (len(data), self.speed_cam_look_ahead_distance))
-
-            counter = 90000
-            prefix = 'CONSTRUCTION_'
-
-            for element in data:
-                construction_areas_dict = dict()
-                construction = None
-                name = None
-                surface = None
-                check_date = None
-                lat = None
-                lon = None
-                if 'type' in element and element.get('type') == "way":
-                    if 'tags' in element:
-                        try:
-                            construction = element['tags']['construction']
-                        except KeyError:
-                            pass
-                        try:
-                            name = element['tags']['name']
-                        except KeyError:
-                            pass
-                        try:
-                            surface = element['tags']['surface']
-                        except KeyError:
-                            pass
-                        try:
-                            check_date = element['tags']['check_date']
-                        except KeyError:
-                            pass
-
-                    if "nodes" in element:
-                        for node in element['nodes']:
-                            result_node = list(
-                                filter(lambda el: el['type'] == 'node' and el['id'] == node, data))
-                            if result_node:
-                                result_node = result_node[0]
-                                lat = result_node['lat']
-                                lon = result_node['lon']
-                            else:
-                                self.print_log_line(f"Failed to resolve node id {node}, "
-                                                    f"Trying to resolve with REST call ..",
-                                                    log_level="WARNING")
-                                # Do not block any other operations running since the number
-                                # of requests could be very high
-                                RectangleCalculatorThread.busy_lock = True
-                                (online_available, status, data, internal_error,
-                                 current_rect) = self.trigger_osm_lookup(LON_MIN,
-                                                                         LAT_MIN,
-                                                                         LON_MAX,
-                                                                         LAT_MAX,
-                                                                         self.direction,
-                                                                         "node",
-                                                                         node,
-                                                                         current_rect='CURRENT_CONSTRUCTION')
-                                RectangleCalculatorThread.busy_lock = False
-
-                                if status == 'OK' and len(data) > 0:
-                                    element = data[0]
-                                    lat = element['lat']
-                                    lon = element['lon']
-
-                                else:
-                                    self.print_log_line(f"Failed to resolve node id {node}. "
-                                                        f"Giving up.", log_level="WARNING")
-                                    continue
-
-                            key = prefix + str(counter)
-                            construction_areas_dict[key] = \
-                                [
-                                    lat,
-                                    lon,
-                                    lat,
-                                    lon,
-                                    True,
-                                    None,
-                                    None,
-                                    construction if construction else "---",
-                                    name if name else "---",
-                                    surface if surface else "---",
-                                    check_date if check_date else "---"
-                                ]
-                            counter += 1
-
-                self.update_kivi_info_page(update_construction_areas=True)
-                # Update construction areas one by one
-                if len(construction_areas_dict) > 0:
-                    self.construction_areas.append(construction_areas_dict)
-                self.update_construction_areas(self.construction_areas)
-                self.update_map_queue()
-                self.cleanup_map_content()
+                                "ahead (%d km)" % (len(data), self.construction_area_lookahead_distance))
+            self.process_construction_areas_lookup_ahead_results(data,
+                                                                 LON_MIN, LAT_MIN, LON_MAX, LAT_MAX)
 
     @staticmethod
     def start_thread_pool_lookup(func,
@@ -2122,18 +2134,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         pool.add_task(func, linkedList, tree)
 
     @staticmethod
-    def start_thread_pool_speed_camera(func, worker_threads=1, previous_ccp=False):
+    def start_thread_pool_speed_camera(func, worker_threads, xtile, ytile, ccp_lon, ccp_lat):
         # get speed cam data immediately with a look ahead.
 
         pool = ThreadPool(num_threads=worker_threads, action='SPEED')
-        pool.add_task(func, previous_ccp)
+        pool.add_task(func, xtile, ytile, ccp_lon, ccp_lat)
 
     @staticmethod
-    def start_thread_pool_construction_areas(func, worker_threads=1, previous_ccp=False):
+    def start_thread_pool_construction_areas(func, worker_threads, xtile, ytile, ccp_lon, ccp_lat):
         # get speed cam data immediately with a look ahead.
 
         pool = ThreadPool(num_threads=worker_threads, action='CONSTRUCTIONS')
-        pool.add_task(func, previous_ccp)
+        pool.add_task(func, xtile, ytile, ccp_lon, ccp_lat)
 
     @staticmethod
     def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads,
@@ -3948,42 +3960,43 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                             linkedListGenerator,
                                             treeGenerator]
                     self.speed_cam_queue.produce(self.cv_speedcam,
-                                                 {'ccp': (self.longitude,
-                                                          self.latitude),
-                                                  'fix_cam': (fix_cam,
-                                                              float(
-                                                                  longitude_start_next_node),
-                                                              float(
-                                                                  latitude_start_next_node),
-                                                              enforcement),
-                                                  'traffic_cam': (traffic_cam,
-                                                                  float(
-                                                                      longitude_start_next_node),
-                                                                  float(
-                                                                      latitude_start_next_node),
-                                                                  enforcement),
-                                                  'distance_cam': (
-                                                      distance_measure_cam,
-                                                      float(
-                                                          longitude_start_next_node),
-                                                      float(
-                                                          latitude_start_next_node),
-                                                      enforcement),
-                                                  'mobile_cam': (
-                                                      mobile_cam,
-                                                      float(
-                                                          longitude_start_next_node),
-                                                      float(
-                                                          latitude_start_next_node),
-                                                      enforcement),
-                                                  'ccp_node': (float(
-                                                      longitude_start_current_node),
-                                                               float(
-                                                                   latitude_start_current_node)),
-                                                  'list_tree': (
-                                                      linkedListGenerator,
-                                                      treeGenerator),
-                                                  'stable_ccp': self.isCcpStable})
+                         {'ccp': (self.longitude,
+                                  self.latitude),
+                          'fix_cam': (fix_cam,
+                                      float(
+                                          longitude_start_next_node),
+                                      float(
+                                          latitude_start_next_node),
+                                      enforcement),
+                          'traffic_cam': (traffic_cam,
+                                          float(
+                                              longitude_start_next_node),
+                                          float(
+                                              latitude_start_next_node),
+                                          enforcement),
+                          'distance_cam': (
+                              distance_measure_cam,
+                              float(
+                                  longitude_start_next_node),
+                              float(
+                                  latitude_start_next_node),
+                              enforcement),
+                          'mobile_cam': (
+                              mobile_cam,
+                              float(
+                                  longitude_start_next_node),
+                              float(
+                                  latitude_start_next_node),
+                              enforcement),
+                          'ccp_node': (float(
+                              longitude_start_current_node),
+                                       float(
+                                           latitude_start_current_node)),
+                          'list_tree': (
+                              linkedListGenerator,
+                              treeGenerator),
+                          'stable_ccp': self.isCcpStable}
+                    )
         else:
             if linkedListGenerator.hasHighwayAttribute(
                     node) and linkedListGenerator.hasSpeedCam(node):
@@ -4081,42 +4094,43 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                         linkedListGenerator,
                                         treeGenerator]
                 self.speed_cam_queue.produce(self.cv_speedcam,
-                                             {'ccp': (self.longitude,
-                                                      self.latitude),
-                                              'fix_cam': (fix_cam,
-                                                          float(
-                                                              longitude_start_next_node),
-                                                          float(
-                                                              latitude_start_next_node),
-                                                          enforcement),
-                                              'traffic_cam': (traffic_cam,
-                                                              float(
-                                                                  longitude_start_next_node),
-                                                              float(
-                                                                  latitude_start_next_node),
-                                                              enforcement),
-                                              'distance_cam': (
-                                                  distance_measure_cam,
-                                                  float(
-                                                      longitude_start_next_node),
-                                                  float(
-                                                      latitude_start_next_node),
-                                                  enforcement),
-                                              'mobile_cam': (
-                                                  mobile_cam,
-                                                  float(
-                                                      longitude_start_next_node),
-                                                  float(
-                                                      latitude_start_next_node),
-                                                  enforcement),
-                                              'ccp_node': (float(
-                                                  longitude_start_current_node),
-                                                           float(
-                                                               latitude_start_current_node)),
-                                              'list_tree': (
-                                                  linkedListGenerator,
-                                                  treeGenerator),
-                                              'stable_ccp': self.isCcpStable})
+                     {'ccp': (self.longitude,
+                              self.latitude),
+                      'fix_cam': (fix_cam,
+                                  float(
+                                      longitude_start_next_node),
+                                  float(
+                                      latitude_start_next_node),
+                                  enforcement),
+                      'traffic_cam': (traffic_cam,
+                                      float(
+                                          longitude_start_next_node),
+                                      float(
+                                          latitude_start_next_node),
+                                      enforcement),
+                      'distance_cam': (
+                          distance_measure_cam,
+                          float(
+                              longitude_start_next_node),
+                          float(
+                              latitude_start_next_node),
+                          enforcement),
+                      'mobile_cam': (
+                          mobile_cam,
+                          float(
+                              longitude_start_next_node),
+                          float(
+                              latitude_start_next_node),
+                          enforcement),
+                      'ccp_node': (float(
+                          longitude_start_current_node),
+                                   float(
+                                       latitude_start_current_node)),
+                      'list_tree': (
+                          linkedListGenerator,
+                          treeGenerator),
+                      'stable_ccp': self.isCcpStable}
+                )
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
 
