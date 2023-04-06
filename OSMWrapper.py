@@ -595,6 +595,8 @@ class maps(Logger):
         if markers:
             marker_to_delete = markers[0]
             self.map_layout.map_view.remove_marker(marker_to_delete)
+            if marker_to_delete in self.markers_cams:
+                self.markers_cams.remove(marker_to_delete)
 
     def get_unique_constrcution_areas_list(self):
         construction_areas = []
