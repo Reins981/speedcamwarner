@@ -120,7 +120,8 @@ class POIReader(Logger):
         self.timer_1 = Timer(self.u_time_from_db, self.update_pois_from_db)
         self.timer_1.start()
 
-        self.timer_2 = CyclicThread(self.init_time_from_cloud, self.update_pois_from_cloud)
+        self.timer_2 = CyclicThread(self.init_time_from_cloud,
+                                    self.update_pois_from_cloud)
         self.timer_2.setDaemon(True)
         self.timer_2.start()
         self.timer_2.set_time(self.u_time_from_cloud)

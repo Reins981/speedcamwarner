@@ -21,7 +21,7 @@ from geopy.geocoders import Nominatim
 from decimal import Decimal
 from collections import OrderedDict, Counter
 from ThreadBase import StoppableThread, ThreadPool
-from OSMWrapper import maps
+from OSMWrapper import Maps
 from LinkedListGenerator import DoubleLinkedListNodes
 from TreeGenerator import BinarySearchTree
 from enum import Enum
@@ -984,7 +984,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 else:
                     r_value = self.processInterrupts()
                     if r_value == 'disable_all':
-                        self.start_thread_pool_process_disable_all(self.processDisableAllAction, 1)
+                        self.start_thread_pool_process_disable_all(
+                            self.process_disable_all_rectangle_operations, 1)
                     if r_value == 'TERMINATE':
                         break
             elif next_action == 'INIT':
@@ -1599,7 +1600,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
             self.update_kivi_roadname("", False)
 
-    def processDisableAllAction(self):
+    def process_disable_all_rectangle_operations(self):
         if self.alternative_road_lookup:
             RectangleCalculatorThread.thread_lock = True
             road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
@@ -2241,7 +2242,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                    [LAT_MIN, LON_MAX]],
                                                   self.direction,
                                                   'CURRENT')
-            maps.TRIGGER_RECT_DRAW = True
+            Maps.TRIGGER_RECT_DRAW = True
 
             # convert each of the 2 points to (x,y).
             pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN,
@@ -2366,7 +2367,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            [LAT_MIN, LON_MAX]],
                                                           polygon_lookup_string,
                                                           'CURRENT' + str(i))
-                    maps.TRIGGER_RECT_DRAW = True
+                    Maps.TRIGGER_RECT_DRAW = True
                     # convert each of the 2 points to (x,y).
                     pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN,
                                                              self.zoom)
@@ -2694,7 +2695,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                            polygon_lookup_string,
                                                            'EXTRAPOLATED_' + str(
                                                                self.extrapolated_number))
-        maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = True
+        Maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = True
 
         # convert each of the 2 points to (x,y).
         pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN, self.zoom)
@@ -2770,7 +2771,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 [[LAT_MAX, LON_MIN], [LAT_MIN, LON_MAX]],
                 polygon_lookup_string + "-2",
                 'EXTRAPOLATED_' + str(self.extrapolated_number))
-            maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = True
+            Maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = True
 
             # convert each of the 2 points to (x,y).
             pt1_xtile, pt1_ytile = self.longlat2tile(LAT_MIN, LON_MIN,

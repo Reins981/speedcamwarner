@@ -34,7 +34,7 @@ from SQL import POIReader
 from ThreadBase import ThreadCondition, InterruptQueue, VectorDataPoolQueue, \
     GPSQueue, VoicePromptQueue, AverageAngleQueue, MapQueue, SpeedCamQueue, \
     OverspeedQueue, CurrentSpeedQueue, BorderQueue, BorderQueueReverse, PoiQueue, GpsDataQueue
-from OSMWrapper import maps, OSMThread
+from OSMWrapper import Maps, OSMThread
 from Logger import Logger
 from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
@@ -2167,7 +2167,7 @@ class MainTApp(App):
         self.ml = MainView(self.sm)
         self.root_table = Poilayout(self.sm, self.ml, self, self.voice_prompt_queue, self.cv_voice)
         self.map_layout = Maplayout(self.sm)
-        self.osm_wrapper = maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
+        self.osm_wrapper = Maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
                                 self.cv_map_cloud, self.cv_map_db, self.map_queue)
 
         self.b.add_widget(self.menubutton)

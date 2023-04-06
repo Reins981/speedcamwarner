@@ -91,6 +91,8 @@ class GPSConsumerThread(StoppableThread, Logger):
             if value == 3:
                 if key == '---.-':
                     self.clear_all(key)
+                elif key == "...":
+                    self.in_progress(key)
                 else:
                     int_key = int(round(float(key)))
                     float_key = float(key)
@@ -134,12 +136,18 @@ class GPSConsumerThread(StoppableThread, Logger):
                 self.print_log_line(f"Invalid value {value} received!")
         self.cv.release()
 
-    def clear_all(self, key):
+    def update_current_speed_ui(self, key):
         if self.curspeed.text != key:
             font_size = 250
             self.curspeed.text = key
             self.curspeed.font_size = font_size
             Clock.schedule_once(self.curspeed.texture_update)
+
+    def in_progress(self, key):
+        self.update_current_speed_ui(key)
+
+    def clear_all(self, key):
+        self.update_current_speed_ui(key)
         self.speedlayout.update_accel_layout()
         self.speedlayout.reset_overspeed()
         self.speedlayout.reset_bearing()
@@ -193,6 +201,7 @@ class GPSThread(StoppableThread, Logger):
         self.startup = True
         self.off_state = False
         self.on_state = False
+        self.in_progress = False
         self.is_filled = False
         self.day_update_done = False
         self.night_update_done = False
@@ -279,6 +288,9 @@ class GPSThread(StoppableThread, Logger):
                 self.process_offroute(gps_accuracy)
 
         if event:
+
+            self.in_progress = False
+
             if 'gps' in event['data'] and 'accuracy' in event['data']['gps']:
                 # Set accuracy
                 accuracy = event['data']['gps']['accuracy']
@@ -363,6 +375,8 @@ class GPSThread(StoppableThread, Logger):
                 self.print_log_line(f"Processing inaccurate GPS signal number "
                                     f"({GPSThread.GPS_INACCURACY_COUNTER})")
                 self.gpsqueue.produce(self.cv, {"...": 5})
+                self.gpsqueue.produce(self.cv, {"...": 3})
+                self.in_progress = True
                 return
 
             GPSThread.GPS_INACCURACY_COUNTER = 0
@@ -380,6 +394,7 @@ class GPSThread(StoppableThread, Logger):
 
             self.off_state = True
             self.on_state = False
+            self.in_progress = False
             self.gpsqueue.produce(self.cv, {gps_accuracy: 5})
 
             self.reset_osm_data_state()
@@ -579,6 +594,9 @@ class GPSThread(StoppableThread, Logger):
 
     def get_current_gps_state(self):
         return self.already_on()
+
+    def gps_in_progress(self):
+        return self.in_progress
 
     def already_on(self):
         return self.on_state

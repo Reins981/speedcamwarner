@@ -143,7 +143,7 @@ class OSMThread(StoppableThread, Logger):
                 geo_rectangle_available=self.calculator_thread.get_osm_data_state())
 
 
-class maps(Logger):
+class Maps(Logger):
     TRIGGER_RECT_DRAW = False
     TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
@@ -243,6 +243,10 @@ class maps(Logger):
         f_handle.write(
             '\t\tmarker = L.marker([%f,%f], {icon: car, rotationAngle: %d}).addTo(map);\n'
             % (self.centerLat, self.centerLng, self.bearing))'''
+        if self.centerLat is None or self.centerLng is None:
+            self.print_log_line(f"Unable to render Center position. No coordinates available",
+                                log_level="Warning")
+            return
 
         self.map_layout.map_view.lon = self.centerLng
         self.map_layout.map_view.lat = self.centerLat
@@ -278,7 +282,7 @@ class maps(Logger):
     def draw_geoBounds(self, *args, **kwargs):
         color_index = 0
 
-        if maps.TRIGGER_RECT_DRAW:
+        if Maps.TRIGGER_RECT_DRAW:
             for geoBounds in self.geoBounds:
                 if (isinstance(geoBounds[0][0][0], float) and isinstance(geoBounds[0][0][1],
                                                                          float) and isinstance(
@@ -311,11 +315,11 @@ class maps(Logger):
                     self.print_log_line("Draw lines!")
                     Clock.schedule_once(line_layer.draw_lines, 0)
                 color_index += 1
-            maps.TRIGGER_RECT_DRAW = False
+            Maps.TRIGGER_RECT_DRAW = False
 
         if self.extrapolated:
 
-            if maps.TRIGGER_RECT_DRAW_EXTRAPOLATED:
+            if Maps.TRIGGER_RECT_DRAW_EXTRAPOLATED:
                 for geoBounds in self.geoBoundsExtrapolated:
                     if (isinstance(geoBounds[0][0][0], float) and isinstance(geoBounds[0][0][1],
                                                                              float) and isinstance(
@@ -347,7 +351,7 @@ class maps(Logger):
                         self.map_layout.map_view.add_layer(line_layer)
                         self.print_log_line("Draw lines!")
                         Clock.schedule_once(line_layer.draw_lines, 0)
-                maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = False
+                Maps.TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
     def draw_pois(self, *args, **kwargs):
         '''f_handle.write('\t\tvar HospitalIcon = L.icon({\n')
