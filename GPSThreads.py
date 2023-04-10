@@ -230,7 +230,7 @@ class GPSThread(StoppableThread, Logger):
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__), "gpx", "t1374104_berliner-mauerweg.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
-        self.gps_treshold = 55
+        self.gps_treshold = 40
         # Max GPS inaccuracy treshold after which the App will go into OFF mode.
         # Note: This only applies for Weak GPS signals, not if GPS is disabled
         self.gps_inaccuracy_treshold = 5
@@ -282,9 +282,12 @@ class GPSThread(StoppableThread, Logger):
 
             event = item.get('event', None)
             gps_status = item.get('status', None)
+            if event:
+                print(event)
+            if gps_status:
+                print(gps_status)
 
-            if gps_status is not None \
-                    and (gps_status == 'network' or gps_status == 'passive') and not event:
+            if gps_status == 'network' or gps_status == 'passive':
                 self.process_offroute(gps_accuracy)
 
         if event:
