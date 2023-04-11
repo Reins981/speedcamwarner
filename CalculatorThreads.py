@@ -397,7 +397,6 @@ class Rect(object):
 
 class RectangleCalculatorThread(StoppableThread, Logger):
     thread_lock = False
-    busy_lock = False
 
     def __init__(self,
                  cv_vector,
@@ -1596,9 +1595,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return 'INIT'
 
     def process_offline(self):
-        if self.last_max_speed == "->->->" or self.last_max_speed is None:
+        if self.last_max_speed == ">->->" or self.last_max_speed is None:
             self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
-            self.update_kivi_roadname("", False)
+        self.update_kivi_roadname("", False)
 
     def process_disable_all_rectangle_operations(self):
         if self.alternative_road_lookup:
@@ -1618,8 +1617,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                            poi=False,
                                            facility=False)
             if self.cam_in_progress is False and self.internet_available():
-                self.update_kivi_maxspeed("->->->")
-                self.last_max_speed = "->->->"
+                self.update_kivi_maxspeed(">->->")
+                self.last_max_speed = ">->->"
             else:
                 self.last_max_speed = "KEEP"
             RectangleCalculatorThread.thread_lock = False
@@ -1760,9 +1759,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             self.print_log_line(f"Failed to resolve node id {node}, "
                                                 f"Trying to resolve with REST call ..",
                                                 log_level="WARNING")
-                            # Do not block any other operations running since the number
-                            # of requests could be very high
-                            RectangleCalculatorThread.busy_lock = True
                             (online_available, status, data, internal_error,
                              current_rect) = self.trigger_osm_lookup(lon_min,
                                                                      lat_min,
@@ -1772,7 +1768,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                                      "node",
                                                                      node,
                                                                      current_rect='CURRENT_CONSTRUCTION')
-                            RectangleCalculatorThread.busy_lock = False
 
                             if status == 'OK' and len(data) > 0:
                                 element = data[0]

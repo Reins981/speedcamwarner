@@ -46,7 +46,7 @@ class VoicePromptThread(StoppableThread, Logger):
         voice_entry = self.voice_prompt_queue.consume_items(self.cv_voice)
         self.cv_voice.release()
 
-        while self._lock or self.calculator.busy_lock:
+        while self._lock:
             pass
 
         sound = None

@@ -199,6 +199,7 @@ class GPSThread(StoppableThread, Logger):
 
         # global items
         self.startup = True
+        self.first_offline_call = True
         self.off_state = False
         self.on_state = False
         self.in_progress = False
@@ -255,6 +256,7 @@ class GPSThread(StoppableThread, Logger):
         self.map_queue.produce(self.cv_map, "EXIT")
         self.print_log_line("Terminated")
         self.startup = True
+        self.first_offline_call = True
         self.stop()
 
     def process(self):
@@ -285,9 +287,10 @@ class GPSThread(StoppableThread, Logger):
             if event:
                 print(event)
             if gps_status:
-                print(gps_status)
+                print(f"Statusssssssssssssssssssssssss: {gps_status}")
 
-            if gps_status == 'network' or gps_status == 'passive':
+            if gps_status is not None and \
+                    (gps_status != 'available' or gps_status != 'provider-enabled'):
                 self.process_offroute(gps_accuracy)
 
         if event:
@@ -372,7 +375,7 @@ class GPSThread(StoppableThread, Logger):
         if self.already_off():
             pass
         else:
-            if gps_accuracy != "OFF" \
+            if gps_accuracy != "OFF" and self.first_offline_call is False \
                     and GPSThread.GPS_INACCURACY_COUNTER <= self.gps_inaccuracy_treshold:
                 GPSThread.GPS_INACCURACY_COUNTER += 1
                 self.print_log_line(f"Processing inaccurate GPS signal number "
@@ -402,6 +405,8 @@ class GPSThread(StoppableThread, Logger):
 
             self.reset_osm_data_state()
 
+        if self.first_offline_call:
+            self.first_offline_call = False
         # Always calculate extrapolated positions
         self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0), float(0.0),
                                    float(0.0), float(0.0), '-', 'OFFLINE', 0)
@@ -428,12 +433,6 @@ class GPSThread(StoppableThread, Logger):
             self.g.on_state()
             self.on_state = True
             self.off_state = False
-
-            # update the maxspeed widget only once in case we receive a gps position immediately
-            if self.startup:
-                self.startup = False
-                self.ms.maxspeed.text = ""
-                Clock.schedule_once(self.ms.maxspeed.texture_update)
 
     def correct_speed(self, speed):
         if speed > 0:

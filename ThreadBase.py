@@ -231,7 +231,7 @@ class GpsDataQueue(object):
     def consume(self, cv):
         cv.acquire()
         while not self.an_item_is_available():
-            cv.wait(5.0)
+            cv.wait()
         return self.get_an_available_item()
 
     def produce(self, cv, item):

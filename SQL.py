@@ -288,7 +288,9 @@ class POIReader(Logger):
                                 f"No POI's to process in {FILENAME}", log_level="WARNING")
             return
 
-        self.print_log_line(f"Found {len(user_pois['cameras'])} cameras from cloud!")
+        num_cameras = len(user_pois['cameras'])
+        self.print_log_line(f"Found {num_cameras} cameras from cloud!")
+        self.calculator.update_kivi_info_page(poi_cams_mobile=num_cameras)
         self.__initial_download_finished = True
 
         cam_id = 200000

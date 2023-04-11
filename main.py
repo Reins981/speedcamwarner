@@ -1955,12 +1955,18 @@ class MainView(FloatLayout):
 
     def update_pois(self, number):
         self.poi_number.text = str(number)
-        self.poi_number.text += str(self.construction_areas_number)
+        if isinstance(number, int):
+            result = number + self.construction_areas_number
+            self.poi_number.text = str(result)
         Clock.schedule_once(self.poi_number.texture_update)
 
     def update_construction_areas(self):
         self.construction_areas_number += 1
-        self.poi_number.text += str(self.construction_areas_number)
+        try:
+            result = int(self.poi_number.text) + 1
+            self.poi_number.text = str(result)
+        except ValueError:
+            return
         Clock.schedule_once(self.poi_number.texture_update)
 
     def update_speed_cam_txt(self, l_range):
