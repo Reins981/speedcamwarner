@@ -234,7 +234,7 @@ class GPSThread(StoppableThread, Logger):
         self.gps_treshold = 40
         # Max GPS inaccuracy treshold after which the App will go into OFF mode.
         # Note: This only applies for Weak GPS signals, not if GPS is disabled
-        self.gps_inaccuracy_treshold = 5
+        self.gps_inaccuracy_treshold = 4
 
     def run(self):
 
@@ -290,7 +290,7 @@ class GPSThread(StoppableThread, Logger):
                 print(f"Statusssssssssssssssssssssssss: {gps_status}")
 
             if gps_status is not None and \
-                    (gps_status != 'available' or gps_status != 'provider-enabled'):
+                    (gps_status != 'available' and gps_status != 'provider-enabled'):
                 self.process_offroute(gps_accuracy)
 
         if event:
