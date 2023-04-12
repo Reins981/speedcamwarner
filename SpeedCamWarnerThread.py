@@ -614,7 +614,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8)) if \
+                                                  color=(1, .9, 0, 2)) if \
                         next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                         self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
@@ -665,7 +665,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8)) if \
+                                                  color=(1, .9, 0, 2)) if \
                         next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                         self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
@@ -716,7 +716,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8)) if \
+                                                  color=(1, .9, 0, 2)) if \
                         next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                         self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
@@ -745,7 +745,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.trigger_free_flow()
                     self.update_cam_road(reset=True) if not process_next_cam \
                         else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                                  color=(0, 1, .3, .8)) if \
+                                                  color=(1, .9, 0, 2)) if \
                         next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                         self.update_cam_road(reset=True)
                     self.update_max_speed(reset=True)
@@ -756,7 +756,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if last_distance == -1 and distance < self.max_absolute_distance:
                 self.update_cam_road(reset=True) if not process_next_cam \
                     else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                              color=(0, 1, .3, .8)) if \
+                                              color=(1, .9, 0, 2)) if \
                     next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                     self.update_cam_road(reset=True)
                 SpeedCamWarnerThread.CAM_IN_PROGRESS = False
@@ -768,7 +768,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.trigger_free_flow()
             self.update_cam_road(reset=True) if not process_next_cam \
                 else self.update_cam_road(road=f"{next_cam_road} -> {next_cam_distance}",
-                                          color=(0, 1, .3, .8)) if \
+                                          color=(1, .9, 0, 2)) if \
                 next_cam_distance_as_int <= self.max_distance_to_future_camera else \
                 self.update_cam_road(reset=True)
             self.update_max_speed(reset=True)
