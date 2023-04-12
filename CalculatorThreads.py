@@ -4561,11 +4561,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def update_kivi_info_page(self,
                               poi_cams=None,
-                              poi_cams_mobile=0,
+                              poi_cams_mobile=None,
                               update_construction_areas=False):
         if poi_cams is not None and isinstance(poi_cams, int):
             self.fix_cams += poi_cams
-        self.mobile_cams = poi_cams_mobile
+        if poi_cams_mobile is not None:
+            self.mobile_cams = poi_cams_mobile
 
         if update_construction_areas:
             self.ml.update_construction_areas()
