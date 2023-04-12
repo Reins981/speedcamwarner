@@ -8,7 +8,7 @@ Created on 01.07.2014
 @author: rkoraschnigg
 '''
 
-import time, sys, os
+import time
 import math
 from math import sin, cos, sqrt, atan2, radians
 from kivy.clock import Clock
