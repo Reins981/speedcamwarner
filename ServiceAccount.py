@@ -6,9 +6,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
-from httplib2 import HttpLib2Error
+from httplib2 import HttpLib2Error, ServerNotFoundError
 from typing import Any, Tuple, Union
 from Logger import Logger
+from socket import gaierror
 
 logger = Logger("ServiceAccount")
 
@@ -73,7 +74,7 @@ def upload_file_to_google_drive(f_id: str, folder_id: str, drive: Any, file_name
         logger.print_log_line(f'Camera upload success: File ID {file_id} has been moved to '
                               f'folder ID {folder_id}.')
         return 'success'
-    except HttpError as error:
+    except (gaierror, ServerNotFoundError, HttpError) as error:
         return f'An error occurred: {error}'
 
 
@@ -85,7 +86,7 @@ def download_file_from_google_drive(f_id: str, drive: Any) -> str:
 
     try:
         file = drive.files().get(fileId=f_id).execute()
-    except HttpError as error:
+    except (gaierror, ServerNotFoundError, HttpError) as error:
         return str(error)
 
     # Create a buffer to download the file to
