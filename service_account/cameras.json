@@ -1,31 +1,4 @@
 {
     "cameras": [
-        {
-            "name": "Kungerkiez",
-            "coordinates": [
-                {
-                    "latitude": 52.494651,
-                    "longitude": 13.446708
-                }
-            ]
-        },
-        {
-            "name": "Lohm\u00fchlenstra\u00dfe",
-            "coordinates": [
-                {
-                    "latitude": 52.490016,
-                    "longitude": 13.440505
-                }
-            ]
-        },
-        {
-            "name": "Kommandantenstra\u00dfe",
-            "coordinates": [
-                {
-                    "latitude": 52.50846,
-                    "longitude": 13.403183
-                }
-            ]
-        }
     ]
 }
