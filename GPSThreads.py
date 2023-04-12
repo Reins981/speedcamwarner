@@ -284,10 +284,6 @@ class GPSThread(StoppableThread, Logger):
 
             event = item.get('event', None)
             gps_status = item.get('status', None)
-            if event:
-                print(event)
-            if gps_status:
-                print(f"Statusssssssssssssssssssssssss: {gps_status}")
 
             if gps_status is not None and \
                     (gps_status != 'available' and gps_status != 'provider-enabled'):

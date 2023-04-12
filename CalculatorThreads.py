@@ -4565,7 +4565,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                               update_construction_areas=False):
         if poi_cams is not None and isinstance(poi_cams, int):
             self.fix_cams += poi_cams
-        self.mobile_cams += poi_cams_mobile
+        self.mobile_cams = poi_cams_mobile
 
         if update_construction_areas:
             self.ml.update_construction_areas()
