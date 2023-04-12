@@ -1,4 +1,13 @@
 {
     "cameras": [
+        {
+            "name": "Stallschreiberstra\u00dfe",
+            "coordinates": [
+                {
+                    "latitude": 52.50733,
+                    "longitude": 13.406597
+                }
+            ]
+        }
     ]
 }
