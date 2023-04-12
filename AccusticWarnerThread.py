@@ -11,6 +11,7 @@ import os
 from Logger import Logger
 from ThreadBase import StoppableThread
 from kivy.core.audio import SoundLoader
+from kivy.clock import Clock
 
 BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sounds")
 
@@ -41,6 +42,16 @@ class VoicePromptThread(StoppableThread, Logger):
         self.voice_prompt_queue.clear_onlinequeue(self.cv_voice)
         self.print_log_line("VoicePromptThreadThread terminating")
         self.stop()
+
+    def play_sound(self, sound):
+        self.print_log_line(f" Trigger sound {sound}")
+        s = SoundLoader.load(sound)
+        s.buffer = 16384
+        if s:
+            s.play()
+            while s.get_pos() != 0:
+                pass
+            s.on_stop = lambda: self.print_log_line('Playback finished')
 
     def process(self):
         voice_entry = self.voice_prompt_queue.consume_items(self.cv_voice)
@@ -146,12 +157,5 @@ class VoicePromptThread(StoppableThread, Logger):
 
         if sound is not None:
             self._lock = True
-            self.print_log_line(f" Trigger sound {sound}")
-            s = SoundLoader.load(sound)
-            s.buffer = 16384
-            if s:
-                s.play()
-                while s.get_pos() != 0:
-                    pass
-                s.on_stop = lambda: self.print_log_line('Playback finished')
+            Clock.schedule_once(lambda dt: self.play_sound(sound), 1)
             self._lock = False
