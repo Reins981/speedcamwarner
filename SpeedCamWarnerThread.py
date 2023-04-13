@@ -1103,6 +1103,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.calculator.distance_cams -= 1
             elif cam_attributes[0] == 'mobile' and self.calculator.mobile_cams > 0:
                 self.calculator.mobile_cams -= 1
+            # Now update the kivy info page
+            self.calculator.update_kivi_info_page()
 
     @staticmethod
     def calculate_direction(bearing):
