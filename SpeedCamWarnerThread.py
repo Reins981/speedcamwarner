@@ -69,7 +69,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # emergency distance in meters, it will be reported. Set to a low value.
         # This parameter is only evaluated
         # when self.enable_inside_relevant_angle_feature is set to True
-        self.emergency_angle_distance = 80
+        self.emergency_angle_distance = 150
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
