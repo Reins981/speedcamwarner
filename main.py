@@ -40,6 +40,8 @@ from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
 from plyer import gps
 from functools import partial
+from socket import gaierror
+from urllib3.exceptions import NewConnectionError
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 
@@ -88,13 +90,16 @@ class OSM_INIT(Logger):
             return False, 2
 
     def draw_map(self):
-        status = self.osm_wrapper.draw_map(
-            geo_rectangle_available=self.calculator_thread.get_osm_data_state())
-        if status:
-            self.print_log_line("Initial draw map was successful!")
-            self.gps_thread.update_map_state(map_thread_started=True)
-        else:
-            self.print_log_line("Initial draw map was failed!")
+        try:
+            status = self.osm_wrapper.draw_map(
+                geo_rectangle_available=self.calculator_thread.get_osm_data_state())
+            if status:
+                self.print_log_line("Initial draw map was successful!")
+                self.gps_thread.update_map_state(map_thread_started=True)
+            else:
+                self.print_log_line("Initial draw map was failed!")
+        except (gaierror, NewConnectionError) as error:
+            self.print_log_line(error, log_level="ERROR")
 
 
 class CurveLayout(RelativeLayout):

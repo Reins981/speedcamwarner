@@ -17,6 +17,8 @@ from kivy.clock import Clock
 from kivy.graphics.context_instructions import Translate, Scale
 from kivy.metrics import dp
 from MapUtils import *
+from socket import gaierror
+from urllib3.exceptions import NewConnectionError
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 CAR_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images", "car1.png")
@@ -128,8 +130,11 @@ class OSMThread(StoppableThread, Logger):
             if len(OSMThread.POIS) > 0:
                 OSMThread.pois_drawn = False
             # draw POS immediately once
-            self.osm_wrapper.draw_map(
-                geo_rectangle_available=self.calculator_thread.get_osm_data_state())
+            try:
+                self.osm_wrapper.draw_map(
+                    geo_rectangle_available=self.calculator_thread.get_osm_data_state())
+            except (gaierror, NewConnectionError) as error:
+                self.print_log_line(error, log_level="ERROR")
         elif isinstance(pois, tuple):
             OSMThread.trigger = "CALCULATE_ROUTE_TO_NEAREST_POI"
             if pois is not None:
@@ -139,8 +144,11 @@ class OSMThread(StoppableThread, Logger):
             return
         elif item == 'UPDATE':
             # update map
-            self.osm_wrapper.draw_map(
-                geo_rectangle_available=self.calculator_thread.get_osm_data_state())
+            try:
+                self.osm_wrapper.draw_map(
+                    geo_rectangle_available=self.calculator_thread.get_osm_data_state())
+            except (gaierror, NewConnectionError) as error:
+                self.print_log_line(error, log_level="ERROR")
 
 
 class Maps(Logger):
