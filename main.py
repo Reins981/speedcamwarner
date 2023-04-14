@@ -39,6 +39,9 @@ from Logger import Logger
 from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
 from plyer import gps
+import android.content.IntentFilter as IntentFilter
+from LocationManager import LocationManager, \
+    LocationReceiverBackground, GPSAndroidBackground, context
 from functools import partial
 from socket import gaierror
 from urllib3.exceptions import NewConnectionError
@@ -2065,6 +2068,8 @@ class MainTApp(App):
         # Event to unblock thread operations if the App runs in the background
         self.main_event = Event()
         self.run_in_back_ground = False
+        self.location_receiver = None
+        self.gps_android = None
 
         self.day_update_done = False
         self.night_update_done = False
@@ -2522,6 +2527,8 @@ class MainTApp(App):
             self.gps_producer = None
             self.calculator = None
             self.run_in_back_ground = False
+            self.location_receiver = None
+            self.gps_android = None
 
             # terminate poi reader timer
             if self.poireader is not None:
@@ -2936,16 +2943,39 @@ class MainTApp(App):
         self.voice_prompt_queue.clear_gpssignalqueue(cv)
 
     def on_pause(self):
+        logger.print_log_line("Stop receiving location updates from the forground..")
+        gps.stop()
         self.run_in_back_ground = True
         # Set the event to unblock the thread
         logger.print_log_line("Unblocking Threads..")
         self.main_event.set()
+
+        # Start our location manager and register the LocationReceiver instance
+        logger.print_log_line("Start receiving location updates from the background..")
+        self.gps_android = GPSAndroidBackground()
+        self.location_receiver = LocationReceiverBackground()
+        LocationReceiverBackground.gps_data_queue = self.gps_data_queue
+        LocationReceiverBackground.cv_gps_data = self.cv_gps_data
+        intent_filter = IntentFilter()
+        intent_filter.addAction(LocationManager.KEY_LOCATION_CHANGED)
+        context.registerReceiver(self.location_receiver, intent_filter)
+        # register the LocationReceiver instance with the LocationManager
+        self.gps_android.start(1000, 0)
+        self.gps_android.bind(on_location=self.location_receiver)
+
         # self.resume.set_resume_state(False)
         if self.calculator is not None:
             self.calculator.url_timeout = 5
         return True
 
     def on_resume(self):
+        if self.location_receiver and self.gps_android:
+            # stop receiving location updates and unregister the LocationReceiver instance
+            logger.print_log_line("Stop receiving location updates from the background..")
+            self.gps_android.stop()
+            self.gps_android.unbind(on_location=self.location_receiver)
+        logger.print_log_line("Start receiving location updates from the foreground..")
+        gps.start()
         self.run_in_back_ground = False
         self.main_event.clear()
         # self.resume.set_resume_state(True)
@@ -2955,6 +2985,8 @@ class MainTApp(App):
 
     def on_start(self):
         self.run_in_back_ground = False
+        self.location_receiver = None
+        self.gps_android = None
         from kivy.base import EventLoop
         EventLoop.window.bind(on_keyboard=self.hook_keyboard)
 
