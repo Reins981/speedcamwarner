@@ -39,6 +39,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                 self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
+                self.currentspeed_queue.clear(self.cv_currentspeed)
             else:
                 status = self.process()
                 if status == 'TERMINATE':

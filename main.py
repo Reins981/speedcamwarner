@@ -14,6 +14,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
+from plyer import notification
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
 from kivy.uix.modalview import ModalView
 from kivy.uix.gridlayout import GridLayout
@@ -45,8 +46,16 @@ from LocationManager import LocationManager, \
 from functools import partial
 from socket import gaierror
 from urllib3.exceptions import NewConnectionError
+import pystray
+from PIL import Image
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
+BASE_PATH_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images")
+ICON = os.path.join(BASE_PATH_ICON, 'icon.png')
+
+icon_image = Image.open(ICON)
+icon = pystray.Icon("Masterwarner", icon_image, "Masterwarner")
+
 
 if platform == "android":
     from android.permissions import request_permissions, Permission
@@ -582,7 +591,6 @@ class Poilayout(GridLayout):
         self.add_widget(self.gas)
         self.returnbutton_main.bind(on_press=self.callback_return)
         self.poibutton.bind(on_press=self.callback_poi)
-        # self.stopbutton.bind(on_press=self.callback_stop)
 
     def on_checkbox_active(self, checkbox, value):
         if value:
@@ -2382,10 +2390,11 @@ class MainTApp(App):
 
         return self.calculator
 
-    def init_speed_cam_warner(self, main_app, cv_voice, cv_speedcam, gpssignalqueue, speedcamqueue,
+    def init_speed_cam_warner(self, main_app, resume, cv_voice, cv_speedcam,
+                              gpssignalqueue, speedcamqueue,
                               cv_overspeed, overspeed_queue, osm_wrapper, calculator, ms, g,
                               cond):
-        self.speedwarner = SpeedCamWarnerThread(main_app, cv_voice, cv_speedcam, gpssignalqueue,
+        self.speedwarner = SpeedCamWarnerThread(main_app, resume, cv_voice, cv_speedcam, gpssignalqueue,
                                                 speedcamqueue, cv_overspeed, overspeed_queue,
                                                 osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
@@ -2523,6 +2532,7 @@ class MainTApp(App):
             self.started = False
             self.root_table.stop_thread = True
             self.q.set_terminate_state(True)
+            self.resume.set_resume_state(True)
             self.g.off_state()
             self.gps_producer = None
             self.calculator = None
@@ -2691,6 +2701,7 @@ class MainTApp(App):
                                  voice_consumer,
                                  self.q)
             self.init_speed_cam_warner(self,
+                                       self.resume,
                                        self.cv_voice,
                                        self.cv_speedcam,
                                        self.voice_prompt_queue,
@@ -2949,38 +2960,19 @@ class MainTApp(App):
         # Set the event to unblock the thread
         logger.print_log_line("Unblocking Threads..")
         self.main_event.set()
-
-        # Start our location manager and register the LocationReceiver instance
-        logger.print_log_line("Start receiving location updates from the background..")
-        self.gps_android = GPSAndroidBackground()
-        self.location_receiver = LocationReceiverBackground()
-        LocationReceiverBackground.gps_data_queue = self.gps_data_queue
-        LocationReceiverBackground.cv_gps_data = self.cv_gps_data
-        intent_filter = IntentFilter()
-        intent_filter.addAction(LocationManager.KEY_LOCATION_CHANGED)
-        context.registerReceiver(self.location_receiver, intent_filter)
-        # register the LocationReceiver instance with the LocationManager
-        self.gps_android.start(1000, 0)
-        self.gps_android.bind(on_location=self.location_receiver)
-
-        # self.resume.set_resume_state(False)
-        if self.calculator is not None:
-            self.calculator.url_timeout = 5
+        self.start_location_manager_bg()
+        self.show_notification_bg()
+        self.resume.set_resume_state(False)
         return True
 
     def on_resume(self):
-        if self.location_receiver and self.gps_android:
-            # stop receiving location updates and unregister the LocationReceiver instance
-            logger.print_log_line("Stop receiving location updates from the background..")
-            self.gps_android.stop()
-            self.gps_android.unbind(on_location=self.location_receiver)
-        logger.print_log_line("Start receiving location updates from the foreground..")
-        gps.start()
+        self.close_notification_bg()
         self.run_in_back_ground = False
         self.main_event.clear()
-        # self.resume.set_resume_state(True)
-        if self.calculator is not None:
-            self.calculator.url_timeout = self.calculator.osm_timeout
+        self.stop_location_manager_bg()
+        logger.print_log_line("Start receiving location updates from the foreground..")
+        gps.start()
+        self.resume.set_resume_state(True)
         return True
 
     def on_start(self):
@@ -3019,6 +3011,36 @@ class MainTApp(App):
 
         self.s.service_unit.text = values[0].decode('utf-8')
         Clock.schedule_once(self.s.service_unit.texture_update)
+
+    @staticmethod
+    def show_notification_bg():
+        icon.run(setup=lambda: icon.set_visible(True))
+
+    @staticmethod
+    def close_notification_bg():
+        icon.run(setup=lambda: icon.set_visible(False))
+
+    def start_location_manager_bg(self):
+        # Start our location manager and register the LocationReceiver instance
+        logger.print_log_line("Start receiving location updates from the background..")
+        self.gps_android = GPSAndroidBackground()
+        self.location_receiver = LocationReceiverBackground()
+        LocationReceiverBackground.gps_data_queue = self.gps_data_queue
+        LocationReceiverBackground.cv_gps_data = self.cv_gps_data
+        intent_filter = IntentFilter()
+        intent_filter.addAction(LocationManager.KEY_LOCATION_CHANGED)
+        context.registerReceiver(self.location_receiver, intent_filter)
+        # register the LocationReceiver instance with the LocationManager
+        self.gps_android.start(1000, 0)
+        self.gps_android.bind(on_location=self.location_receiver)
+
+    def stop_location_manager_bg(self):
+        if self.location_receiver and self.gps_android:
+            # stop receiving location updates and unregister the LocationReceiver instance
+            logger.print_log_line("Stop receiving location updates from the background..")
+            self.gps_android.stop()
+            context.unregisterReceiver(self.location_receiver)
+            self.gps_android.unbind(on_location=self.location_receiver)
 
 
 if __name__ == '__main__':

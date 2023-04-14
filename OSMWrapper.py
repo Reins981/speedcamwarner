@@ -114,6 +114,7 @@ class OSMThread(StoppableThread, Logger):
                 self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.map_queue.clear_map_update(self.cv_map)
+                self.poi_queue.clear(self.cv_poi)
             else:
                 self.process()
         self.print_log_line(" terminated")

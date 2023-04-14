@@ -24,12 +24,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     CAM_IN_PROGRESS = False
 
-    def __init__(self, main_app, cv_voice, cv_speedcam, voice_prompt_queue,
+    def __init__(self, main_app, resume, cv_voice, cv_speedcam, voice_prompt_queue,
                  speedcamqueue, cv_overspeed, overspeed_queue,
                  osm_wrapper, calculator, ms, g, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
         self.main_app = main_app
+        self.resume = resume
         self.cv_voice = cv_voice
         self.cv_speedcam = cv_speedcam
         self.voice_prompt_queue = voice_prompt_queue
@@ -510,12 +511,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         return cam_coordinates in self.INSERTED_SPEEDCAMS
 
     def trigger_free_flow(self):
-        self.update_kivi_speedcam('FREEFLOW')
-        self.update_bar_widget_1000m(color=2)
-        self.update_bar_widget_500m(color=2)
-        self.update_bar_widget_300m(color=2)
-        self.update_bar_widget_100m(color=2)
-        self.update_bar_widget_meters('')
+        if self.resume.isResumed():
+            self.update_kivi_speedcam('FREEFLOW')
+            self.update_bar_widget_1000m(color=2)
+            self.update_bar_widget_500m(color=2)
+            self.update_bar_widget_300m(color=2)
+            self.update_bar_widget_100m(color=2)
+            self.update_bar_widget_meters('')
 
     def trigger_speed_cam_update(self, distance=0, cam_coordinates=(0, 0), speedcam='fix',
                                  ccp_node=(0, 0), linked_list=None, tree=None,
@@ -547,12 +549,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                self.update_kivi_speedcam(speedcam)
-                self.update_bar_widget_100m()
-                self.update_bar_widget_300m()
-                self.update_bar_widget_500m()
-                self.update_bar_widget_1000m()
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m()
+                    self.update_bar_widget_300m()
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
                 if cam_coordinates in self.ITEMQUEUE:
                     tmp = deepcopy(self.ITEMQUEUE)
                     self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -561,12 +564,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if last_distance == 100:
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                self.update_kivi_speedcam(speedcam)
-                self.update_bar_widget_100m()
-                self.update_bar_widget_300m()
-                self.update_bar_widget_500m()
-                self.update_bar_widget_1000m()
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m()
+                    self.update_bar_widget_300m()
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
                 if cam_coordinates in self.ITEMQUEUE:
                     tmp = deepcopy(self.ITEMQUEUE)
                     self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -589,12 +593,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                self.update_kivi_speedcam(speedcam)
-                self.update_bar_widget_100m(color=2)
-                self.update_bar_widget_300m()
-                self.update_bar_widget_500m()
-                self.update_bar_widget_1000m()
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m()
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
                 if cam_coordinates in self.ITEMQUEUE:
                     self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                     self.update_max_speed(max_speed=max_speed)
@@ -603,12 +608,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 if last_distance == 300:
                     Clock.schedule_once(
                         partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                    self.update_kivi_speedcam(speedcam)
-                    self.update_bar_widget_100m(color=2)
-                    self.update_bar_widget_300m()
-                    self.update_bar_widget_500m()
-                    self.update_bar_widget_1000m()
-                    self.update_bar_widget_meters(distance)
+                    if self.resume.isResumed():
+                        self.update_kivi_speedcam(speedcam)
+                        self.update_bar_widget_100m(color=2)
+                        self.update_bar_widget_300m()
+                        self.update_bar_widget_500m()
+                        self.update_bar_widget_1000m()
+                        self.update_bar_widget_meters(distance)
                     if cam_coordinates in self.ITEMQUEUE:
                         tmp = deepcopy(self.ITEMQUEUE)
                         self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -640,12 +646,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                self.update_kivi_speedcam(speedcam)
-                self.update_bar_widget_100m(color=2)
-                self.update_bar_widget_300m(color=2)
-                self.update_bar_widget_500m()
-                self.update_bar_widget_1000m()
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m()
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
                 if cam_coordinates in self.ITEMQUEUE:
                     self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                     self.update_max_speed(max_speed=max_speed)
@@ -654,12 +661,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 if last_distance == 500:
                     Clock.schedule_once(
                         partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                    self.update_kivi_speedcam(speedcam)
-                    self.update_bar_widget_100m(color=2)
-                    self.update_bar_widget_300m(color=2)
-                    self.update_bar_widget_500m()
-                    self.update_bar_widget_1000m()
-                    self.update_bar_widget_meters(distance)
+                    if self.resume.isResumed():
+                        self.update_kivi_speedcam(speedcam)
+                        self.update_bar_widget_100m(color=2)
+                        self.update_bar_widget_300m(color=2)
+                        self.update_bar_widget_500m()
+                        self.update_bar_widget_1000m()
+                        self.update_bar_widget_meters(distance)
                     if cam_coordinates in self.ITEMQUEUE:
                         tmp = deepcopy(self.ITEMQUEUE)
                         self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -691,12 +699,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
                 Clock.schedule_once(
                     partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                self.update_kivi_speedcam(speedcam)
-                self.update_bar_widget_100m(color=2)
-                self.update_bar_widget_300m(color=2)
-                self.update_bar_widget_500m(color=2)
-                self.update_bar_widget_1000m()
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam(speedcam)
+                    self.update_bar_widget_100m(color=2)
+                    self.update_bar_widget_300m(color=2)
+                    self.update_bar_widget_500m(color=2)
+                    self.update_bar_widget_1000m()
+                    self.update_bar_widget_meters(distance)
                 if cam_coordinates in self.ITEMQUEUE:
                     self.update_cam_road(road=self.ITEMQUEUE[cam_coordinates][7])
                     self.update_max_speed(max_speed=max_speed)
@@ -705,12 +714,13 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 if last_distance == 1000:
                     Clock.schedule_once(
                         partial(self.check_road_name, linked_list, tree, cam_coordinates), 0)
-                    self.update_kivi_speedcam(speedcam)
-                    self.update_bar_widget_100m(color=2)
-                    self.update_bar_widget_300m(color=2)
-                    self.update_bar_widget_500m(color=2)
-                    self.update_bar_widget_1000m()
-                    self.update_bar_widget_meters(distance)
+                    if self.resume.isResumed():
+                        self.update_kivi_speedcam(speedcam)
+                        self.update_bar_widget_100m(color=2)
+                        self.update_bar_widget_300m(color=2)
+                        self.update_bar_widget_500m(color=2)
+                        self.update_bar_widget_1000m()
+                        self.update_bar_widget_meters(distance)
                     if cam_coordinates in self.ITEMQUEUE:
                         tmp = deepcopy(self.ITEMQUEUE)
                         self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -734,13 +744,15 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.print_log_line(" %s speed cam ahead with distance %d m" % (
                     speedcam, int(distance)))
                 self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'CAMERA_AHEAD')
-                self.update_kivi_speedcam('CAMERA_AHEAD')
-                self.update_bar_widget_meters(distance)
+                if self.resume.isResumed():
+                    self.update_kivi_speedcam('CAMERA_AHEAD')
+                    self.update_bar_widget_meters(distance)
             else:
                 if last_distance == 1001:
                     SpeedCamWarnerThread.CAM_IN_PROGRESS = False
-                    self.update_kivi_speedcam('CAMERA_AHEAD')
-                    self.update_bar_widget_meters(distance)
+                    if self.resume.isResumed():
+                        self.update_kivi_speedcam('CAMERA_AHEAD')
+                        self.update_bar_widget_meters(distance)
                     if cam_coordinates in self.ITEMQUEUE:
                         tmp = deepcopy(self.ITEMQUEUE)
                         self.update_cam_road(road=tmp[cam_coordinates][7])
@@ -855,39 +867,41 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.ms.update_cam_text(distance, reset)
 
     def update_cam_road(self, road=None, reset=False, color=None):
-        self.ms.update_cam_road(road, reset, color=color)
+        if self.resume.isResumed():
+            self.ms.update_cam_road(road, reset, color=color)
 
     def update_max_speed(self, max_speed=None, reset=False):
-        if reset:
-            if self.ms.maxspeed.text != ">->->" and self.calculator.internet_available():
-                font_size = 230
-                self.ms.maxspeed.text = ">->->"
-                self.ms.maxspeed.color = (0, 1, .3, .8)
-                self.ms.maxspeed.font_size = font_size
-                Clock.schedule_once(self.ms.maxspeed.texture_update)
-        else:
-            if max_speed:
-                if self.ms.maxspeed.text != str(max_speed):
-                    font_size = 250
-                    self.ms.maxspeed.text = str(max_speed)
-                    self.ms.maxspeed.color = (1, 0, 0, 3)
-                    self.ms.maxspeed.font_size = font_size
-                    Clock.schedule_once(self.ms.maxspeed.texture_update)
-            else:
-                if self.ms.maxspeed.text != ">->->":
+        if self.resume.isResumed():
+            if reset:
+                if self.ms.maxspeed.text != ">->->" and self.calculator.internet_available():
                     font_size = 230
                     self.ms.maxspeed.text = ">->->"
                     self.ms.maxspeed.color = (0, 1, .3, .8)
                     self.ms.maxspeed.font_size = font_size
                     Clock.schedule_once(self.ms.maxspeed.texture_update)
+            else:
+                if max_speed:
+                    if self.ms.maxspeed.text != str(max_speed):
+                        font_size = 250
+                        self.ms.maxspeed.text = str(max_speed)
+                        self.ms.maxspeed.color = (1, 0, 0, 3)
+                        self.ms.maxspeed.font_size = font_size
+                        Clock.schedule_once(self.ms.maxspeed.texture_update)
+                else:
+                    if self.ms.maxspeed.text != ">->->":
+                        font_size = 230
+                        self.ms.maxspeed.text = ">->->"
+                        self.ms.maxspeed.color = (0, 1, .3, .8)
+                        self.ms.maxspeed.font_size = font_size
+                        Clock.schedule_once(self.ms.maxspeed.texture_update)
 
-        if reset or not max_speed:
-            self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
-        else:
-            try:
-                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': int(max_speed)})
-            except:
-                pass
+            if reset or not max_speed:
+                self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
+            else:
+                try:
+                    self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': int(max_speed)})
+                except:
+                    pass
 
     # beeline distance between 2 points (lon,lat) in meters.
     def check_beeline_distance(self, pt1, pt2):

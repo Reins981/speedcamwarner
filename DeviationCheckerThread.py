@@ -56,13 +56,15 @@ class DeviationCheckerThread(StoppableThread, Logger):
         self.av_bearing = float(0.0)
 
         if current_bearing_queue == 0.001:
-            self.update_average_bearing('---.-')
+            if self.resume.isResumed():
+                self.update_average_bearing('---.-')
             return
         elif current_bearing_queue == 0.002:
             self.print_log_line(' Deviation Checker Thread got a termination item')
             return
         elif current_bearing_queue == 0.0:
-            self.update_average_bearing('0')
+            if self.resume.isResumed():
+                self.update_average_bearing('0')
             return
         elif current_bearing_queue == 'TERMINATE':
             return
@@ -74,7 +76,9 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
         if len(current_bearing_queue) > 0:
             av_bearing_final = self.av_bearing / len(current_bearing_queue)
-            self.update_average_bearing(round(av_bearing_final, 1))
+
+            if self.resume.isResumed():
+                self.update_average_bearing(round(av_bearing_final, 1))
 
             av_first_entry = current_bearing_queue[0]
             first_av_entry_current = av_first_entry
