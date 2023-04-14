@@ -399,6 +399,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     thread_lock = False
 
     def __init__(self,
+                 main_app,
                  cv_vector,
                  cv_voice,
                  cv_interrupt,
@@ -427,6 +428,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.cv_vector = cv_vector
         self.cv_voice = cv_voice
         self.cv_interrupt = cv_interrupt
@@ -954,6 +956,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def run(self):
 
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
+
             next_action = self.process()
             if next_action == 'EXIT':
                 self.print_log_line(' Calculator thread terminating..')

@@ -24,10 +24,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     CAM_IN_PROGRESS = False
 
-    def __init__(self, cv_voice, cv_speedcam, voice_prompt_queue, speedcamqueue, cv_overspeed,
-                 overspeed_queue, osm_wrapper, calculator, ms, g, cond):
+    def __init__(self, main_app, cv_voice, cv_speedcam, voice_prompt_queue,
+                 speedcamqueue, cv_overspeed, overspeed_queue,
+                 osm_wrapper, calculator, ms, g, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.cv_voice = cv_voice
         self.cv_speedcam = cv_speedcam
         self.voice_prompt_queue = voice_prompt_queue
@@ -96,8 +98,10 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.querystring4 = ');out geom;'
 
     def run(self):
-
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             status = self.process()
             if status == 'EXIT':
                 break

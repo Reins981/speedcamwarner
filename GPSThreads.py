@@ -17,9 +17,10 @@ from Logger import Logger
 
 
 class GPSConsumerThread(StoppableThread, Logger):
-    def __init__(self, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
+    def __init__(self, main_app, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.resume = resume
         self.cv = cv
         self.curspeed = curspeed
@@ -42,6 +43,9 @@ class GPSConsumerThread(StoppableThread, Logger):
     def run(self):
 
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.gpsqueue.clear_gpsqueue(self.cv)
             else:
@@ -169,12 +173,14 @@ class GPSConsumerThread(StoppableThread, Logger):
 class GPSThread(StoppableThread, Logger):
     GPS_INACCURACY_COUNTER = 0
 
-    def __init__(self, g, cv, cv_vector, cv_voice, cv_average_angle, voice_prompt_queue, ms, vdata,
-                 gpsqueue, average_angle_queue, cv_map, map_queue, osm_wrapper, cv_currentspeed,
-                 currentspeed_queue, cv_gps_data, gps_data_queue,  cv_speedcam, speed_cam_queue,
-                 calculator,cond):
+    def __init__(self, main_app, g, cv, cv_vector, cv_voice, cv_average_angle, voice_prompt_queue,
+                 ms, vdata, gpsqueue, average_angle_queue, cv_map, map_queue,
+                 osm_wrapper, cv_currentspeed, currentspeed_queue, cv_gps_data, gps_data_queue,
+                 cv_speedcam, speed_cam_queue, calculator, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
+        self.main_app = main_app
         self.g = g
         self.cv = cv
         self.cv_vector = cv_vector
@@ -239,6 +245,9 @@ class GPSThread(StoppableThread, Logger):
     def run(self):
 
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             status = self.process()
             if status == 'EXIT':
                 break

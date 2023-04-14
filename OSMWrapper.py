@@ -89,10 +89,11 @@ class OSMThread(StoppableThread, Logger):
     POIS = []
     trigger = "DRAW_POIS"
 
-    def __init__(self, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
+    def __init__(self, main_app, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
                  poi_queue, gps_producer, voice_consumer, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.resume = resume
         self.osm_wrapper = osm_wrapper
         self.calculator_thread = calculator_thread
@@ -108,6 +109,9 @@ class OSMThread(StoppableThread, Logger):
 
     def run(self):
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.map_queue.clear_map_update(self.cv_map)
             else:

@@ -13,7 +13,7 @@ from copy import deepcopy
 
 
 class OverspeedCheckerThread(StoppableThread, Logger):
-    def __init__(self, resume,
+    def __init__(self, main_app, resume,
                  cv_overspeed,
                  overspeed_queue,
                  cv_currentspeed,
@@ -22,6 +22,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                  cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.resume = resume
         self.cv_overspeed = cv_overspeed
         self.overspeed_queue = overspeed_queue
@@ -33,6 +34,9 @@ class OverspeedCheckerThread(StoppableThread, Logger):
 
     def run(self):
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
             else:

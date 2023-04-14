@@ -18,9 +18,10 @@ BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sounds")
 
 
 class VoicePromptThread(StoppableThread, Logger):
-    def __init__(self, resume, cv_voice, voice_prompt_queue, calculator, cond):
+    def __init__(self, main_app, resume, cv_voice, voice_prompt_queue, calculator, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.resume = resume
         self.cv_voice = cv_voice
         self.voice_prompt_queue = voice_prompt_queue
@@ -31,6 +32,9 @@ class VoicePromptThread(StoppableThread, Logger):
 
     def run(self):
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.voice_prompt_queue.clear_gpssignalqueue(self.cv_voice)
                 self.voice_prompt_queue.clear_maxspeedexceededqueue(self.cv_voice)

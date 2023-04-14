@@ -13,10 +13,11 @@ from Logger import Logger
 
 
 class DeviationCheckerThread(StoppableThread, Logger):
-    def __init__(self, resume, cv_average_angle, cv_interrupt, average_angle_queue,
+    def __init__(self, main_app, resume, cv_average_angle, cv_interrupt, average_angle_queue,
                  interruptqueue, av_bearing_value, cond):
         StoppableThread.__init__(self)
         Logger.__init__(self, self.__class__.__name__)
+        self.main_app = main_app
         self.resume = resume
         self.cv_average_angle = cv_average_angle
         self.cv_interrupt = cv_interrupt
@@ -31,6 +32,9 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
     def run(self):
         while not self.cond.terminate:
+            if self.main_app.run_in_back_ground:
+                self.main_app.main_event.wait()
+                self.print_log_line("Thread Unblocked")
             self.process()
 
         self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)

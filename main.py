@@ -23,7 +23,7 @@ from kivy.clock import Clock, mainthread, _default_time as time
 from oscpy.server import OSCThreadServer
 from oscpy.client import OSCClient
 import time, sys
-from threading import Condition
+from threading import Condition, Event
 from GPSThreads import GPSConsumerThread, GPSThread
 from AccusticWarnerThread import VoicePromptThread
 from CalculatorThreads import RectangleCalculatorThread
@@ -2062,6 +2062,9 @@ class MainTApp(App):
 
         # set config items
         self.set_configs()
+        # Event to unblock thread operations if the App runs in the background
+        self.main_event = Event()
+        self.run_in_back_ground = False
 
         self.day_update_done = False
         self.night_update_done = False
@@ -2081,6 +2084,7 @@ class MainTApp(App):
         self.resume = ResumeState()
 
         ## Global GUI attributes ##
+        self.run_in_back_ground = False
         self.threads = []
         self.stopped = False
         self.started = False
@@ -2222,9 +2226,9 @@ class MainTApp(App):
     def init_osm(self, gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue):
         self.osm_init = OSM_INIT(gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue)
 
-    def init_osm_thread(self, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
-                        poi_queue, gps_producer, voice_consumer, cond):
-        self.osm_thread = OSMThread(resume, osm_wrapper, calculator_thread, cv_map, cv_poi,
+    def init_osm_thread(self, main_app, resume, osm_wrapper, calculator_thread,
+                        cv_map, cv_poi, map_queue, poi_queue, gps_producer, voice_consumer, cond):
+        self.osm_thread = OSMThread(main_app, resume, osm_wrapper, calculator_thread, cv_map, cv_poi,
                                     map_queue, poi_queue, gps_producer, voice_consumer, cond)
         self.threads.append(self.osm_thread)
         logger.print_log_line(" Start osm thread")
@@ -2232,6 +2236,7 @@ class MainTApp(App):
         self.osm_thread.start()
 
     def init_gps_producer(self,
+                          main_app,
                           g,
                           cv,
                           cv_vector,
@@ -2253,7 +2258,8 @@ class MainTApp(App):
                           speed_cam_queue,
                           calculator,
                           cond):
-        self.gps_producer = GPSThread(g,
+        self.gps_producer = GPSThread(main_app,
+                                      g,
                                       cv,
                                       cv_vector,
                                       cv_voice,
@@ -2279,16 +2285,16 @@ class MainTApp(App):
         self.gps_producer.setDaemon(True)
         self.gps_producer.start()
 
-    def init_gps_consumer(self, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
-        self.gps_consumer = GPSConsumerThread(resume, cv, curspeed, bearing, gpsqueue, s,
+    def init_gps_consumer(self, main_app, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
+        self.gps_consumer = GPSConsumerThread(main_app, resume, cv, curspeed, bearing, gpsqueue, s,
                                               cl, cond)
         self.threads.append(self.gps_consumer)
         logger.print_log_line(" Start gps consumer thread")
         self.gps_consumer.setDaemon(True)
         self.gps_consumer.start()
 
-    def init_voice_consumer(self, resume, cv_voice, voice_prompt_queue, calculator, cond):
-        self.voice_consumer = VoicePromptThread(resume, cv_voice, voice_prompt_queue,
+    def init_voice_consumer(self, main_app, resume, cv_voice, voice_prompt_queue, calculator, cond):
+        self.voice_consumer = VoicePromptThread(main_app, resume, cv_voice, voice_prompt_queue,
                                                 calculator, cond)
         self.threads.append(self.voice_consumer)
         logger.print_log_line(" Start accustic voice thread")
@@ -2296,9 +2302,10 @@ class MainTApp(App):
         self.voice_consumer.start()
         return self.voice_consumer
 
-    def init_deviation_checker(self, resume, cv_average_angle, cv_interrupt, average_angle_queue,
+    def init_deviation_checker(self, main_app, resume, cv_average_angle, cv_interrupt, average_angle_queue,
                                interruptqueue, av_bearing_value, cond):
-        self.deviation_checker = DeviationCheckerThread(resume,
+        self.deviation_checker = DeviationCheckerThread(main_app,
+                                                        resume,
                                                         cv_average_angle,
                                                         cv_interrupt,
                                                         average_angle_queue,
@@ -2311,6 +2318,7 @@ class MainTApp(App):
         self.deviation_checker.start()
 
     def init_calculator(self,
+                        main_app,
                         cv_vector,
                         cv_voice,
                         cv_interrupt,
@@ -2336,7 +2344,8 @@ class MainTApp(App):
                         vdata,
                         osm_wrapper,
                         cond):
-        self.calculator = RectangleCalculatorThread(cv_vector,
+        self.calculator = RectangleCalculatorThread(main_app,
+                                                    cv_vector,
                                                     cv_voice,
                                                     cv_interrupt,
                                                     cv_speedcam,
@@ -2368,10 +2377,10 @@ class MainTApp(App):
 
         return self.calculator
 
-    def init_speed_cam_warner(self, cv_voice, cv_speedcam, gpssignalqueue, speedcamqueue,
+    def init_speed_cam_warner(self, main_app, cv_voice, cv_speedcam, gpssignalqueue, speedcamqueue,
                               cv_overspeed, overspeed_queue, osm_wrapper, calculator, ms, g,
                               cond):
-        self.speedwarner = SpeedCamWarnerThread(cv_voice, cv_speedcam, gpssignalqueue,
+        self.speedwarner = SpeedCamWarnerThread(main_app, cv_voice, cv_speedcam, gpssignalqueue,
                                                 speedcamqueue, cv_overspeed, overspeed_queue,
                                                 osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
@@ -2379,11 +2388,11 @@ class MainTApp(App):
         self.speedwarner.setDaemon(True)
         self.speedwarner.start()
 
-    def init_overspeed_checker(self, resume, cv_overspeed, overspeed_queue, cv_currentspeed,
-                               currentspeed_queue, s, cond):
-        self.overspeed_checker = OverspeedCheckerThread(resume, cv_overspeed, overspeed_queue,
-                                                        cv_currentspeed, currentspeed_queue, s,
-                                                        cond)
+    def init_overspeed_checker(self, main_app, resume, cv_overspeed, overspeed_queue,
+                               cv_currentspeed, currentspeed_queue, s, cond):
+        self.overspeed_checker = OverspeedCheckerThread(main_app, resume, cv_overspeed,
+                                                        overspeed_queue, cv_currentspeed,
+                                                        currentspeed_queue, s, cond)
         self.threads.append(self.overspeed_checker)
         logger.print_log_line(" Start overspeed checker thread")
         self.overspeed_checker.setDaemon(True)
@@ -2512,6 +2521,7 @@ class MainTApp(App):
             self.g.off_state()
             self.gps_producer = None
             self.calculator = None
+            self.run_in_back_ground = False
 
             # terminate poi reader timer
             if self.poireader is not None:
@@ -2594,7 +2604,8 @@ class MainTApp(App):
             self.maxspeed.font_size = 180
             Clock.schedule_once(self.maxspeed.texture_update)
 
-            calculator = self.init_calculator(self.cv_vector,
+            calculator = self.init_calculator(self,
+                                              self.cv_vector,
                                               self.cv_voice,
                                               self.cv_interrupt,
                                               self.cv_speedcam,
@@ -2620,14 +2631,16 @@ class MainTApp(App):
                                               self.osm_wrapper,
                                               self.q)
 
-            self.init_deviation_checker(self.resume,
+            self.init_deviation_checker(self,
+                                        self.resume,
                                         self.cv_average_angle,
                                         self.cv_interrupt,
                                         self.average_angle_queue,
                                         self.interruptqueue,
                                         self.s.av_bearing_value,
                                         self.q)
-            self.init_gps_producer(self.g,
+            self.init_gps_producer(self,
+                                   self.g,
                                    self.cv,
                                    self.cv_vector,
                                    self.cv_voice,
@@ -2648,7 +2661,8 @@ class MainTApp(App):
                                    self.speed_cam_queue,
                                    calculator,
                                    self.q)
-            self.init_gps_consumer(self.resume,
+            self.init_gps_consumer(self,
+                                   self.resume,
                                    self.cv,
                                    self.s.curspeed,
                                    self.s.bearing,
@@ -2656,9 +2670,10 @@ class MainTApp(App):
                                    self.s,
                                    self.cl,
                                    self.q)
-            voice_consumer = self.init_voice_consumer(self.resume, self.cv_voice,
+            voice_consumer = self.init_voice_consumer(self, self.resume, self.cv_voice,
                                                       self.voice_prompt_queue, calculator, self.q)
-            self.init_osm_thread(self.resume,
+            self.init_osm_thread(self,
+                                 self.resume,
                                  self.osm_wrapper,
                                  self.calculator,
                                  self.cv_map,
@@ -2668,7 +2683,8 @@ class MainTApp(App):
                                  self.gps_producer,
                                  voice_consumer,
                                  self.q)
-            self.init_speed_cam_warner(self.cv_voice,
+            self.init_speed_cam_warner(self,
+                                       self.cv_voice,
                                        self.cv_speedcam,
                                        self.voice_prompt_queue,
                                        self.speed_cam_queue,
@@ -2679,7 +2695,8 @@ class MainTApp(App):
                                        self.ms,
                                        self.g,
                                        self.q)
-            self.init_overspeed_checker(self.resume,
+            self.init_overspeed_checker(self,
+                                        self.resume,
                                         self.cv_overspeed,
                                         self.overspeed_queue,
                                         self.cv_currentspeed,
@@ -2919,18 +2936,25 @@ class MainTApp(App):
         self.voice_prompt_queue.clear_gpssignalqueue(cv)
 
     def on_pause(self):
+        self.run_in_back_ground = True
+        # Set the event to unblock the thread
+        logger.print_log_line("Unblocking Threads..")
+        self.main_event.set()
         # self.resume.set_resume_state(False)
         if self.calculator is not None:
             self.calculator.url_timeout = 5
         return True
 
     def on_resume(self):
+        self.run_in_back_ground = False
+        self.main_event.clear()
         # self.resume.set_resume_state(True)
         if self.calculator is not None:
             self.calculator.url_timeout = self.calculator.osm_timeout
         return True
 
     def on_start(self):
+        self.run_in_back_ground = False
         from kivy.base import EventLoop
         EventLoop.window.bind(on_keyboard=self.hook_keyboard)
 
