@@ -38,26 +38,26 @@ from OSMWrapper import Maps, OSMThread
 from Logger import Logger
 from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
-from plyer import gps
-from LocationManager import LocationManager, \
-    LocationReceiverBackground, GPSAndroidBackground, context
 from functools import partial
 from socket import gaierror
 from urllib3.exceptions import NewConnectionError
 import pystray
-from PIL import Image
+from PIL import Image as PilImage
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 BASE_PATH_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images")
 ICON = os.path.join(BASE_PATH_ICON, 'icon.png')
 
-icon_image = Image.open(ICON)
+icon_image = PilImage.open(ICON)
 icon = pystray.Icon("Masterwarner", icon_image, "Masterwarner")
 
 
 if platform == "android":
+    from plyer import gps
     from android.permissions import request_permissions, Permission
     import android.content.IntentFilter as IntentFilter
+    from LocationManager import LocationManager, \
+        LocationReceiverBackground, GPSAndroidBackground, context
 
     request_permissions([Permission.ACCESS_COARSE_LOCATION,
                          Permission.ACCESS_FINE_LOCATION,
@@ -2036,7 +2036,7 @@ class MainTApp(App):
         try:
             gps.configure(on_location=self.on_location,
                           on_status=self.on_status)
-        except NotImplementedError:
+        except (NotImplementedError, NameError) as error:
             import traceback
             traceback.print_exc()
             self.gps_status = None
@@ -3031,7 +3031,7 @@ class MainTApp(App):
         context.registerReceiver(self.location_receiver, intent_filter)
         # register the LocationReceiver instance with the LocationManager
         self.gps_android.start(1000, 0)
-        self.gps_android.bind(on_location=self.location_receiver)
+        self.gps_android.configure(on_location=self.location_receiver.onReceive)
 
     def stop_location_manager_bg(self):
         if self.location_receiver and self.gps_android:
@@ -3039,7 +3039,6 @@ class MainTApp(App):
             logger.print_log_line("Stop receiving location updates from the background..")
             self.gps_android.stop()
             context.unregisterReceiver(self.location_receiver)
-            self.gps_android.unbind(on_location=self.location_receiver)
 
 
 if __name__ == '__main__':

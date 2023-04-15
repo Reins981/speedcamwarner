@@ -1,5 +1,5 @@
 from jnius import autoclass, cast
-from plyer import GPS
+from plyer.facades.gps import GPS
 from android.runnable import run_on_ui_thread
 from Logger import Logger
 logger = Logger("LocationManager")
@@ -11,13 +11,15 @@ PendingIntent = autoclass('android.app.PendingIntent')
 Context = autoclass('android.content.Context')
 # Define the PythonActivity class
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
+BroadcastReceiver = autoclass('android.content.BroadcastReceiver')
 
 # Define the context object
 context = PythonActivity.mActivity.getApplicationContext()
 
 
 class GPSAndroidBackground(GPS):
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._location_manager = cast(LocationManager, context.getSystemService(Context.LOCATION_SERVICE))
         self._pending_intent = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiverBackground), PendingIntent.FLAG_UPDATE_CURRENT)
 
@@ -27,14 +29,20 @@ class GPSAndroidBackground(GPS):
     def _stop(self):
         self._location_manager.removeUpdates(self._pending_intent)
 
+    def _configure(self):
+        pass
 
-class LocationReceiverBackground:
+
+class LocationReceiverBackground(BroadcastReceiver):
     gps_data_queue = None
     cv_gps_data = None
 
+    def __init__(self):
+        super().__init__()
+
     @staticmethod
     @run_on_ui_thread
-    def onReceive(context, intent):
+    def onReceive(intent):
         logger.print_log_line("onReceive called")
         location = intent.getExtras().get(LocationManager.KEY_LOCATION_CHANGED)
         if location:
