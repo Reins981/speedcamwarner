@@ -2970,7 +2970,7 @@ class MainTApp(App):
         self.main_event.clear()
         self.stop_location_manager_bg()
         logger.print_log_line("Start receiving location updates from the foreground..")
-        gps.start()
+        gps.start(1000, 0)
         self.resume.set_resume_state(True)
         return True
 
