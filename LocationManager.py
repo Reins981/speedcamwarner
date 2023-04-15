@@ -19,7 +19,7 @@ context = PythonActivity.mActivity.getApplicationContext()
 class GPSAndroidBackground(GPS):
     def __init__(self):
         self._location_manager = cast(LocationManager, context.getSystemService(Context.LOCATION_SERVICE))
-        self._pending_intent = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiver), PendingIntent.FLAG_UPDATE_CURRENT)
+        self._pending_intent = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiverBackground), PendingIntent.FLAG_UPDATE_CURRENT)
 
     def _start(self, **kwargs):
         self._location_manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, self._pending_intent)

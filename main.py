@@ -39,7 +39,6 @@ from Logger import Logger
 from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
 from plyer import gps
-import android.content.IntentFilter as IntentFilter
 from LocationManager import LocationManager, \
     LocationReceiverBackground, GPSAndroidBackground, context
 from functools import partial
@@ -58,6 +57,7 @@ icon = pystray.Icon("Masterwarner", icon_image, "Masterwarner")
 
 if platform == "android":
     from android.permissions import request_permissions, Permission
+    import android.content.IntentFilter as IntentFilter
 
     request_permissions([Permission.ACCESS_COARSE_LOCATION,
                          Permission.ACCESS_FINE_LOCATION,
