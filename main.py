@@ -14,7 +14,6 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
-from plyer import notification
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
 from kivy.uix.modalview import ModalView
 from kivy.uix.gridlayout import GridLayout
