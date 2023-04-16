@@ -48,9 +48,8 @@ URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.h
 if platform == "android":
     from plyer import gps
     from android.permissions import request_permissions, Permission
-    import android.content.IntentFilter as IntentFilter
     from LocationManager import LocationManager, \
-        LocationReceiverBackground, GPSAndroidBackground, context
+        LocationReceiverBackground, GPSAndroidBackground, context, IntentFilter
 
     request_permissions([Permission.ACCESS_COARSE_LOCATION,
                          Permission.ACCESS_FINE_LOCATION,

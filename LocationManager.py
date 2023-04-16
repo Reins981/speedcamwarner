@@ -7,6 +7,7 @@ logger = Logger("LocationManager")
 LocationManager = autoclass('android.location.LocationManager')
 LocationListener = autoclass('android.location.LocationListener')
 Intent = autoclass('android.content.Intent')
+IntentFilter = autoclass('android.content.IntentFilter')
 PendingIntent = autoclass('android.app.PendingIntent')
 Context = autoclass('android.content.Context')
 # Define the PythonActivity class
