@@ -35,6 +35,7 @@ class GPSAndroidBackground(GPS):
 
 
 class LocationReceiverBackground(BroadcastReceiver):
+    __javaclass__ = 'android/content/BroadcastReceiver'
     gps_data_queue = None
     cv_gps_data = None
 
