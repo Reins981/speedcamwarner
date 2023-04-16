@@ -958,7 +958,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         while not self.cond.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
-                self.print_log_line("Thread Unblocked")
 
             next_action = self.process()
             if next_action == 'EXIT':

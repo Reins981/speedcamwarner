@@ -25,13 +25,12 @@ class GPSAndroidBackground(GPS):
         self._pending_intent = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiverBackground), PendingIntent.FLAG_UPDATE_CURRENT)
 
     def _start(self, **kwargs):
+        logger.print_log_line("Start requestLocationUpdates..")
         self._location_manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, self._pending_intent)
 
     def _stop(self):
         self._location_manager.removeUpdates(self._pending_intent)
 
-    def _configure(self):
-        pass
 
 
 class LocationReceiverBackground(BroadcastReceiver):

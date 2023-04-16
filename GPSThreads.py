@@ -45,7 +45,6 @@ class GPSConsumerThread(StoppableThread, Logger):
         while not self.cond.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
-                self.print_log_line("Thread Unblocked")
             if not self.resume.isResumed():
                 self.gpsqueue.clear_gpsqueue(self.cv)
             else:
@@ -247,7 +246,6 @@ class GPSThread(StoppableThread, Logger):
         while not self.cond.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
-                self.print_log_line("Thread Unblocked")
             status = self.process()
             if status == 'EXIT':
                 break

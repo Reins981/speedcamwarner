@@ -34,7 +34,6 @@ class DeviationCheckerThread(StoppableThread, Logger):
         while not self.cond.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
-                self.print_log_line("Thread Unblocked")
             self.process()
 
         self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)
