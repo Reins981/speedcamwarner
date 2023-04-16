@@ -12,7 +12,7 @@ from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
-from kivy.uix.image import Image
+from kivy.uix.image import Image as UIXImage
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
 from kivy.uix.modalview import ModalView
@@ -41,15 +41,8 @@ from kivy.utils import platform
 from functools import partial
 from socket import gaierror
 from urllib3.exceptions import NewConnectionError
-import pystray
-from PIL import Image as PilImage
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
-BASE_PATH_ICON = os.path.join(os.path.abspath(os.path.dirname(__file__)), "images")
-ICON = os.path.join(BASE_PATH_ICON, 'icon.png')
-
-icon_image = PilImage.open(ICON)
-icon = pystray.Icon("Masterwarner", icon_image, "Masterwarner")
 
 
 if platform == "android":
@@ -357,8 +350,8 @@ class MaxSpeedlayout(FloatLayout):
                               size_hint=(.12, 1))
         self.gui_update = Label(text='', bold=True, font_size=50, pos_hint={"top": 1},
                                 size_hint=(.12, 1.9))
-        self.imonlinestatus = Image(source='')
-        self.imtrafficcam = Image(source='', nocache=True, pos_hint={"top": 3}, size_hint=(0, 0))
+        self.imonlinestatus = UIXImage(source='')
+        self.imtrafficcam = UIXImage(source='', nocache=True, pos_hint={"top": 3}, size_hint=(0, 0))
 
         self.bar_100m = Label(text='-', bold=True, font_size=500, pos_hint={"top": 2},
                               size_hint=(1.9, 2), color=(.5, .5, .5, .5))
@@ -830,8 +823,8 @@ class Gpslayout(BoxLayout):
         super(Gpslayout, self).__init__(**kwargs)
         self.sm = args[0]
         self.main_app = args[1]
-        self.imgps = Image(source='images/gps.jpg', color=(1, .9, 0, 2))
-        self.camera = Image(source='images/freeflow.png', color=(1, .9, 0, 2))
+        self.imgps = UIXImage(source='images/gps.jpg', color=(1, .9, 0, 2))
+        self.camera = UIXImage(source='images/freeflow.png', color=(1, .9, 0, 2))
         self.plusbutton = Button(text='+', bold=True, font_size=600,
                                  background_color=(.5, .5, .5, .5))
         self.add_widget(self.imgps)
@@ -1917,7 +1910,7 @@ class MainView(FloatLayout):
         self.list_view_modal16 = ListViewModal(pos=(0, 1650), size_hint=(1, .10))
         self.poi_number = Label(text='0', pos=(0, 1653), size_hint=(1.8, .10),
                                 font_size=50, bold=True)
-        self.img_poi = Image(source='images/poi.png', pos=(0, 1650),
+        self.img_poi = UIXImage(source='images/poi.png', pos=(0, 1650),
                              size_hint=(.4, .10))
         self.returnbutton_main = Button(pos=(0, 0), size_hint=(1, .20), text='<<<', font_size=500,
                                         bold=True, background_color=(.5, .5, .5, .5))
@@ -2953,19 +2946,17 @@ class MainTApp(App):
         self.voice_prompt_queue.clear_gpssignalqueue(cv)
 
     def on_pause(self):
-        logger.print_log_line("Stop receiving location updates from the forground..")
+        logger.print_log_line("Stop receiving location updates from the foreground..")
         gps.stop()
         self.run_in_back_ground = True
         # Set the event to unblock the thread
         logger.print_log_line("Unblocking Threads..")
         self.main_event.set()
         self.start_location_manager_bg()
-        self.show_notification_bg()
         self.resume.set_resume_state(False)
         return True
 
     def on_resume(self):
-        self.close_notification_bg()
         self.run_in_back_ground = False
         self.main_event.clear()
         self.stop_location_manager_bg()
@@ -3010,14 +3001,6 @@ class MainTApp(App):
 
         self.s.service_unit.text = values[0].decode('utf-8')
         Clock.schedule_once(self.s.service_unit.texture_update)
-
-    @staticmethod
-    def show_notification_bg():
-        icon.run(setup=lambda: icon.set_visible(True))
-
-    @staticmethod
-    def close_notification_bg():
-        icon.run(setup=lambda: icon.set_visible(False))
 
     def start_location_manager_bg(self):
         # Start our location manager and register the LocationReceiver instance
