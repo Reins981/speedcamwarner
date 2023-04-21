@@ -2602,7 +2602,7 @@ class MainTApp(App):
             pass
         else:
             if platform == "android":
-                gps.start(1000, 0)
+                gps.start(1000, 1)
             # send a message to our service
             self.send_ping()
             self.q.set_terminate_state(False)
@@ -2960,7 +2960,7 @@ class MainTApp(App):
         self.main_event.clear()
         self.stop_location_manager_bg()
         logger.print_log_line("Start receiving location updates from the foreground..")
-        gps.start(1000, 0)
+        gps.start(1000, 1)
         self.resume.set_resume_state(True)
         return True
 
@@ -3012,7 +3012,7 @@ class MainTApp(App):
         intent_filter.addAction(LocationManager.KEY_LOCATION_CHANGED)
         context.registerReceiver(self.location_receiver, intent_filter)
         # register the LocationReceiver instance with the LocationManager
-        self.gps_android.start(1000, 0)
+        self.gps_android.start(1000, 1)
         self.gps_android.configure(on_location=self.location_receiver.onReceive)
 
     def stop_location_manager_bg(self):
