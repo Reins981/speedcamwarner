@@ -3012,8 +3012,8 @@ class MainTApp(App):
         intent_filter.addAction(LocationManager.KEY_LOCATION_CHANGED)
         context.registerReceiver(self.location_receiver, intent_filter)
         # register the LocationReceiver instance with the LocationManager
-        self.gps_android.start(1000, 1)
         self.gps_android.configure(on_location=self.location_receiver.onReceive)
+        self.gps_android.start(1000, 1)
 
     def stop_location_manager_bg(self):
         if self.location_receiver and self.gps_android:

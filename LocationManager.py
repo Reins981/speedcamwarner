@@ -1,6 +1,6 @@
-from jnius import autoclass, cast
-from plyer.facades.gps import GPS
+from jnius import autoclass, cast, java_method
 from android.runnable import run_on_ui_thread
+from plyer.platforms.android.gps import AndroidGPS
 from Logger import Logger
 logger = Logger("LocationManager")
 
@@ -18,19 +18,22 @@ BroadcastReceiver = autoclass('android.content.BroadcastReceiver')
 context = PythonActivity.mActivity.getApplicationContext()
 
 
-class GPSAndroidBackground(GPS):
+class GPSAndroidBackground(AndroidGPS):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._location_manager = cast(LocationManager, context.getSystemService(Context.LOCATION_SERVICE))
-        self._pending_intent = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiverBackground), PendingIntent.FLAG_UPDATE_CURRENT)
+        self._location_listener = PendingIntent.getBroadcast(context, 0, Intent(context, LocationReceiverBackground), PendingIntent.FLAG_UPDATE_CURRENT)
 
-    def _start(self, **kwargs):
+    def _start(self, minTime=1000, minDistance=1):
         logger.print_log_line("Start requestLocationUpdates..")
-        self._location_manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, self._pending_intent)
+        self._location_manager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                                                      minTime, minDistance, self._location_listener)
 
     def _stop(self):
-        self._location_manager.removeUpdates(self._pending_intent)
+        self._location_manager.removeUpdates(self._location_listener)
 
+    def _configure(self):
+        pass
 
 
 class LocationReceiverBackground(BroadcastReceiver):
@@ -41,9 +44,8 @@ class LocationReceiverBackground(BroadcastReceiver):
     def __init__(self):
         super().__init__()
 
-    @staticmethod
-    @run_on_ui_thread
-    def onReceive(intent):
+    @java_method('(Landroid/content/Intent;)V')
+    def onReceive(self, intent):
         logger.print_log_line("onReceive called")
         location = intent.getExtras().get(LocationManager.KEY_LOCATION_CHANGED)
         if location:
