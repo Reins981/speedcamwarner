@@ -44,8 +44,13 @@ def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
         }
     logger.print_log_line(f"Adding new camera: {new_camera}")
 
-    with open(FILENAME, 'r') as fp:
-        content = json.load(fp)
+    try:
+        with open(FILENAME, 'r') as fp:
+            content = json.load(fp)
+    except FileNotFoundError:
+        logger.print_log_line(f"add_camera_to_json() failed: {FILENAME} not found!",
+                              log_level="ERROR")
+        return
 
     content['cameras'].append(new_camera)
 

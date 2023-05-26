@@ -280,8 +280,13 @@ class POIReader(Logger):
 
     def process_pois_from_cloud(self):
         self.print_log_line(f"Processing POI's from cloud..")
-        with open(FILENAME, 'r') as fp:
-            user_pois = json.load(fp)
+        try:
+            with open(FILENAME, 'r') as fp:
+                user_pois = json.load(fp)
+        except FileNotFoundError:
+            self.print_log_line(f"Processing POI's from cloud failed: {FILENAME} not found!",
+                                log_level="ERROR")
+            return
 
         if 'cameras' not in user_pois:
             self.print_log_line(f"Processing POI's from cloud failed: "
