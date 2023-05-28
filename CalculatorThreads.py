@@ -1669,10 +1669,16 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.osm_wrapper.first_start = False
             return 0
 
-    @staticmethod
-    def upload_camera_to_drive(name, latitude, longitude):
-        add_camera_to_json(name, coordinates=(latitude, longitude))
-        return upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
+    def upload_camera_to_drive(self, name, latitude, longitude):
+        success = add_camera_to_json(name, coordinates=(latitude, longitude))
+        if success:
+            res = upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
+            if res == 'success':
+                self.voice_prompt_queue.produce_info(self.cv_voice, "ADDED_POLICE")
+            else:
+                self.voice_prompt_queue.produce_info(self.cv_voice, "ADDING_POLICE_FAILED")
+        else:
+            self.voice_prompt_queue.produce_info(self.cv_voice, "ADDING_POLICE_FAILED")
 
     def process_lookahead_items(self, previous_ccp=False):
         if previous_ccp:

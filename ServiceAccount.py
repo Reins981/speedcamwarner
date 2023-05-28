@@ -10,6 +10,7 @@ from httplib2 import HttpLib2Error, ServerNotFoundError
 from typing import Any, Tuple, Union
 from Logger import Logger
 from socket import gaierror
+from datetime import datetime, timedelta
 
 logger = Logger("ServiceAccount")
 
@@ -22,6 +23,10 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 # Define the file ID of the file you want to update
 FILE_ID = '1SetcX-p12V7apMD8v8CLWEfdA2SY2bU-'
 
+REQUEST_LIMIT = 1  # Adjust the request limit as per your requirements
+TIME_LIMIT = timedelta(seconds=2)  # Adjust the time limit as per your requirements
+user_requests = {}
+
 
 def build_drive_from_credentials():
     try:
@@ -31,7 +36,30 @@ def build_drive_from_credentials():
         return str(e)
 
 
+def check_rate_limit(user: str) -> bool:
+    # Check if the IP address has exceeded the request limit within the time limit
+    if user in user_requests:
+        timestamp, count = user_requests[user]
+        if datetime.now() - timestamp <= TIME_LIMIT:
+            if count > REQUEST_LIMIT:
+                return False
+            else:
+                user_requests[user] = (timestamp, count + 1)
+        else:
+            # Reset the request count if the time limit has expired
+            user_requests[user] = (datetime.now(), 1)
+    else:
+        # Add the IP address to the requests dictionary
+        user_requests[user] = (datetime.now(), 1)
+    return True
+
+
 def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
+    if not check_rate_limit('master_user'):
+        logger.print_log_line(f"Dismiss Camera upload: "
+                              f"Rate limit exceeded for user: 'master_user'", log_level="WARNING")
+        return False
+
     new_camera = \
         {
           "name": name,
@@ -50,12 +78,24 @@ def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
     except FileNotFoundError:
         logger.print_log_line(f"add_camera_to_json() failed: {FILENAME} not found!",
                               log_level="ERROR")
-        return
+        return False
 
+        # Check for duplicate coordinates
+    existing_cameras = content.get('cameras', [])
+    for camera in existing_cameras:
+        if camera['coordinates'][0]['latitude'] == coordinates[0] and \
+                camera['coordinates'][0]['longitude'] == coordinates[1]:
+            logger.print_log_line(f"Dismiss Camera upload: Duplicate coordinates detected: "
+                                  f"{coordinates}", log_level="WARNING")
+            return False
+
+    # Append the new camera to the JSON file
     content['cameras'].append(new_camera)
 
     with open(FILENAME, 'w') as fp:
         json.dump(content, fp, indent=4, sort_keys=False)
+
+    return True
 
 
 def upload_file_to_google_drive(f_id: str, folder_id: str, drive: Any, file_name: str = None) -> str:

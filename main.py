@@ -813,7 +813,6 @@ class Cameralayout(BoxLayout):
 
             calculator.start_thread_pool_upload_speed_camera_to_drive(
                 calculator.upload_camera_to_drive, 1, road_name, lat, lon)
-            self.voice_prompt_queue.produce_info(self.cv_voice, "ADDED_POLICE")
 
 
 class Gpslayout(BoxLayout):
