@@ -8,6 +8,7 @@ Created on 01.07.2014
 '''
 
 import os
+import time
 from Logger import Logger
 from ThreadBase import StoppableThread
 from kivy.core.audio import SoundLoader
@@ -54,9 +55,9 @@ class VoicePromptThread(StoppableThread, Logger):
         s.buffer = 16384
         if s:
             s.play()
-            while s.get_pos() != 0:
-                pass
+            time.sleep(s.length)
             s.on_stop = lambda: self.print_log_line('Playback finished')
+        self._lock = False
 
     def process(self):
         voice_entry = self.voice_prompt_queue.consume_items(self.cv_voice)
@@ -163,4 +164,3 @@ class VoicePromptThread(StoppableThread, Logger):
         if sound is not None:
             self._lock = True
             Clock.schedule_once(partial(self.play_sound, sound), 1)
-            self._lock = False
