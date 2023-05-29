@@ -67,8 +67,6 @@ class DeviationCheckerThread(StoppableThread, Logger):
             return
         elif current_bearing_queue == 'TERMINATE':
             return
-        else:
-            pass
 
         for entry in current_bearing_queue:
             self.av_bearing += entry
