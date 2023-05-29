@@ -45,7 +45,7 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                     break
 
         self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
-        self.print_log_line(" terminating")
+        self.print_log_line(" Terminating")
         self.stop()
 
     def process(self):

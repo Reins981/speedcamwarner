@@ -1011,7 +1011,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
         self.cleanup()
-        self.print_log_line(" terminating")
+        self.print_log_line(" Terminating")
         self.stop()
 
     def update_speed_cams(self, speed_cams):

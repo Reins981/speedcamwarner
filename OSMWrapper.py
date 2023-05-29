@@ -116,7 +116,7 @@ class OSMThread(StoppableThread, Logger):
                 self.poi_queue.clear(self.cv_poi)
             else:
                 self.process()
-        self.print_log_line(" terminated")
+        self.print_log_line(" Terminated")
         self.stop()
 
     def process(self):
