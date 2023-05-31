@@ -1084,7 +1084,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                 self.start_times_backup.pop(cam)
                             self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                         except Exception as e:
-                            pass
+                            self.print_log_line(f" Deleting obsolete camera: {str(cam)} failed! "
+                                                f"Error: {e}", log_level="ERROR")
                     else:
                         if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
                                 self.max_storage_time:
@@ -1106,7 +1107,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                         self.start_times_backup.pop(cam)
                                     self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                                 except Exception as e:
-                                    pass
+                                    self.print_log_line(
+                                        f" Deleting obsolete camera: {str(cam)} failed! "
+                                        f"Error: {e}", log_level="ERROR")
                             else:
                                 self.print_log_line(f"Camera {cam} is new. Ignore deletion")
 
