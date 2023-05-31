@@ -1,4 +1,22 @@
 {
     "cameras": [
+        {
+            "name": "Kievitslandenpad",
+            "coordinates": [
+                {
+                    "latitude": 52.3961,
+                    "longitude": 5.640563
+                }
+            ]
+        },
+        {
+            "name": "Spaarnelaan",
+            "coordinates": [
+                {
+                    "latitude": 51.626176,
+                    "longitude": 4.917522
+                }
+            ]
+        }
     ]
 }
