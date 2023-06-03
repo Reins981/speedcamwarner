@@ -1940,10 +1940,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     'maxspeed': maxspeed}
             )
 
-            self.update_kivi_info_page()
-
             if len(speed_cam_dict) > 0:
                 self.speed_cam_dict.append(speed_cam_dict)
+                self.update_kivi_info_page()
             self.update_speed_cams(self.speed_cam_dict)
             self.update_map_queue()
             self.cleanup_map_content()
