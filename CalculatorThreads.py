@@ -1943,9 +1943,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if len(speed_cam_dict) > 0:
                 self.speed_cam_dict.append(speed_cam_dict)
                 self.update_kivi_info_page()
-            self.update_speed_cams(self.speed_cam_dict)
-            self.update_map_queue()
-            self.cleanup_map_content()
+                self.update_speed_cams(self.speed_cam_dict)
+                self.update_map_queue()
+        self.cleanup_map_content()
 
     def speed_cam_lookup_ahead(self, xtile, ytile, ccp_lon, ccp_lat):
         """
