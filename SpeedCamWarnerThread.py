@@ -494,7 +494,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         for cam in cams_to_delete:
             self.ITEMQUEUE.pop(cam)
             self.start_times.pop(cam)
-            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
         del cams_to_delete[:]
 
     def remove_cached_camera(self, cam):
