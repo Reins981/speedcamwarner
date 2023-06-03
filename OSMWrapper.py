@@ -528,8 +528,8 @@ class Maps(Logger):
                     markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                        self.markers_cams))
                     if any(markers):
-                        self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
-                                            f"already added into map")
+                        '''self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
+                                            f"already added into map")'''
                         continue
                     self.print_log_line(f"Adding Marker for Speedcam {key}: "
                                         f"({marker.lat, marker.lon})")
@@ -580,8 +580,8 @@ class Maps(Logger):
                 markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                    self.markers_construction_areas))
                 if any(markers):
-                    self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
-                                        f"already added into map")
+                    '''self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
+                                        f"already added into map")'''
                     continue
                 self.print_log_line(f"Adding Marker for Construction Area {key}: "
                                     f"({marker.lat, marker.lon})")

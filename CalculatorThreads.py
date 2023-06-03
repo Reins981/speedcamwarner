@@ -1702,7 +1702,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         for rectangle, thread_pool_func, msg, trigger_func in zip(
                 (self.RECT_SPEED_CAM_LOOKAHAEAD, self.RECT_CONSTRUCTION_AREAS_LOOKAHAEAD),
                 (self.start_thread_pool_speed_camera, self.start_thread_pool_construction_areas),
-                ("Speed Camera", "Construction area"),
+                ("Speed Camera lookahead", "Construction area lookahead"),
                 (self.speed_cam_lookup_ahead, self.constructions_lookup_ahead)
         ):
             if rectangle and isinstance(rectangle, Rect):
@@ -1711,11 +1711,28 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     xtile, ytile, look_ahead=True)
 
                 if inside_rect and not close_to_border:
-                    self.print_log_line(f"{msg} not triggered -> CCP within rectangle "
-                                        "'CURRENT_CAM'")
+                    self.print_log_line(f"{msg} not triggered -> CCP within rectangle borders")
                     continue
 
-            thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+            # Avoid repetitive construction area lookups, that rarely occur
+            if msg == "Construction area lookahead":
+                last_execution_time = getattr(self,
+                                              f"last_{msg.lower().replace(' ', '_')}_execution_time",
+                                              0)
+                current_time = time.time()
+                elapsed_time = current_time - last_execution_time
+
+                if elapsed_time < 60:
+                    self.print_log_line(f"{msg} not triggered -> Minimum time interval "
+                                        f"not elapsed", log_level="WARNING")
+                    continue
+
+                thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+
+                # Update the last execution time
+                setattr(self, f"last_{msg.lower().replace(' ', '_')}_execution_time", current_time)
+            else:
+                thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
 
     def process_construction_areas_lookup_ahead_results(self, data,
                                                         lon_min, lat_min, lon_max, lat_max):
@@ -1807,13 +1824,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             ]
                         counter += 1
 
-            self.update_kivi_info_page(update_construction_areas=True)
             # Update construction areas one by one
             if len(construction_areas_dict) > 0:
                 self.construction_areas.append(construction_areas_dict)
-            self.update_construction_areas(self.construction_areas)
-            self.update_map_queue()
-            self.cleanup_map_content()
+                self.update_construction_areas(self.construction_areas)
+                self.update_map_queue()
+                self.update_kivi_info_page(update_construction_areas=True)
+        self.cleanup_map_content()
 
     def process_speed_cam_lookup_ahead_results(self, data, lookup_type, ccp_lon, ccp_lat):
         """

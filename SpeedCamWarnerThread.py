@@ -1013,6 +1013,21 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         angle = abs(math.atan2(y_diff, x_diff) * (180 / math.pi))
         return angle
 
+    def camera_inside_camera_rectangle(self, cam):
+        xtile, ytile = self.calculator.longlat2tile(cam[1],
+                                                    cam[0],
+                                                    self.calculator.zoom)
+
+        rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
+        if rectangle is not None:
+            return rectangle.point_in_rect(xtile, ytile)
+        return False
+
+    def calculate_camera_rectangle_radius(self):
+        rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
+        return self.calculator.calculate_rectangle_radius(rectangle.rect_height(),
+                                                          rectangle.rect_width())
+
     def delete_passed_cameras(self):
 
         item_dict = self.ITEMQUEUE.copy()
@@ -1021,97 +1036,78 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
-                if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
-                    distance = self.check_distance_between_two_points(cam,
-                                                                      (self.longitude,
-                                                                       self.latitude))
-                    if abs(distance) >= self.max_absolute_distance:
-                        try:
-                            self.print_log_line(" Deleting obsolete camera: %s "
-                                                "(max distance %d m < current distance %d m)"
-                                                % (str(cam), self.max_absolute_distance, abs(distance)))
-                            if index == 0:
-                                self.ITEMQUEUE.pop(cam)
-                                self.start_times.pop(cam)
-                                self.remove_cached_camera(cam)
-                                self.update_calculator_cams(cam_attributes)
-                            else:
-                                self.ITEMQUEUE_BACKUP.pop(cam)
-                                self.start_times_backup.pop(cam)
-                            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
-                        except Exception as e:
-                            pass
-                    else:
-                        if cam_attributes[6] > self.max_storage_time:
-                            if cam_attributes[11] is False:
-                                try:
-                                    self.print_log_line(" Deleting obsolete camera: %s "
-                                                        "because of storage time "
-                                                        "(max: %d seconds, current: %f seconds)"
-                                                        % (str(cam),
-                                                           self.max_storage_time,
-                                                           cam_attributes[6]))
-                                    if index == 0:
-                                        self.ITEMQUEUE.pop(cam)
-                                        self.start_times.pop(cam)
-                                        self.remove_cached_camera(cam)
-                                        self.update_calculator_cams(cam_attributes)
-                                    else:
-                                        self.ITEMQUEUE_BACKUP.pop(cam)
-                                        self.start_times_backup.pop(cam)
-                                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
-                                except Exception as e:
-                                    pass
-                            else:
-                                self.print_log_line(f"Camera {cam} is new. Ignore deletion")
+                # If the disable all feature is enabled in calculator.set_configs()
+                if self.calculator.disable_all and not self.camera_inside_camera_rectangle(cam):
+                    self.print_log_line(f" Deleting obsolete camera: {str(cam)} "
+                                        f"(camera is outside current camera rectangle with "
+                                        f"radius {self.calculate_camera_rectangle_radius()} km)")
+                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                 else:
-                    distance = self.check_distance_between_two_points(cam, cam_attributes[2]) \
-                               - self.check_distance_between_two_points((self.longitude,
-                                                                         self.latitude),
-                                                                        cam_attributes[2])
-                    if distance < 0 and abs(distance) >= self.max_absolute_distance:
-                        try:
+                    if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
+                        distance = self.check_distance_between_two_points(cam,
+                                                                          (self.longitude,
+                                                                           self.latitude))
+                        if abs(distance) >= self.max_absolute_distance:
                             self.print_log_line(" Deleting obsolete camera: %s "
                                                 "(max distance %d m < current distance %d m)"
-                                                % (str(cam), self.max_absolute_distance, abs(distance)))
-                            if index == 0:
-                                self.ITEMQUEUE.pop(cam)
-                                self.start_times.pop(cam)
-                                self.remove_cached_camera(cam)
-                                self.update_calculator_cams(cam_attributes)
-                            else:
-                                self.ITEMQUEUE_BACKUP.pop(cam)
-                                self.start_times_backup.pop(cam)
+                                                % (str(cam), self.max_absolute_distance,
+                                                   abs(distance)))
+                            self.delete_obsolete_camera(index, cam, cam_attributes)
                             self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
-                        except Exception as e:
-                            self.print_log_line(f" Deleting obsolete camera: {str(cam)} failed! "
-                                                f"Error: {e}", log_level="ERROR")
-                    else:
-                        if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
-                                self.max_storage_time:
-                            if cam_attributes[11] is False:
-                                try:
+                        else:
+                            if cam_attributes[6] > self.max_storage_time:
+                                if cam_attributes[11] is False:
                                     self.print_log_line(" Deleting obsolete camera: %s "
                                                         "because of storage time "
                                                         "(max: %d seconds, current: %f seconds)"
                                                         % (str(cam),
                                                            self.max_storage_time,
                                                            cam_attributes[6]))
-                                    if index == 0:
-                                        self.ITEMQUEUE.pop(cam)
-                                        self.start_times.pop(cam)
-                                        self.remove_cached_camera(cam)
-                                        self.update_calculator_cams(cam_attributes)
-                                    else:
-                                        self.ITEMQUEUE_BACKUP.pop(cam)
-                                        self.start_times_backup.pop(cam)
+                                    self.delete_obsolete_camera(index, cam, cam_attributes)
                                     self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
-                                except Exception as e:
-                                    self.print_log_line(
-                                        f" Deleting obsolete camera: {str(cam)} failed! "
-                                        f"Error: {e}", log_level="ERROR")
-                            else:
-                                self.print_log_line(f"Camera {cam} is new. Ignore deletion")
+                                else:
+                                    self.print_log_line(f"Camera {cam} is new. Ignore deletion")
+                    else:
+                        distance = self.check_distance_between_two_points(cam, cam_attributes[2]) \
+                                   - self.check_distance_between_two_points((self.longitude,
+                                                                             self.latitude),
+                                                                            cam_attributes[2])
+                        if distance < 0 and abs(distance) >= self.max_absolute_distance:
+                            self.print_log_line(" Deleting obsolete camera: %s "
+                                                "(max distance %d m < current distance %d m)"
+                                                % (str(cam), self.max_absolute_distance,
+                                                   abs(distance)))
+                            self.delete_obsolete_camera(index, cam, cam_attributes)
+                            self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
+                        else:
+                            if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
+                                    self.max_storage_time:
+                                if cam_attributes[11] is False:
+                                    self.print_log_line(" Deleting obsolete camera: %s "
+                                                        "because of storage time "
+                                                        "(max: %d seconds, current: %f seconds)"
+                                                        % (str(cam),
+                                                           self.max_storage_time,
+                                                           cam_attributes[6]))
+                                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
+                                else:
+                                    self.print_log_line(f"Camera {cam} is new. Ignore deletion")
+
+    def delete_obsolete_camera(self, index, cam, cam_attributes):
+        try:
+            if index == 0:
+                self.ITEMQUEUE.pop(cam)
+                self.start_times.pop(cam)
+                self.remove_cached_camera(cam)
+                self.update_calculator_cams(cam_attributes)
+            else:
+                self.ITEMQUEUE_BACKUP.pop(cam)
+                self.start_times_backup.pop(cam)
+        except Exception as e:
+            self.print_log_line(f" Deleting obsolete camera: {str(cam)} failed! "
+                                f"Error: {e}", log_level="ERROR")
 
     def update_calculator_cams(self, cam_attributes):
         if self.calculator is not None and isinstance(self.calculator, RectangleCalculatorThread):
