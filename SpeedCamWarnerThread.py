@@ -1037,12 +1037,15 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
                 # If the disable all feature is enabled in calculator.set_configs()
+                # and the camera is not a 'mobile' camera (different algorithm used for them)
                 if self.calculator.disable_all and not self.camera_inside_camera_rectangle(cam):
-                    self.print_log_line(f" Deleting obsolete camera: {str(cam)} "
-                                        f"(camera is outside current camera rectangle with "
-                                        f"radius {self.calculate_camera_rectangle_radius()} km)")
-                    self.delete_obsolete_camera(index, cam, cam_attributes)
-                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
+                    if cam_attributes[0] != "mobile":
+                        self.print_log_line(f" Deleting obsolete camera: {str(cam)} "
+                                            f"(camera is outside current camera rectangle with "
+                                            f"radius {self.calculate_camera_rectangle_radius()} "
+                                            f"km)")
+                        self.delete_obsolete_camera(index, cam, cam_attributes)
+                        self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                 else:
                     if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
                         distance = self.check_distance_between_two_points(cam,
