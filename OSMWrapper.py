@@ -97,6 +97,7 @@ class OSMThread(StoppableThread, Logger):
         self.resume = resume
         self.osm_wrapper = osm_wrapper
         self.calculator_thread = calculator_thread
+        self.osm_wrapper.set_calculator_thread(self.calculator_thread)
         self.cv_map = cv_map
         self.cv_poi = cv_poi
         self.map_queue = map_queue
@@ -183,6 +184,7 @@ class Maps(Logger):
         self.heading = None
         self.bearing = None
         self.accuracy = None
+        self.calculator = None
         self.href_osm = '"http://openstreetmap.org"'
         self.href_lic = '"http://creativecommons.org/licenses/by-sa/2.0/"'
         self.href_mapbox = '"http://mapbox.com"'
@@ -194,6 +196,9 @@ class Maps(Logger):
         self.app = Nominatim(user_agent="reverse_geocoder")
 
         self.set_configs()
+
+    def set_calculator_thread(self, calculator):
+        self.calculator = calculator
 
     def set_configs(self):
         # draw rectangles on map
@@ -528,8 +533,8 @@ class Maps(Logger):
                     markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                        self.markers_cams))
                     if any(markers):
-                        '''self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
-                                            f"already added into map")'''
+                        self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
+                                            f"already added into map")
                         continue
                     self.print_log_line(f"Adding Marker for Speedcam {key}: "
                                         f"({marker.lat, marker.lon})")
@@ -580,8 +585,8 @@ class Maps(Logger):
                 markers = list(map(lambda m: m.lon == marker.lon and m.lat == marker.lat,
                                    self.markers_construction_areas))
                 if any(markers):
-                    '''self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
-                                        f"already added into map")'''
+                    self.print_log_line(f"Ignore adding marker ({marker.lat, marker.lon}), "
+                                        f"already added into map")
                     continue
                 self.print_log_line(f"Adding Marker for Construction Area {key}: "
                                     f"({marker.lat, marker.lon})")
@@ -609,10 +614,25 @@ class Maps(Logger):
 
         markers = list(filter(lambda m: m.lon == lon and m.lat == lat, self.markers_cams))
         if markers:
-            marker_to_delete = markers[0]
-            self.map_layout.map_view.remove_marker(marker_to_delete)
-            if marker_to_delete in self.markers_cams:
-                self.markers_cams.remove(marker_to_delete)
+            for marker_to_delete in markers:
+                self.remove_camera_from_calculator_thread(marker_to_delete.lon,
+                                                          marker_to_delete.lat)
+                self.map_layout.map_view.remove_marker(marker_to_delete)
+                if marker_to_delete in self.markers_cams:
+                    self.markers_cams.remove(marker_to_delete)
+
+    def remove_camera_from_calculator_thread(self, longitude, latitude):
+        # Remove a fixed, traffic or distance camera
+        if self.calculator is not None:
+            for speed_cam_d in self.calculator.speed_cam_dict:
+                for key, entry in speed_cam_d.items():
+                    lat = entry[2]
+                    lon = entry[3]
+                    if lat == latitude and lon == longitude:
+                        self.print_log_line(
+                            f"Removing camera ({lat, lon}) from RectangleCalculatorThread"
+                        )
+                        self.calculator.speed_cam_dict.remove(speed_cam_d)
 
     def get_unique_constrcution_areas_list(self):
         construction_areas = []
