@@ -55,8 +55,14 @@ class VoicePromptThread(StoppableThread, Logger):
         s.buffer = 16384
         if s:
             s.play()
-            time.sleep(s.length)
-            s.on_stop = lambda: self.print_log_line('Playback finished')
+            Clock.schedule_once(lambda dt: self.on_sound_playback_finished(s), s.length)
+        else:
+            self._lock = False
+
+    def on_sound_playback_finished(self, sound):
+        self.print_log_line('Playback finished')
+        sound.stop()
+        sound.unload()
         self._lock = False
 
     def process(self):
