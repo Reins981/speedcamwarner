@@ -610,7 +610,7 @@ class Maps(Logger):
 
     def remove_marker_from_map(self, lon, lat):
         self.print_log_line(f"Removing Speed camera marker "
-                            f"{lon, lat} from Map")
+                            f"({lon, lat}) from Map")
 
         markers = list(filter(lambda m: m.lon == lon and m.lat == lat, self.markers_cams))
         if markers:
@@ -620,6 +620,13 @@ class Maps(Logger):
                 self.map_layout.map_view.remove_marker(marker_to_delete)
                 if marker_to_delete in self.markers_cams:
                     self.markers_cams.remove(marker_to_delete)
+
+    def remove_all_construction_markers(self):
+        for marker in self.markers_construction_areas:
+            self.print_log_line(f"Removing Construction area marker "
+                                f"({marker.lon, marker.lat}) from Map")
+            self.map_layout.map_view.remove_marker(marker)
+            self.markers_construction_areas.remove(marker)
 
     def remove_camera_from_calculator_thread(self, longitude, latitude):
         # Remove a fixed, traffic or distance camera

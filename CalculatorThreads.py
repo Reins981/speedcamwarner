@@ -571,7 +571,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # construction area lookahead distance in km
         # Use the radius with CAUTION! Do not provide a radius of more than 30 km due performance
         # reasons
-        self.construction_area_lookahead_distance = 4
+        self.construction_area_lookahead_distance = 30
         # Trigger construction area lookups after this counter has passed during the startup
         # phase. This ensures the overall performance during the startup phase.
         self.construction_area_startup_trigger_max = 10
