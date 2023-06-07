@@ -1731,6 +1731,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
             if elapsed_time < self.dos_attack_prevention_interval_downloads:
                 self.print_log_line(f"{msg} not triggered -> Minimum time interval "
+                                    f"{self.dos_attack_prevention_interval_downloads} sec"
                                     f"not elapsed", log_level="WARNING")
                 continue
 
@@ -1742,7 +1743,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.print_log_line(f"Construction area lookahead disabled during "
                                         f"startup phase. "
                                         f"Elapsed time {elapsed_time_since_startup} "
-                                        f"< {self.construction_area_startup_trigger_max} seconds")
+                                        f"< {self.construction_area_startup_trigger_max} sec")
             else:
                 thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
 
