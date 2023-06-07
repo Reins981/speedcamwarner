@@ -252,7 +252,7 @@ class POIReader(Logger):
         for camera_list in cameras:
             if len(camera_list) >= 100:
                 self.print_log_line(" Limit of speed camera list (100) reached! "
-                                    "Deleting all speed cameras")
+                                    "Deleting all speed cameras from source list")
                 del camera_list[:]
 
     def update_map_queue(self):

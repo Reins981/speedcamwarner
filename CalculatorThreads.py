@@ -4321,7 +4321,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         for content in map_content:
             if len(content) >= 100:
                 self.print_log_line(" Limit of map content reached 100 items! "
-                                    "Deleting all speed cameras and construction areas")
+                                    "Deleting all speed cameras and construction areas "
+                                    "from source lists")
                 del content[:]
 
     def remove_duplicate_cameras(self):
