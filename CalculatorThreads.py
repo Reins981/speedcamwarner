@@ -562,12 +562,19 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # motorways since rects are larger)
         self.osm_timeout = 20
         self.osm_timeout_motorway = 30
+        # DOS attack prevention interval in seconds for camera download operations
+        # When setting this parameter, please consider the distances for
+        # speed_cam_look_ahead_distance and construction_area_lookahead_distance
+        self.dos_attack_prevention_interval_downloads = 30
         # speed cam lookahead distance in km
         self.speed_cam_look_ahead_distance = 300
         # construction area lookahead distance in km
         # Use the radius with CAUTION! Do not provide a radius of more than 30 km due performance
         # reasons
         self.construction_area_lookahead_distance = 4
+        # Trigger construction area lookups after this counter has passed during the startup
+        # phase. This ensures the overall performance during the startup phase.
+        self.construction_area_startup_trigger_max = 10
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
@@ -955,6 +962,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     def run(self):
 
+        start_time = time.time()
         while not self.cond.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
@@ -975,7 +983,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
                 if self.disable_all:
-                    self.process_lookahead_items()
+                    self.process_lookahead_items(start_time)
                 if self.startup_calculation:
 
                     self.update_kivi_maxspeed_onlinecheck(
@@ -1680,7 +1688,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             self.voice_prompt_queue.produce_info(self.cv_voice, "ADDING_POLICE_FAILED")
 
-    def process_lookahead_items(self, previous_ccp=False):
+    def process_lookahead_items(self, application_start_time, previous_ccp=False):
         if previous_ccp:
             if self.longitude_cached > 0 and self.latitude_cached > 0:
                 ccp_lat = self.latitude_cached
@@ -1715,24 +1723,31 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     continue
 
             # Avoid repetitive construction area lookups, that rarely occur
+            last_execution_time = getattr(self,
+                                          f"last_{msg.lower().replace(' ', '_')}_execution_time",
+                                          0)
+            current_time = time.time()
+            elapsed_time = current_time - last_execution_time
+
+            if elapsed_time < self.dos_attack_prevention_interval_downloads:
+                self.print_log_line(f"{msg} not triggered -> Minimum time interval "
+                                    f"not elapsed", log_level="WARNING")
+                continue
+
             if msg == "Construction area lookahead":
-                last_execution_time = getattr(self,
-                                              f"last_{msg.lower().replace(' ', '_')}_execution_time",
-                                              0)
-                current_time = time.time()
-                elapsed_time = current_time - last_execution_time
-
-                if elapsed_time < 60:
-                    self.print_log_line(f"{msg} not triggered -> Minimum time interval "
-                                        f"not elapsed", log_level="WARNING")
-                    continue
-
-                thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
-
-                # Update the last execution time
-                setattr(self, f"last_{msg.lower().replace(' ', '_')}_execution_time", current_time)
+                elapsed_time_since_startup = current_time - application_start_time
+                if elapsed_time_since_startup >= self.construction_area_startup_trigger_max:
+                    thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+                else:
+                    self.print_log_line(f"Construction area lookahead disabled during "
+                                        f"startup phase. "
+                                        f"Elapsed time {elapsed_time_since_startup} "
+                                        f"< {self.construction_area_startup_trigger_max} seconds")
             else:
                 thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+
+            # Update the last execution time
+            setattr(self, f"last_{msg.lower().replace(' ', '_')}_execution_time", current_time)
 
     def process_construction_areas_lookup_ahead_results(self, data,
                                                         lon_min, lat_min, lon_max, lat_max):

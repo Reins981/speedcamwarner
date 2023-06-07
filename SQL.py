@@ -73,7 +73,6 @@ class POIReader(Logger):
         self.pois_converted_mobile = []
         self.result_pois_fix = []
         self.result_pois_mobile = []
-        self.user_pois = []
         self.speed_cam_dict = dict()
         self.speed_cam_list = list()
         self.speed_cam_dict_db = dict()
@@ -311,17 +310,8 @@ class POIReader(Logger):
 
             user_cam = UserCamera(cam_id, name, lon, lat)
 
-            # if the user camera already exists, do not propagate it
-            user_poi_list = list(map(lambda p: p.lon == user_cam.lon and p.lat == user_cam.lat,
-                                     self.user_pois))
-            if any(user_poi_list):
-                self.print_log_line(f"Ignore adding camera from cloud "
-                                    f"({user_cam.lon, user_cam.lat}), already added into map")
-                continue
-
             self.print_log_line(f"Adding and propagating camera from cloud"
                                 f"({user_cam.name, user_cam.lat, user_cam.lon})")
-            self.user_pois.append(user_cam)
             self.prepare_camera_for_osm_wrapper('MOBILE' + str(cam_id),
                                                 user_cam.lon, user_cam.lat, name)
             self.update_osm_wrapper()
