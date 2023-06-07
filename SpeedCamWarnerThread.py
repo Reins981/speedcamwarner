@@ -1045,8 +1045,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                             f"km)")
                         self.delete_obsolete_camera(index, cam, cam_attributes)
                         self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
-                        # Remove as well all construction areas
-                        self.osm_wrapper.remove_all_construction_markers()
                 else:
                     if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
                         distance = self.check_distance_between_two_points(cam,
