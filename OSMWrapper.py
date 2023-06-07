@@ -627,6 +627,21 @@ class Maps(Logger):
                                 f"({marker.lon, marker.lat}) from Map")
             self.map_layout.map_view.remove_marker(marker)
             self.markers_construction_areas.remove(marker)
+            self.remove_construction_area_from_calculator_thread(marker.lon, marker.lat)
+
+    def remove_construction_area_from_calculator_thread(self, longitude, latitude):
+        # Remove a construction area
+        if self.calculator is not None:
+            for construction_d in self.calculator.construction_areas:
+                for key, entry in construction_d.items():
+                    lat = entry[2]
+                    lon = entry[3]
+                    if lat == latitude and lon == longitude:
+                        self.print_log_line(
+                            f"Removing construction area ({lat, lon}) "
+                            f"from RectangleCalculatorThread"
+                        )
+                        self.calculator.construction_areas.remove(construction_d)
 
     def remove_camera_from_calculator_thread(self, longitude, latitude):
         # Remove a fixed, traffic or distance camera
