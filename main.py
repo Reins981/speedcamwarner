@@ -1965,13 +1965,24 @@ class MainView(FloatLayout):
             self.poi_number.text = str(result)
         Clock.schedule_once(self.poi_number.texture_update)
 
-    def update_construction_areas(self):
-        self.construction_areas_number += 1
-        try:
-            result = int(self.poi_number.text) + 1
-            self.poi_number.text = str(result)
-        except ValueError:
-            return
+    def update_construction_areas(self, mode="INCREASE"):
+        if mode == "INCREASE":
+            self.construction_areas_number += 1
+            try:
+                result = int(self.poi_number.text) + 1
+                self.poi_number.text = str(result)
+            except ValueError:
+                return
+        else:
+            if self.construction_areas_number > 0:
+                self.construction_areas_number -= 1
+            try:
+                if int(self.poi_number.text) > 0:
+                    result = int(self.poi_number.text) - 1
+                    self.poi_number.text = str(result)
+            except ValueError:
+                return
+
         Clock.schedule_once(self.poi_number.texture_update)
 
     def update_speed_cam_txt(self, l_range):

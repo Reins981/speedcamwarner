@@ -1845,7 +1845,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.construction_areas.append(construction_areas_dict)
                 self.update_construction_areas(self.construction_areas)
                 self.update_map_queue()
-                self.update_kivi_info_page(update_construction_areas=True)
+                self.update_kivi_info_page(update_construction_areas=True, mode="INCREASE")
         self.cleanup_map_content()
 
     def process_speed_cam_lookup_ahead_results(self, data, lookup_type, ccp_lon, ccp_lat):
@@ -4605,14 +4605,15 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def update_kivi_info_page(self,
                               poi_cams=None,
                               poi_cams_mobile=None,
-                              update_construction_areas=False):
+                              update_construction_areas=False,
+                              mode="INCREASE"):
         if poi_cams is not None and isinstance(poi_cams, int):
             self.fix_cams += poi_cams
         if poi_cams_mobile is not None:
             self.mobile_cams = poi_cams_mobile
 
         if update_construction_areas:
-            self.ml.update_construction_areas()
+            self.ml.update_construction_areas(mode)
         else:
             self.ml.update_speed_cams(self.fix_cams, self.mobile_cams,
                                       self.traffic_cams, self.distance_cams)

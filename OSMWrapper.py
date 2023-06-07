@@ -642,6 +642,8 @@ class Maps(Logger):
                             f"from RectangleCalculatorThread"
                         )
                         self.calculator.construction_areas.remove(construction_d)
+                        self.calculator.update_kivi_info_page(update_construction_areas=True,
+                                                              mode="DECREASE")
 
     def remove_camera_from_calculator_thread(self, longitude, latitude):
         # Remove a fixed, traffic or distance camera
