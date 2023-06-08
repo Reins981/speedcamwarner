@@ -17,6 +17,24 @@
                     "longitude": 4.917522
                 }
             ]
+        },
+        {
+            "name": "Hof ter Eekterweg",
+            "coordinates": [
+                {
+                    "latitude": 52.458789,
+                    "longitude": 5.8714
+                }
+            ]
+        },
+        {
+            "name": "Oostendorperstraatweg",
+            "coordinates": [
+                {
+                    "latitude": 52.455812,
+                    "longitude": 5.869025
+                }
+            ]
         }
     ]
 }

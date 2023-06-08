@@ -370,7 +370,12 @@ class Rect(object):
 
         return inside
 
-    def points_close_to_border(self, xtile, ytile, look_ahead=False):
+    def points_close_to_border(self, xtile, ytile,
+                               look_ahead=False, look_ahead_mode="Speed Camera lookahead"):
+
+        if look_ahead_mode == "Construction area lookahead":
+            return False
+
         x, y = xtile, ytile
         if look_ahead:
             max_val = self.max_close_to_border_value_look_ahead
@@ -569,12 +574,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # speed cam lookahead distance in km
         self.speed_cam_look_ahead_distance = 300
         # construction area lookahead distance in km
-        # Use the radius with CAUTION! Do not provide a radius of more than 30 km due performance
+        # Use the radius with CAUTION! Do not provide a huge radius due to performance
         # reasons
-        self.construction_area_lookahead_distance = 4
+        self.construction_area_lookahead_distance = 10
         # Trigger construction area lookups after this counter has passed during the startup
         # phase. This ensures the overall performance during the startup phase.
-        self.construction_area_startup_trigger_max = 10
+        self.construction_area_startup_trigger_max = 30
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
@@ -1716,7 +1721,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if rectangle and isinstance(rectangle, Rect):
                 inside_rect = rectangle.point_in_rect(xtile, ytile)
                 close_to_border = rectangle.points_close_to_border(
-                    xtile, ytile, look_ahead=True)
+                    xtile, ytile, look_ahead=True, look_ahead_mode=msg)
 
                 if inside_rect and not close_to_border:
                     self.print_log_line(f"{msg} not triggered -> CCP within rectangle borders")
@@ -1729,23 +1734,22 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             current_time = time.time()
             elapsed_time = current_time - last_execution_time
 
+            if msg == "Construction area lookahead":
+                elapsed_time_since_startup = current_time - application_start_time
+                if elapsed_time_since_startup <= self.construction_area_startup_trigger_max:
+                    self.print_log_line(f"Construction area lookahead disabled during "
+                                        f"startup phase. "
+                                        f"Elapsed time {elapsed_time_since_startup} "
+                                        f"< {self.construction_area_startup_trigger_max} sec")
+                    continue
+
             if elapsed_time < self.dos_attack_prevention_interval_downloads:
                 self.print_log_line(f"{msg} not triggered -> Minimum time interval "
                                     f"{self.dos_attack_prevention_interval_downloads} sec"
                                     f"not elapsed", log_level="WARNING")
                 continue
 
-            if msg == "Construction area lookahead":
-                elapsed_time_since_startup = current_time - application_start_time
-                if elapsed_time_since_startup >= self.construction_area_startup_trigger_max:
-                    thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
-                else:
-                    self.print_log_line(f"Construction area lookahead disabled during "
-                                        f"startup phase. "
-                                        f"Elapsed time {elapsed_time_since_startup} "
-                                        f"< {self.construction_area_startup_trigger_max} sec")
-            else:
-                thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
+            thread_pool_func(trigger_func, 1, xtile, ytile, ccp_lon, ccp_lat)
 
             # Update the last execution time
             setattr(self, f"last_{msg.lower().replace(' ', '_')}_execution_time", current_time)
