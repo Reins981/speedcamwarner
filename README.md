@@ -64,8 +64,9 @@ Just execute the below commands to install buildozer relevant libraries.
 Upload your sources and then run the build.
 
 ```
-!pip install buildozer
-!pip install cython==0.29.19
+!pip install --upgrade buildozer
+!pip install cython==0.29.33
+!sudo apt-get update
 !sudo apt-get install -y \
     python3-pip \
     build-essential \
