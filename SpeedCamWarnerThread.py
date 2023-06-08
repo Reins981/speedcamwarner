@@ -82,7 +82,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # and which have never been initialized once (last_distance = -1) will be deleted
         # The value increases by 600 units if the ccp is UNSTABLE assuming the driver makes a
         # UTURN and cameras behind are still relevant
-        self.max_storage_time = 14400
+        self.max_storage_time = 28800
         # Traversed cameras will be checked every X seconds
         self.traversed_cameras_interval = 3
         # Max dismiss counter for cameras with angle mismatch after which the cam road name text
