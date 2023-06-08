@@ -11,6 +11,7 @@ from __future__ import division
 import time, calendar
 from Logger import Logger
 import math
+import copy
 import json
 import unicodedata
 from random import randint
@@ -576,10 +577,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # construction area lookahead distance in km
         # Use the radius with CAUTION! Do not provide a huge radius due to performance
         # reasons
-        self.construction_area_lookahead_distance = 10
+        self.construction_area_lookahead_distance = 5
         # Trigger construction area lookups after this counter has passed during the startup
         # phase. This ensures the overall performance during the startup phase.
-        self.construction_area_startup_trigger_max = 30
+        self.construction_area_startup_trigger_max = 60
         # initial rect distance in km after app startup
         self.initial_rect_distance = 0.5
         # increasing the rect boundaries if this defined speed limit is exceeded
@@ -1847,10 +1848,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             # Update construction areas one by one
             if len(construction_areas_dict) > 0:
                 self.construction_areas.append(construction_areas_dict)
-                self.update_construction_areas(self.construction_areas)
+                construction_area__l = copy.deepcopy(self.construction_areas)
+                self.update_construction_areas(construction_area__l)
                 self.update_map_queue()
                 self.update_kivi_info_page(update_construction_areas=True, mode="INCREASE")
-        self.cleanup_map_content()
+                self.cleanup_map_content("construction_area")
 
     def process_speed_cam_lookup_ahead_results(self, data, lookup_type, ccp_lon, ccp_lat):
         """
@@ -1963,9 +1965,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             if len(speed_cam_dict) > 0:
                 self.speed_cam_dict.append(speed_cam_dict)
                 self.update_kivi_info_page()
-                self.update_speed_cams(self.speed_cam_dict)
+                speed_l = copy.deepcopy(self.speed_cam_dict)
+                self.update_speed_cams(speed_l)
                 self.update_map_queue()
-        self.cleanup_map_content()
+                self.cleanup_map_content()
 
     def speed_cam_lookup_ahead(self, xtile, ytile, ccp_lon, ccp_lat):
         """
@@ -4319,15 +4322,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.cleanup_map_content()
         self.print_log_line(' Speed Cam lookup FINISHED')
 
-    def cleanup_map_content(self):
-        # Do a cleanup if the map structures increase this limit
-        map_content = [self.speed_cam_dict, self.construction_areas]
+    def cleanup_map_content(self, m_type="cameras"):
+        map_content = self.speed_cam_dict if m_type == "cameras" else self.construction_areas
         for content in map_content:
-            if len(content) >= 100:
-                self.print_log_line(" Limit of map content reached 100 items! "
-                                    "Deleting all speed cameras and construction areas "
-                                    "from source lists")
-                del content[:]
+            content.clear()
 
     def remove_duplicate_cameras(self):
         # Remove duplicate cameras for Map Renderer per speed cam dict
