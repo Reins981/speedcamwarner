@@ -1022,9 +1022,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                     cam[0],
                                                     self.calculator.zoom)
         if self.calculator.RECT_SPEED_CAM_LOOKAHAEAD is None:
-            self.print_log_line(f"Looks like parameter <cameras_look_ahead_mode> is set to False, "
-                                f"Skipping check <camera_inside_camera_rectangle>",
-                                log_level="WARNING")
             return True
 
         rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
@@ -1034,10 +1031,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def calculate_camera_rectangle_radius(self):
         if self.calculator.RECT_SPEED_CAM_LOOKAHAEAD is None:
-            self.print_log_line(f"Looks like parameter <cameras_look_ahead_mode> is set to False, "
-                                f"Skipping check <calculate_camera_rectangle_radius>",
-                                log_level="WARNING")
-            return None
+            return 0
 
         rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
         return self.calculator.calculate_rectangle_radius(rectangle.rect_height(),
