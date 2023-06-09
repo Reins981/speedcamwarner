@@ -2246,7 +2246,7 @@ class MainTApp(App):
                                     map_queue, poi_queue, gps_producer, voice_consumer, cond)
         self.threads.append(self.osm_thread)
         logger.print_log_line(" Start osm thread")
-        self.osm_thread.setDaemon(True)
+        self.osm_thread.daemon = True
         self.osm_thread.start()
 
     def init_gps_producer(self,
@@ -2296,7 +2296,7 @@ class MainTApp(App):
                                       cond)
         self.threads.append(self.gps_producer)
         logger.print_log_line(" Start gps producer thread")
-        self.gps_producer.setDaemon(True)
+        self.gps_producer.daemon = True
         self.gps_producer.start()
 
     def init_gps_consumer(self, main_app, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
@@ -2304,7 +2304,7 @@ class MainTApp(App):
                                               cl, cond)
         self.threads.append(self.gps_consumer)
         logger.print_log_line(" Start gps consumer thread")
-        self.gps_consumer.setDaemon(True)
+        self.gps_consumer.daemon = True
         self.gps_consumer.start()
 
     def init_voice_consumer(self, main_app, resume, cv_voice, voice_prompt_queue, calculator, cond):
@@ -2312,7 +2312,7 @@ class MainTApp(App):
                                                 calculator, cond)
         self.threads.append(self.voice_consumer)
         logger.print_log_line(" Start accustic voice thread")
-        self.voice_consumer.setDaemon(True)
+        self.voice_consumer.daemon = True
         self.voice_consumer.start()
         return self.voice_consumer
 
@@ -2400,7 +2400,7 @@ class MainTApp(App):
                                                 osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
         logger.print_log_line(" Start speed warner thread")
-        self.speedwarner.setDaemon(True)
+        self.speedwarner.daemon = True
         self.speedwarner.start()
 
     def init_overspeed_checker(self, main_app, resume, cv_overspeed, overspeed_queue,
@@ -2410,7 +2410,7 @@ class MainTApp(App):
                                                         currentspeed_queue, s, cond)
         self.threads.append(self.overspeed_checker)
         logger.print_log_line(" Start overspeed checker thread")
-        self.overspeed_checker.setDaemon(True)
+        self.overspeed_checker.daemon = True
         self.overspeed_checker.start()
 
     def callback_info(self, instance):
