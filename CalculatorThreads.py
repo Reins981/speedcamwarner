@@ -602,13 +602,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # Concept:
         # If enabled, the cameras and construction areas are fetched and processed from OSM
         # using a bounding rectangle but not added to a linked list and binary search tree.
-        #------------------------------------------------------------------------------------------
-        # If disabled, OSM data in general is fetched from OSM based on bounding rectangles and
-        # cameras and other items are stored in and fetched from a binary search tree
-        # for every CCP update.
-        self.disable_all = True
+        # -----------------------------------------------------------------------------------------
+        # There are 2 operation modes:
+        # * If this parameter is enabled, cameras and construction areas are fetched using
+        #       one single lookahead rectangle.
+        # * If the paramter disabled, OSM data in general is fetched from OSM based on
+        #       multiple bounding rectangle around the car position.
+        #       As well the fetched data is stored in a binary search tree
+        self.cameras_look_ahead_mode = True
         # Use the Nominatim library as alternative method to retrieve a road name
-        # Note: This will use more bandwidth
+        # Notes:
+        #   * This will use more bandwidth
+        #   * Nominatim is the standard road name lookup method if cameras_look_ahead_mode == True
         # Per default the road name is retrieved via the REST API interface to OpenStreetMap
         self.alternative_road_lookup = True
         self.geolocator = Nominatim(user_agent="mozilla")
@@ -979,7 +984,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 return
             elif next_action == 'OFFLINE':
                 self.process_offline()
-                if not self.disable_all:
+                if not self.cameras_look_ahead_mode:
                     # convert previous CCP longitude,latitude to (x,y).
                     if (isinstance(self.linkedListGenerator,
                                    DoubleLinkedListNodes) and
@@ -988,7 +993,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             previous_ccp=True)
             elif next_action == 'CALCULATE':
                 # Speed Cam lookahead
-                if self.disable_all:
+                if self.cameras_look_ahead_mode:
                     self.process_lookahead_items(start_time)
                 if self.startup_calculation:
 
@@ -1001,9 +1006,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.startup_calculation = False
                 else:
                     r_value = self.processInterrupts()
-                    if r_value == 'disable_all':
-                        self.start_thread_pool_process_disable_all(
-                            self.process_disable_all_rectangle_operations, 1)
+                    if r_value == 'look_ahead':
+                        self.start_thread_pool_process_look_ahead_interrupts(
+                            self.process_look_ahead_interrupts, 1)
                     if r_value == 'TERMINATE':
                         break
             elif next_action == 'INIT':
@@ -1618,29 +1623,28 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.update_kivi_maxspeed("<-<-<", color=(1, 0, 0, 3))
         self.update_kivi_roadname("", False)
 
-    def process_disable_all_rectangle_operations(self):
-        if self.alternative_road_lookup:
-            RectangleCalculatorThread.thread_lock = True
-            road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
-            if road_name is not None:
-                if road_name.startswith("ERROR:"):
-                    if self.cam_in_progress is False:
-                        self.update_maxspeed_status("ERROR",
-                                                    internal_error=road_name[
-                                                                   road_name.find(":") + 2:])
-                else:
-                    self.process_road_name(found_road_name=True,
-                                           road_name=road_name,
-                                           found_combined_tags=False,
-                                           road_class='unclassified',
-                                           poi=False,
-                                           facility=False)
-            if self.cam_in_progress is False and self.internet_available():
-                self.update_kivi_maxspeed(">->->")
-                self.last_max_speed = ">->->"
+    def process_look_ahead_interrupts(self):
+        RectangleCalculatorThread.thread_lock = True
+        road_name = self.get_road_name_via_nominatim(self.latitude, self.longitude)
+        if road_name is not None:
+            if road_name.startswith("ERROR:"):
+                if self.cam_in_progress is False:
+                    self.update_maxspeed_status("ERROR",
+                                                internal_error=road_name[
+                                                               road_name.find(":") + 2:])
             else:
-                self.last_max_speed = "KEEP"
-            RectangleCalculatorThread.thread_lock = False
+                self.process_road_name(found_road_name=True,
+                                       road_name=road_name,
+                                       found_combined_tags=False,
+                                       road_class='unclassified',
+                                       poi=False,
+                                       facility=False)
+        if self.cam_in_progress is False and self.internet_available():
+            self.update_kivi_maxspeed(">->->")
+            self.last_max_speed = ">->->"
+        else:
+            self.last_max_speed = "KEEP"
+        RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
         self.isCcpStable = self.interruptqueue.consume(self.cv_interrupt)
@@ -1650,8 +1654,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(' Calculator thread interrupt termination')
             return 'TERMINATE'
 
-        if self.disable_all:
-            return 'disable_all'
+        if self.cameras_look_ahead_mode:
+            return 'look_ahead'
 
         if self.border_reached or self.isCcpStable == 'STABLE':
             self.trigger_calculation('CONTINUE')
@@ -2202,7 +2206,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         pool.add_task(func, name, latitude, longitude)
 
     @staticmethod
-    def start_thread_pool_process_disable_all(func, worker_threads=1):
+    def start_thread_pool_process_look_ahead_interrupts(func, worker_threads=1):
         while RectangleCalculatorThread.thread_lock:
             pass
         pool = ThreadPool(num_threads=worker_threads, action='DISABLE')
@@ -2227,7 +2231,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def trigger_calculation(self, *args):
         reason = args[0]
 
-        if self.disable_all:
+        if self.cameras_look_ahead_mode:
             return
 
         # convert CCP longitude,latitude to (x,y).

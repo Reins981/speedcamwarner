@@ -73,6 +73,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         # This parameter is only evaluated
         # when self.enable_inside_relevant_angle_feature is set to True
         self.emergency_angle_distance = 150
+        # If this parameter is set to true, it has a higher priority than the settings
+        # max_absolute_distance and max_storage_time. This means if cameras are outside the
+        # current lookahead rectangle, they will be deleted and cameras remaining inside the
+        # lookahead rectangle will be checked against storage time and absolute distance.
+        self.delete_cameras_outside_lookahead_rectangle = True
         # Max absolute distance between the car and the camera.
         # If the calculated absolute distance of traversed cameras is reached,
         # those cameras will be deleted
@@ -1016,6 +1021,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         xtile, ytile = self.calculator.longlat2tile(cam[1],
                                                     cam[0],
                                                     self.calculator.zoom)
+        if self.calculator.RECT_SPEED_CAM_LOOKAHAEAD is None:
+            self.print_log_line(f"Looks like parameter <cameras_look_ahead_mode> is set to False, "
+                                f"Skipping check <camera_inside_camera_rectangle>",
+                                log_level="WARNING")
+            return True
 
         rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
         if rectangle is not None:
@@ -1023,6 +1033,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         return False
 
     def calculate_camera_rectangle_radius(self):
+        if self.calculator.RECT_SPEED_CAM_LOOKAHAEAD is None:
+            self.print_log_line(f"Looks like parameter <cameras_look_ahead_mode> is set to False, "
+                                f"Skipping check <calculate_camera_rectangle_radius>",
+                                log_level="WARNING")
+            return None
+
         rectangle = self.calculator.RECT_SPEED_CAM_LOOKAHAEAD
         return self.calculator.calculate_rectangle_radius(rectangle.rect_height(),
                                                           rectangle.rect_width())
@@ -1035,16 +1051,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
-                # If the disable all feature is enabled in calculator.set_configs()
-                # and the camera is not a 'mobile' camera (different algorithm used for them)
-                if self.calculator.disable_all and not self.camera_inside_camera_rectangle(cam):
-                    if cam_attributes[0] != "mobile":
-                        self.print_log_line(f" Deleting obsolete camera: {str(cam)} "
-                                            f"(camera is outside current camera rectangle with "
-                                            f"radius {self.calculate_camera_rectangle_radius()} "
-                                            f"km)")
-                        self.delete_obsolete_camera(index, cam, cam_attributes)
-                        self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
+                if self.delete_cameras_outside_lookahead_rectangle \
+                        and not self.camera_inside_camera_rectangle(cam):
+                    self.print_log_line(f" Deleting obsolete camera: {str(cam)} "
+                                        f"(camera is outside current camera rectangle with "
+                                        f"radius {self.calculate_camera_rectangle_radius()} "
+                                        f"km)")
+                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                    self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                 else:
                     if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
                         distance = self.check_distance_between_two_points(cam,
