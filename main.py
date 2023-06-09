@@ -2328,7 +2328,7 @@ class MainTApp(App):
                                                         cond)
         self.threads.append(self.deviation_checker)
         logger.print_log_line(" Start deviation thread")
-        self.deviation_checker.setDaemon(True)
+        self.deviation_checker.daemon = True
         self.deviation_checker.start()
 
     def init_calculator(self,
@@ -2386,7 +2386,7 @@ class MainTApp(App):
                                                     cond)
         self.threads.append(self.calculator)
         logger.print_log_line(" Start calculator thread")
-        self.calculator.setDaemon(True)
+        self.calculator.daemon = True
         self.calculator.start()
 
         return self.calculator
