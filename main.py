@@ -742,9 +742,8 @@ class Poilayout(GridLayout):
                 self.logger.print_log_line("POI lookup finished without results!")
                 self.ml.update_pois(0)
                 self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
-
                 if status != "OK":
-                    self.ms.update_online_image_layout("INETFAILED")
+                    self.main_app.update_online_image_layout("INETFAILED")
         else:
             self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
 
