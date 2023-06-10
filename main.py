@@ -702,7 +702,7 @@ class Poilayout(GridLayout):
                 self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_SUCCESS")
                 self.ml.update_pois(len(data))
                 self.main_app.poi_queue.produce(self.main_app.cv_poi, data)
-                self.main_app.update_online_image_layout("UNDEFINED")
+                self.main_app.ms.update_online_image_layout("UNDEFINED")
 
                 if self.main_app.osm_init is None:
                     self.main_app.init_osm(self.main_app.gps_producer,
@@ -743,7 +743,7 @@ class Poilayout(GridLayout):
                 self.ml.update_pois(0)
                 self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
                 if status != "OK":
-                    self.main_app.update_online_image_layout("INETFAILED")
+                    self.main_app.ms.update_online_image_layout("INETFAILED")
         else:
             self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")
 
