@@ -606,9 +606,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # There are 2 operation modes:
         # * If this parameter is enabled, cameras and construction areas are fetched using
         #       one single lookahead rectangle.
-        # * If the paramter disabled, OSM data in general is fetched from OSM based on
-        #       multiple bounding rectangle around the car position.
-        #       As well the fetched data is stored in a binary search tree
+        # * If this parameter is disabled, OSM data in general is fetched from OSM based on
+        #       multiple bounding rectangles around the car position.
+        #       As well the fetched data is stored in binary search trees
         self.cameras_look_ahead_mode = True
         # Use the Nominatim library as alternative method to retrieve a road name
         # Notes:
