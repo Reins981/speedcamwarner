@@ -3874,8 +3874,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 'mobile_cam': (mobile_cam, float(data[3]), float(data[2]), data[4]),
                 'ccp_node': (float(data[1]), float(data[0])),
                 'list_tree': (data[5], data[6]),
-                'stable_ccp': self.isCcpStable,
-                'bearing': None})
+                'stable_ccp': self.isCcpStable})
 
     def process_speed_cameras_on_the_way(self, way=None,
                                          treeGenerator=None,
