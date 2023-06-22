@@ -944,7 +944,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 try:
                     self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': int(max_speed)})
                 except:
-                    pass
+                    self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
 
     # beeline distance between 2 points (lon,lat) in meters.
     def check_beeline_distance(self, pt1, pt2):

@@ -609,7 +609,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # * If this parameter is disabled, OSM data in general is fetched from OSM based on
         #       multiple bounding rectangles around the car position.
         #       As well the fetched data is stored in binary search trees
-        self.cameras_look_ahead_mode = True
+        self.cameras_look_ahead_mode = False
         # Use the Nominatim library as alternative method to retrieve a road name
         # Notes:
         #   * This will use more bandwidth
