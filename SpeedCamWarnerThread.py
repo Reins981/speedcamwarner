@@ -57,6 +57,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.dismiss_counter = 0
         # Pointer to current cam coordinates
         self.current_cam_pointer = None
+        self.camera_deletion_lock = False
 
         self.set_configs()
 
@@ -365,10 +366,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     # Add the camera to the backup cameras and delete it for this processing cycle
                     if cam_attributes[1] == "to_be_stored":
                         cams_to_delete.append(cam)
-                        success = self.backup_camera(cam, distance)
-                        if not success:
-                            self.print_log_line("Try the backup a second time before giving up..")
-                            _ = self.backup_camera(cam. cam, distance)
+                        self.backup_camera(cam, distance)
 
                     if cam_attributes[1] is False:
                         entry = (cam, distance)
@@ -492,25 +490,27 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def backup_camera(self, cam, distance):
         self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km")
+        while self.camera_deletion_lock:
+            pass
         try:
             self.ITEMQUEUE_BACKUP[cam] = deepcopy(self.ITEMQUEUE[cam])
             self.ITEMQUEUE_BACKUP[cam][1] = False
             self.ITEMQUEUE_BACKUP[cam][8] = distance
             self.start_times_backup[cam] = time.time() - deepcopy(self.ITEMQUEUE[cam][6])
-            return True
         except Exception as error:
             self.print_log_line(f"Backup of camera {str(cam)} "
                                 f"with last distance {distance} km failed!")
-            return False
 
     def delete_cameras(self, cams_to_delete):
         if len(cams_to_delete) > 0:
             self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
         # delete cams
+        self.camera_deletion_lock = True
         for cam in cams_to_delete:
             self.ITEMQUEUE.pop(cam)
             self.start_times.pop(cam)
         del cams_to_delete[:]
+        self.camera_deletion_lock = False
 
     def remove_cached_camera(self, cam):
         try:
@@ -1079,9 +1079,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def delete_passed_cameras(self):
 
+        self.camera_deletion_lock = True
         item_dict = self.ITEMQUEUE.copy()
         item_dict_backup = self.ITEMQUEUE_BACKUP.copy()
         camera_items = [item_dict, item_dict_backup]
+        self.camera_deletion_lock = False
 
         for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
@@ -1146,6 +1148,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                     self.print_log_line(f"Camera {cam} is new. Ignore deletion")
 
     def delete_obsolete_camera(self, index, cam, cam_attributes):
+        self.camera_deletion_lock = True
         try:
             if index == 0:
                 self.ITEMQUEUE.pop(cam)
@@ -1158,6 +1161,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         except Exception as e:
             self.print_log_line(f" Deleting obsolete camera: {str(cam)} failed! "
                                 f"Error: {e}", log_level="ERROR")
+        self.camera_deletion_lock = False
 
     def update_calculator_cams(self, cam_attributes):
         if self.calculator is not None and isinstance(self.calculator, RectangleCalculatorThread):
