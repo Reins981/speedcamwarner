@@ -2494,7 +2494,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     num_threads + 1,
                     server_responses,
                     wait_till_completed=True)
-                self.update_speed_cams(self.speed_cam_dict)
 
             # make an intersection between all rects
             self.intersect_rectangle()
@@ -2909,7 +2908,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                               extrapolated,
                                               wait_till_completed=True)
 
-        self.update_speed_cams(self.speed_cam_dict)
         return True
 
     def check_all_rectangles(self, previous_ccp=False):
@@ -3541,9 +3539,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 '''self.process_speed_cameras_on_the_way(way,
                                                       treeGenerator,
                                                       linkedListGenerator)'''
-        # Update speed cameras on the way
-        self.update_speed_cams(self.speed_cam_dict)
-
         return True
 
     def get_road_name_via_nominatim(self, latitude, longitude):
@@ -4322,6 +4317,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.remove_duplicate_cameras()
 
         # update specific cams per rect (sum of all rects)
+        speed_l = copy.deepcopy(self.speed_cam_dict)
+        self.update_speed_cams(speed_l)
+        self.update_map_queue()
         self.update_kivi_info_page()
         self.cleanup_map_content()
         self.print_log_line(' Speed Cam lookup FINISHED')
