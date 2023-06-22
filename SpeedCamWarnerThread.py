@@ -491,7 +491,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def backup_camera(self, cam, distance):
         self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km")
         while self.camera_deletion_lock:
-            pass
+            self.print_log_line("Waiting for camera deletion lock()..")
         try:
             self.ITEMQUEUE_BACKUP[cam] = deepcopy(self.ITEMQUEUE[cam])
             self.ITEMQUEUE_BACKUP[cam][1] = False
