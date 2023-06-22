@@ -168,7 +168,7 @@ class DoubleLinkedListNodes(Logger):
         while current_node is not None:
             # keep GUI alive
             gui_obj.update_gui()
-            '''if self.hasHighwayAttribute(current_node):
+            if self.hasHighwayAttribute(current_node):
                 if self.hasSpeedCam(current_node):
                     enforcement = True
                     fixedcam_size += 1
@@ -177,7 +177,7 @@ class DoubleLinkedListNodes(Logger):
                                            current_node.longitude_start,
                                            current_node.latitude_end,
                                            current_node.longitude_end,
-                                           enforcement]'''
+                                           enforcement]
             if self.hasEnforcementAttribute2(current_node) and \
                     self.hasTrafficCamEnforcement(current_node):
                 enforcement = True

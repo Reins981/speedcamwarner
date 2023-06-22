@@ -582,7 +582,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # phase. This ensures the overall performance during the startup phase.
         self.construction_area_startup_trigger_max = 60
         # initial rect distance in km after app startup
-        self.initial_rect_distance = 0.5
+        self.initial_rect_distance = 3
         # increasing the rect boundaries if this defined speed limit is exceeded
         self.speed_influence_on_rect_boundary = 110
         # angle paramter used for current rect in degrees
@@ -621,12 +621,12 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # but might lead to less speed cameras found)
         # If we are on a motorway only one extrapolated rect larger in size will be used
         # regardless of parameter self.use_only_one_extrapolated_rect
-        self.use_only_one_extrapolated_rect = True
+        self.use_only_one_extrapolated_rect = False
         # Calculate a small rectangle in opposite driving direction as fallback
         # instead of a larger extrapolated rect
         # The feature applies for the next calculation cycle in case condition of CCP was
         # outside all rectangle borders
-        self.consider_backup_rects = False
+        self.consider_backup_rects = True
         # dismiss POIS if set to True. If set to False
         # POIs will be displayed as following:
         #   -> MaxSpeed: POI
@@ -1936,35 +1936,35 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                    description if description else "---"]
             counter += 1
             self.speed_cam_queue.produce(self.cv_speedcam,
-                {
-                    'ccp': (ccp_lon, ccp_lat),
-                    'fix_cam': (
-                        True if prefix == 'FIX_' else False,
-                        float(lon),
-                        float(lat),
-                        True),
-                    'traffic_cam': (
-                        True if prefix == 'TRAFFIC_' else False,
-                        float(lon),
-                        float(lat),
-                        True),
-                    'distance_cam': (
-                        True if prefix == 'DISTANCE_' else False,
-                        float(lon),
-                        float(lat),
-                        True),
-                    'mobile_cam': (False,
-                                   float(lon),
-                                   float(lat),
-                                   True),
-                    'ccp_node': ('IGNORE',
-                                 'IGNORE'),
-                    'list_tree': (None,
-                                  None),
-                    'name': name,
-                    'direction': direction,
-                    'maxspeed': maxspeed}
-            )
+                                         {
+                                             'ccp': (ccp_lon, ccp_lat),
+                                             'fix_cam': (
+                                                 True if prefix == 'FIX_' else False,
+                                                 float(lon),
+                                                 float(lat),
+                                                 True),
+                                             'traffic_cam': (
+                                                 True if prefix == 'TRAFFIC_' else False,
+                                                 float(lon),
+                                                 float(lat),
+                                                 True),
+                                             'distance_cam': (
+                                                 True if prefix == 'DISTANCE_' else False,
+                                                 float(lon),
+                                                 float(lat),
+                                                 True),
+                                             'mobile_cam': (False,
+                                                            float(lon),
+                                                            float(lat),
+                                                            True),
+                                             'ccp_node': ('IGNORE',
+                                                          'IGNORE'),
+                                             'list_tree': (None,
+                                                           None),
+                                             'name': name,
+                                             'direction': direction,
+                                             'maxspeed': maxspeed}
+                                         )
 
             if len(speed_cam_dict) > 0:
                 self.speed_cam_dict.append(speed_cam_dict)
@@ -2120,9 +2120,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         if status == 'OK' and len(data) > 0:
             self.osm_error_reported = False
             self.print_log_line("Construction are lookup finished!! Found %d construction areas "
-                                "ahead (%d km)" % (len(data), self.construction_area_lookahead_distance))
+                                "ahead (%d km)" % (
+                                len(data), self.construction_area_lookahead_distance))
             self.process_construction_areas_lookup_ahead_results(data,
-                                                                 LON_MIN, LAT_MIN, LON_MAX, LAT_MAX)
+                                                                 LON_MIN, LAT_MIN, LON_MAX,
+                                                                 LAT_MAX)
 
     @staticmethod
     def start_thread_pool_lookup(func,
@@ -3872,7 +3874,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 'mobile_cam': (mobile_cam, float(data[3]), float(data[2]), data[4]),
                 'ccp_node': (float(data[1]), float(data[0])),
                 'list_tree': (data[5], data[6]),
-                'stable_ccp': self.isCcpStable})
+                'stable_ccp': self.isCcpStable,
+                'bearing': None})
 
     def process_speed_cameras_on_the_way(self, way=None,
                                          treeGenerator=None,
@@ -4005,43 +4008,43 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                             linkedListGenerator,
                                             treeGenerator]
                     self.speed_cam_queue.produce(self.cv_speedcam,
-                         {'ccp': (self.longitude,
-                                  self.latitude),
-                          'fix_cam': (fix_cam,
-                                      float(
-                                          longitude_start_next_node),
-                                      float(
-                                          latitude_start_next_node),
-                                      enforcement),
-                          'traffic_cam': (traffic_cam,
-                                          float(
-                                              longitude_start_next_node),
-                                          float(
-                                              latitude_start_next_node),
-                                          enforcement),
-                          'distance_cam': (
-                              distance_measure_cam,
-                              float(
-                                  longitude_start_next_node),
-                              float(
-                                  latitude_start_next_node),
-                              enforcement),
-                          'mobile_cam': (
-                              mobile_cam,
-                              float(
-                                  longitude_start_next_node),
-                              float(
-                                  latitude_start_next_node),
-                              enforcement),
-                          'ccp_node': (float(
-                              longitude_start_current_node),
-                                       float(
-                                           latitude_start_current_node)),
-                          'list_tree': (
-                              linkedListGenerator,
-                              treeGenerator),
-                          'stable_ccp': self.isCcpStable}
-                    )
+                                                 {'ccp': (self.longitude,
+                                                          self.latitude),
+                                                  'fix_cam': (fix_cam,
+                                                              float(
+                                                                  longitude_start_next_node),
+                                                              float(
+                                                                  latitude_start_next_node),
+                                                              enforcement),
+                                                  'traffic_cam': (traffic_cam,
+                                                                  float(
+                                                                      longitude_start_next_node),
+                                                                  float(
+                                                                      latitude_start_next_node),
+                                                                  enforcement),
+                                                  'distance_cam': (
+                                                      distance_measure_cam,
+                                                      float(
+                                                          longitude_start_next_node),
+                                                      float(
+                                                          latitude_start_next_node),
+                                                      enforcement),
+                                                  'mobile_cam': (
+                                                      mobile_cam,
+                                                      float(
+                                                          longitude_start_next_node),
+                                                      float(
+                                                          latitude_start_next_node),
+                                                      enforcement),
+                                                  'ccp_node': (float(
+                                                      longitude_start_current_node),
+                                                               float(
+                                                                   latitude_start_current_node)),
+                                                  'list_tree': (
+                                                      linkedListGenerator,
+                                                      treeGenerator),
+                                                  'stable_ccp': self.isCcpStable}
+                                                 )
         else:
             if linkedListGenerator.hasHighwayAttribute(
                     node) and linkedListGenerator.hasSpeedCam(node):
@@ -4139,43 +4142,43 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                         linkedListGenerator,
                                         treeGenerator]
                 self.speed_cam_queue.produce(self.cv_speedcam,
-                     {'ccp': (self.longitude,
-                              self.latitude),
-                      'fix_cam': (fix_cam,
-                                  float(
-                                      longitude_start_next_node),
-                                  float(
-                                      latitude_start_next_node),
-                                  enforcement),
-                      'traffic_cam': (traffic_cam,
-                                      float(
-                                          longitude_start_next_node),
-                                      float(
-                                          latitude_start_next_node),
-                                      enforcement),
-                      'distance_cam': (
-                          distance_measure_cam,
-                          float(
-                              longitude_start_next_node),
-                          float(
-                              latitude_start_next_node),
-                          enforcement),
-                      'mobile_cam': (
-                          mobile_cam,
-                          float(
-                              longitude_start_next_node),
-                          float(
-                              latitude_start_next_node),
-                          enforcement),
-                      'ccp_node': (float(
-                          longitude_start_current_node),
-                                   float(
-                                       latitude_start_current_node)),
-                      'list_tree': (
-                          linkedListGenerator,
-                          treeGenerator),
-                      'stable_ccp': self.isCcpStable}
-                )
+                                             {'ccp': (self.longitude,
+                                                      self.latitude),
+                                              'fix_cam': (fix_cam,
+                                                          float(
+                                                              longitude_start_next_node),
+                                                          float(
+                                                              latitude_start_next_node),
+                                                          enforcement),
+                                              'traffic_cam': (traffic_cam,
+                                                              float(
+                                                                  longitude_start_next_node),
+                                                              float(
+                                                                  latitude_start_next_node),
+                                                              enforcement),
+                                              'distance_cam': (
+                                                  distance_measure_cam,
+                                                  float(
+                                                      longitude_start_next_node),
+                                                  float(
+                                                      latitude_start_next_node),
+                                                  enforcement),
+                                              'mobile_cam': (
+                                                  mobile_cam,
+                                                  float(
+                                                      longitude_start_next_node),
+                                                  float(
+                                                      latitude_start_next_node),
+                                                  enforcement),
+                                              'ccp_node': (float(
+                                                  longitude_start_current_node),
+                                                           float(
+                                                               latitude_start_current_node)),
+                                              'list_tree': (
+                                                  linkedListGenerator,
+                                                  treeGenerator),
+                                              'stable_ccp': self.isCcpStable}
+                                             )
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
 
@@ -4310,18 +4313,17 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         # get ALL the speed cams found
         self.process_all_speed_cameras(speed_cam_dict)
+        # Cleanup old cameras first
+        self.speed_cam_dict.clear()
         # prepare osm cam updates
         if len(speed_cam_dict) > 0:
             self.speed_cam_dict.append(speed_cam_dict)
 
         self.remove_duplicate_cameras()
-
         # update specific cams per rect (sum of all rects)
-        speed_l = copy.deepcopy(self.speed_cam_dict)
-        self.update_speed_cams(speed_l)
+        self.update_speed_cams(self.speed_cam_dict)
         self.update_map_queue()
         self.update_kivi_info_page()
-        self.cleanup_map_content()
         self.print_log_line(' Speed Cam lookup FINISHED')
 
     def cleanup_map_content(self, m_type="cameras"):
@@ -4455,7 +4457,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
                 lon_max) + ');'
             osm_url = self.baseurl + querystring + bbox + \
-                self.querystring_construction_areas2 + bbox + querystring2
+                      self.querystring_construction_areas2 + bbox + querystring2
         elif lookup_type == "hazard":
             bbox = '(' + str(
                 lat_min) + ',' + str(lon_min) + ',' + str(lat_max) + ',' + str(
