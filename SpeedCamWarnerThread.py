@@ -49,7 +49,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.ITEMQUEUE = {}
         self.ITEMQUEUE_BACKUP = {}
         self.start_times = {}
-        self.start_times_backup = {}
         self.INSERTED_SPEEDCAMS = []
         self.longitude = float(0.0)
         self.latitude = float(0.0)
@@ -329,9 +328,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                                        self.latitude))
             # calculate new start time
             # Make sure the camera still exists in the original item queue
-            if cam in self.start_times_backup and cam in self.ITEMQUEUE_BACKUP:
+            if cam in self.ITEMQUEUE_BACKUP:
                 # Treat the camera as a completely new camera
-                start_time = time.time() - self.start_times_backup[cam]
+                start_time = time.time()
                 self.ITEMQUEUE_BACKUP[cam][6] = start_time
 
                 last_distance = cam_attributes[8]
@@ -350,7 +349,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.start_times[cam] = start_time
                     # delete backup camera and startup time
                     self.ITEMQUEUE_BACKUP.pop(cam)
-                    self.start_times_backup.pop(cam)
                     self.voice_prompt_queue.produce_camera_status(self.cv_voice,
                                                                   'SPEEDCAM_REINSERT')
 
@@ -378,7 +376,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     else:
                         start_time = time.time() - self.start_times[cam]
                         self.ITEMQUEUE[cam][6] = start_time
-                    self.ITEMQUEUE[cam][11] = False
+                        self.ITEMQUEUE[cam][11] = False
 
                     # Add the camera to the backup cameras and delete it for this processing cycle
                     if cam_attributes[1] == "to_be_stored":
@@ -513,7 +511,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE_BACKUP[cam][8] = distance
             self.ITEMQUEUE_BACKUP[cam][12] = 'was_standard'
             start_time = time.time() - cp_cam_queue[cam][6]
-            self.start_times_backup[cam] = start_time
             self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km "
                                 f"and start time {start_time} seconds")
         except Exception:
@@ -1180,7 +1177,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.update_calculator_cams(cam_attributes)
             if cam in self.ITEMQUEUE_BACKUP:
                 self.ITEMQUEUE_BACKUP.pop(cam)
-                self.start_times_backup.pop(cam)
         except Exception as e:
             self.print_log_line(f" Deleting obsolete camera: {str(cam)} failed! "
                                 f"Error: {e}", log_level="ERROR")
