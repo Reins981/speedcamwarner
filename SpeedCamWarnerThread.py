@@ -917,6 +917,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def update_cam_text(self, distance=0, reset=False):
         self.ms.update_cam_text(distance, reset)
 
+    def has_current_cam_road(self):
+        return self.ms.has_current_cam_road()
+
     def update_cam_road(self, road=None, reset=False, color=None):
         if self.resume.isResumed():
             self.ms.update_cam_road(road, reset, color=color)

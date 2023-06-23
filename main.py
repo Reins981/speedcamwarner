@@ -464,6 +464,9 @@ class MaxSpeedlayout(FloatLayout):
             self.camtext.color = (1, 0, 0, 3)
             Clock.schedule_once(self.camtext.texture_update)
 
+    def has_current_cam_road(self):
+        return self.camroad.text != "" and "->" not in self.camroad.text
+
     def update_cam_road(self, road="", reset=False, m_type="CAMERA", color=None):
         if reset:
             if self.camroad.text != "":
