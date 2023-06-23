@@ -158,6 +158,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 new = True
+                previous_life = 'was_none'
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -172,7 +173,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        new]
+                                                        new,
+                                                        previous_life]
                 self.INSERTED_SPEEDCAMS.append((item['fix_cam'][1], item['fix_cam'][2]))
 
         if item['traffic_cam'][0]:
@@ -203,6 +205,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 new = True
+                previous_life = 'was_none'
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -217,7 +220,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        new]
+                                                        new,
+                                                        previous_life]
                 self.INSERTED_SPEEDCAMS.append((item['traffic_cam'][1], item['traffic_cam'][2]))
 
         if item['distance_cam'][0]:
@@ -248,6 +252,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 new = True
+                previous_life = 'was_none'
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -262,7 +267,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        new]
+                                                        new,
+                                                        previous_life]
                 self.INSERTED_SPEEDCAMS.append((item['distance_cam'][1], item['distance_cam'][2]))
 
         if item['mobile_cam'][0]:
@@ -293,6 +299,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 roadname = item.get('name', None)
                 max_speed = item.get('maxspeed', None)
                 new = True
+                previous_life = 'was_none'
                 cam_direction = self.convert_cam_direction(item.get('direction', None))
                 self.start_times[self.cam_coordinates] = start_time
 
@@ -307,7 +314,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         last_calc_distance,
                                                         cam_direction,
                                                         max_speed,
-                                                        new]
+                                                        new,
+                                                        previous_life]
                 self.INSERTED_SPEEDCAMS.append((item['mobile_cam'][1], item['mobile_cam'][2]))
 
         # cameras to be deleted
@@ -322,6 +330,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             # calculate new start time
             # Make sure the camera still exists in the original item queue
             if cam in self.start_times_backup and cam in self.ITEMQUEUE_BACKUP:
+                # Treat the camera as a completely new camera
                 start_time = time.time() - self.start_times_backup[cam]
                 self.ITEMQUEUE_BACKUP[cam][6] = start_time
 
@@ -329,12 +338,15 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 if current_distance < last_distance:
                     self.print_log_line(f"Reinserting {cam_attributes[0]} camera {str(cam)} "
                                         f"with new distance "
-                                        f"{current_distance} meters")
+                                        f"{current_distance} meters and "
+                                        f"start time {start_time} seconds")
                     self.ITEMQUEUE[cam] = cam_attributes
                     self.ITEMQUEUE[cam][1] = False
+                    self.ITEMQUEUE[cam][5] = -1
                     self.ITEMQUEUE[cam][6] = start_time
                     self.ITEMQUEUE[cam][8] = current_distance
-                    self.ITEMQUEUE[cam][5] = -1
+                    self.ITEMQUEUE[cam][11] = True
+                    self.ITEMQUEUE[cam][12] = 'was_backup'
                     self.start_times[cam] = start_time
                     # delete backup camera and startup time
                     self.ITEMQUEUE_BACKUP.pop(cam)
@@ -361,8 +373,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             else:
                 # Make sure the camera still exists in the original item queue
                 if cam in self.start_times and cam in self.ITEMQUEUE:
-                    start_time = time.time() - self.start_times[cam]
-                    self.ITEMQUEUE[cam][6] = start_time
+                    if self.ITEMQUEUE[cam][12] == 'was_backup':
+                        self.ITEMQUEUE[cam][12] = 'was_standard'
+                    else:
+                        start_time = time.time() - self.start_times[cam]
+                        self.ITEMQUEUE[cam][6] = start_time
                     self.ITEMQUEUE[cam][11] = False
 
                     # Add the camera to the backup cameras and delete it for this processing cycle
@@ -491,12 +506,16 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         return True
 
     def backup_camera(self, cam, distance):
-        self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km")
         try:
-            self.ITEMQUEUE_BACKUP[cam] = deepcopy(self.ITEMQUEUE[cam])
+            cp_cam_queue = deepcopy(self.ITEMQUEUE)
+            self.ITEMQUEUE_BACKUP[cam] = cp_cam_queue[cam]
             self.ITEMQUEUE_BACKUP[cam][1] = False
             self.ITEMQUEUE_BACKUP[cam][8] = distance
-            self.start_times_backup[cam] = time.time() - deepcopy(self.ITEMQUEUE[cam][6])
+            self.ITEMQUEUE_BACKUP[cam][12] = 'was_standard'
+            start_time = time.time() - cp_cam_queue[cam][6]
+            self.start_times_backup[cam] = start_time
+            self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km "
+                                f"and start time {start_time} seconds")
         except Exception:
             self.print_log_line(f"Backup of camera {str(cam)} "
                                 f"with last distance {distance} km failed!", log_level="ERROR")
@@ -1089,8 +1108,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
     def delete_passed_cameras(self):
 
         item_dict = self.ITEMQUEUE.copy()
-        item_dict_backup = self.ITEMQUEUE_BACKUP.copy()
-        camera_items = [item_dict, item_dict_backup]
+        camera_items = [item_dict]
 
         for index, cameras in enumerate(camera_items):
             for cam, cam_attributes in cameras.items():
@@ -1100,7 +1118,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                         f"(camera is outside current camera rectangle with "
                                         f"radius {self.calculate_camera_rectangle_radius()} "
                                         f"km)")
-                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                    self.delete_obsolete_camera(cam, cam_attributes)
                     self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                 else:
                     if cam_attributes[2][0] == 'IGNORE' or cam_attributes[2][1] == 'IGNORE':
@@ -1112,7 +1130,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                 "(max distance %d m < current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance,
                                                    abs(distance)))
-                            self.delete_obsolete_camera(index, cam, cam_attributes)
+                            self.delete_obsolete_camera(cam, cam_attributes)
                             self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                         else:
                             if cam_attributes[6] > self.max_storage_time:
@@ -1123,7 +1141,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         % (str(cam),
                                                            self.max_storage_time,
                                                            cam_attributes[6]))
-                                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                                    self.delete_obsolete_camera(cam, cam_attributes)
                                     self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                                 else:
                                     self.print_log_line(f"Camera {cam} is new. Ignore deletion")
@@ -1137,7 +1155,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                 "(max distance %d m < current distance %d m)"
                                                 % (str(cam), self.max_absolute_distance,
                                                    abs(distance)))
-                            self.delete_obsolete_camera(index, cam, cam_attributes)
+                            self.delete_obsolete_camera(cam, cam_attributes)
                             self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                         else:
                             if distance < 0 and cam_attributes[5] == -1 and cam_attributes[6] > \
@@ -1149,19 +1167,18 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                                                         % (str(cam),
                                                            self.max_storage_time,
                                                            cam_attributes[6]))
-                                    self.delete_obsolete_camera(index, cam, cam_attributes)
+                                    self.delete_obsolete_camera(cam, cam_attributes)
                                     self.osm_wrapper.remove_marker_from_map(cam[0], cam[1])
                                 else:
                                     self.print_log_line(f"Camera {cam} is new. Ignore deletion")
 
-    def delete_obsolete_camera(self, index, cam, cam_attributes):
+    def delete_obsolete_camera(self, cam, cam_attributes):
         try:
-            if index == 0:
-                self.ITEMQUEUE.pop(cam)
-                self.start_times.pop(cam)
-                self.remove_cached_camera(cam)
-                self.update_calculator_cams(cam_attributes)
-            else:
+            self.ITEMQUEUE.pop(cam)
+            self.start_times.pop(cam)
+            self.remove_cached_camera(cam)
+            self.update_calculator_cams(cam_attributes)
+            if cam in self.ITEMQUEUE_BACKUP:
                 self.ITEMQUEUE_BACKUP.pop(cam)
                 self.start_times_backup.pop(cam)
         except Exception as e:
