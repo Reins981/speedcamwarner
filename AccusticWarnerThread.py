@@ -103,9 +103,7 @@ class VoicePromptThread(StoppableThread, Logger):
         elif voice_entry == "GPS_ON":
             sound = os.path.join(BASE_PATH, 'gps_established.wav')
         elif voice_entry == "SPEEDCAM_REMOVED":
-            # sound = os.path.join(BASE_PATH, 'speed_cam_removed.wav')
-            sound = None
-            self.print_log_line(f"Ignore sound for: SPEEDCAM_REMOVED")
+            sound = os.path.join(BASE_PATH, 'speed_cam_removed.wav')
         elif voice_entry == "FIX_100":
             sound = os.path.join(BASE_PATH, 'fix_100.wav')
         elif voice_entry == "TRAFFIC_100":

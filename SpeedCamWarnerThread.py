@@ -497,18 +497,26 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.ITEMQUEUE_BACKUP[cam][1] = False
             self.ITEMQUEUE_BACKUP[cam][8] = distance
             self.start_times_backup[cam] = time.time() - deepcopy(self.ITEMQUEUE[cam][6])
-        except Exception as error:
+        except Exception:
             self.print_log_line(f"Backup of camera {str(cam)} "
-                                f"with last distance {distance} km failed!")
+                                f"with last distance {distance} km failed!", log_level="ERROR")
 
     def delete_cameras(self, cams_to_delete):
-        if len(cams_to_delete) > 0:
-            self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
         # delete cams
         self.camera_deletion_lock = True
+        error = False
         for cam in cams_to_delete:
-            self.ITEMQUEUE.pop(cam)
-            self.start_times.pop(cam)
+            try:
+                self.ITEMQUEUE.pop(cam)
+                self.start_times.pop(cam)
+            except KeyError:
+                error = True
+                self.print_log_line(f"Failed to delete camera {str(cam)}, camera already deleted",
+                                    log_level="WARNING")
+
+        if len(cams_to_delete) > 0 and not error:
+            self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
+
         del cams_to_delete[:]
         self.camera_deletion_lock = False
 
