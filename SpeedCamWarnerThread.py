@@ -372,7 +372,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 # Make sure the camera still exists in the original item queue
                 if cam in self.start_times and cam in self.ITEMQUEUE:
                     if self.ITEMQUEUE[cam][12] == 'was_backup':
-                        self.ITEMQUEUE[cam][12] = 'was_standard'
+                        self.ITEMQUEUE[cam][12] = 'is_standard'
                     else:
                         start_time = time.time() - self.start_times[cam]
                         self.ITEMQUEUE[cam][6] = start_time
