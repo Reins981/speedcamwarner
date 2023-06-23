@@ -339,6 +339,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     # delete backup camera and startup time
                     self.ITEMQUEUE_BACKUP.pop(cam)
                     self.start_times_backup.pop(cam)
+                    self.voice_prompt_queue.produce_camera_status(self.cv_voice,
+                                                                  'SPEEDCAM_REINSERT')
 
         for cam, cam_attributes in self.ITEMQUEUE.copy().items():
             distance = self.check_distance_between_two_points(cam,
