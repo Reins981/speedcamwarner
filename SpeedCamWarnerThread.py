@@ -967,6 +967,8 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
             else:
                 try:
+                    if isinstance(max_speed, str) and "mph" in max_speed:
+                        max_speed = int(max_speed.strip(" mph"))
                     self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': int(max_speed)})
                 except:
                     self.overspeed_queue.produce(self.cv_overspeed, {'maxspeed': 10000})
