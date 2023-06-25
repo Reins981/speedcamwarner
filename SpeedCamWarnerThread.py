@@ -470,7 +470,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             if cam_attributes[1] is True:
                 self.print_log_line(" Removed %s speed cam with cam coordinates %f %f" % (
                     cam_attributes[0], cam[0], cam[1]))
-                self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
                 cams_to_delete.append(cam)
                 self.delete_cameras(cams_to_delete)
                 self.remove_cached_camera(cam)
@@ -513,6 +512,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             start_time = time.time() - cp_cam_queue[cam][6]
             self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km "
                                 f"and start time {start_time} seconds")
+            self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_BACKUP')
         except Exception:
             self.print_log_line(f"Backup of camera {str(cam)} "
                                 f"with last distance {distance} km failed!", log_level="ERROR")
@@ -528,10 +528,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                 error = True
                 self.print_log_line(f"Failed to delete camera {str(cam)}, camera already deleted",
                                     log_level="WARNING")
-
-        if len(cams_to_delete) > 0 and not error:
-            self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_REMOVED')
-
         del cams_to_delete[:]
 
     def remove_cached_camera(self, cam):
