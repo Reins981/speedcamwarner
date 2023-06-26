@@ -349,8 +349,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
                     self.start_times[cam] = start_time
                     # delete backup camera and startup time
                     self.ITEMQUEUE_BACKUP.pop(cam)
-                    '''self.voice_prompt_queue.produce_camera_status(self.cv_voice,
-                                                                  'SPEEDCAM_REINSERT')'''
 
         for cam, cam_attributes in self.ITEMQUEUE.copy().items():
             distance = self.check_distance_between_two_points(cam,
@@ -512,7 +510,6 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             start_time = time.time() - cp_cam_queue[cam][6]
             self.print_log_line(f" Backup camera {str(cam)} with last distance {distance} km "
                                 f"and start time {start_time} seconds")
-            # self.voice_prompt_queue.produce_camera_status(self.cv_voice, 'SPEEDCAM_BACKUP')
         except Exception:
             self.print_log_line(f"Backup of camera {str(cam)} "
                                 f"with last distance {distance} km failed!", log_level="ERROR")
