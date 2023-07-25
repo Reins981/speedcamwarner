@@ -44,6 +44,15 @@
                     "longitude": 13.50055597
                 }
             ]
+        },
+        {
+            "name": "Pont du Saut de Brot",
+            "coordinates": [
+                {
+                    "latitude": 46.94959698244929,
+                    "longitude": 6.748457998037338
+                }
+            ]
         }
     ]
 }
