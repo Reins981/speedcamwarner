@@ -39,6 +39,7 @@ class VoicePromptThread(StoppableThread, Logger):
                 self.voice_prompt_queue.clear_gpssignalqueue(self.cv_voice)
                 self.voice_prompt_queue.clear_maxspeedexceededqueue(self.cv_voice)
                 self.voice_prompt_queue.clear_onlinequeue(self.cv_voice)
+                self.voice_prompt_queue.clear_arqueue(self.cv_voice)
             else:
                 self.process()
 
@@ -162,6 +163,8 @@ class VoicePromptThread(StoppableThread, Logger):
             sound = os.path.join(BASE_PATH, 'poi_reached.wav')
         elif voice_entry == "ANGLE_MISMATCH":
             sound = os.path.join(BASE_PATH, 'angle_mismatch.wav')
+        elif voice_entry == "AR_HUMAN":
+            sound = os.path.join(BASE_PATH, 'human.wav')
         else:
             pass
 

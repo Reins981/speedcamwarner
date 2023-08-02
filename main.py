@@ -1,19 +1,24 @@
 __version__ = '0.1'
+
 # qpy:kivy
 # -*-coding:utf8;-*-
 # qpy:2
 # ts=4:sw=4:expandtab
 import os
+import cv2
+import numpy as np
+from kivy.graphics.texture import Texture
 from kivy.app import App
 from kivy_garden.mapview import MapView
 from kivy.properties import ObjectProperty
 from kivy.uix.button import Button
-from kivy.graphics import Color, Rectangle, Line
+from kivy.graphics import Color, Rectangle, Line, InstructionGroup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.image import Image as UIXImage
 from kivy.uix.label import Label
+from kivy.uix.camera import Camera
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
 from kivy.uix.modalview import ModalView
 from kivy.uix.gridlayout import GridLayout
@@ -44,7 +49,6 @@ from urllib3.exceptions import NewConnectionError
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 
-
 if platform == "android":
     from plyer import gps
     from android.permissions import request_permissions, Permission
@@ -56,7 +60,8 @@ if platform == "android":
                          Permission.ACCESS_BACKGROUND_LOCATION,
                          Permission.WRITE_EXTERNAL_STORAGE,
                          Permission.READ_EXTERNAL_STORAGE,
-                         Permission.WAKE_LOCK])
+                         Permission.WAKE_LOCK,
+                         Permission.CAMERA])
 
 logger = Logger("Main")
 
@@ -350,7 +355,8 @@ class MaxSpeedlayout(FloatLayout):
         self.gui_update = Label(text='', bold=True, font_size=50, pos_hint={"top": 1},
                                 size_hint=(.12, 1.9))
         self.imonlinestatus = UIXImage(source='')
-        self.imtrafficcam = UIXImage(source='', nocache=True, pos_hint={"top": 3}, size_hint=(0, 0))
+        self.imtrafficcam = UIXImage(source='', nocache=True, pos_hint={"top": 3},
+                                     size_hint=(0, 0))
 
         self.bar_100m = Label(text='-', bold=True, font_size=500, pos_hint={"top": 2},
                               size_hint=(1.9, 2), color=(.5, .5, .5, .5))
@@ -546,6 +552,176 @@ class MaxSpeedlayout(FloatLayout):
     def updates(self, instance, value):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
+
+
+class ARlayout(RelativeLayout):
+
+    AR_VOICE_PROMPT_PLAYED = False
+
+    def __init__(self, *args, **kwargs):
+        super(ARlayout, self).__init__(**kwargs)
+        self.logger = Logger(self.__class__.__name__)
+        self.sm = args[0]
+        self.g = args[1]
+        self.voice_prompt_queue = args[2]
+        self.cv_voice = args[3]
+        # Create an additional texture for AR overlay
+        self.overlay_texture = None
+        # Create the InstructionGroup for AR overlay Rectangle
+        self.ar_overlay_group = InstructionGroup()
+        self.ar_overlay_rectangle = Rectangle()
+        self.overlay_added = False  # Flag to track whether the overlay is added
+        self.canvas.before.add(self.ar_overlay_group)
+        self.backup_faces = None
+        self.backup_people = None
+
+        # Create the Camera widget and add it to the layout
+        self.camera = Camera(resolution=(640, 480), play=True)
+        self.add_widget(self.camera)
+
+        # Create the return button and add it to the layout
+        self.returnbutton_main = Button(text='<<<', bold=True, font_size=60,
+                                        background_color=(.5, .5, .5, .5))
+        self.add_widget(self.returnbutton_main)
+
+        self.camerabutton = Button(text='STOP', bold=True, font_size=60,
+                                        background_color=(.5, .5, .5, .5))
+        self.add_widget(self.camerabutton)
+
+        # Position the camera widget to occupy most of the layout's space
+        self.camera.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
+        self.camera.size_hint = (0.9, 0.9)  # Adjust the values as needed
+
+        # Position the return button at the bottom left corner
+        self.returnbutton_main.pos_hint = {'x': 0, 'y': 0}
+        self.returnbutton_main.size_hint = (0.1, 0.1)  # Adjust the values as needed
+
+        # Position the camera button at the bottom right corner
+        self.camerabutton.pos_hint = {'right': 1, 'y': 0}
+        self.camerabutton.size_hint = (0.1, 0.1)  # Adjust the values as needed
+
+        self.returnbutton_main.bind(on_press=self.callback_return)
+        self.camerabutton.bind(on_press=self.callback_camera)
+
+        self.face_cascade = (
+            cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'))
+
+        # Load the pre-trained HOG detector for pedestrian detection
+        self.hog = cv2.HOGDescriptor()
+        self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+
+    def detect_faces(self, frame):
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5)
+        return faces
+
+    def detect_people(self, frame):
+        # Detect people in the frame using the HOG detector
+        # Returns a list of rectangles representing the detected people
+        people, _ = self.hog.detectMultiScale(frame)
+        return people
+
+    def update_results(self, faces, people):
+        results_found = False
+        if len(faces) > 0:
+            if self.backup_faces is None or not np.array_equal(self.backup_faces, faces):
+                self.backup_faces = np.copy(faces)
+                results_found = True
+
+        if len(people) > 0:
+            if self.backup_people is None or not np.array_equal(self.backup_people, people):
+                self.backup_people = np.copy(people)
+                results_found = True
+
+        return results_found
+
+    def update_ar_overlay(self):
+        if self.camera.play is False:
+            return
+
+        # Capture a frame from the camera
+        buffer_data = self.camera.texture.pixels
+        frame = np.frombuffer(buffer_data, np.uint8).reshape(*self.camera.texture.size[::-1], 4)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+
+        # Detect faces in the frame
+        faces = self.detect_faces(frame)
+
+        # Detect people in the frame
+        people = self.detect_people(frame)
+
+        results_found = self.update_results(faces, people)
+
+        if results_found:
+            self.play_ar_sound()
+            if not self.g.camera_in_progress():
+                self.g.update_ar()
+        else:
+            # Reset to trigger a new voice prompt
+            ARlayout.AR_VOICE_PROMPT_PLAYED = False
+            if not self.g.camera_in_progress():
+                self.g.update_speed_camera("FREEFLOW")
+
+        results = [faces, people]
+        for result in results:
+            for (x, y, w, h) in result:
+                self.logger.print_log_line(f" AR detection at {x}, {y}, {w}, {h}")
+                # Draw a red rectangle around each detected face
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 5)
+
+        # Convert the frame back to Kivy texture and update the camera feed
+        buf = frame.tobytes()
+        if not self.overlay_texture:
+            self.overlay_texture = Texture.create(size=(frame.shape[1], frame.shape[0]),
+                                                  colorfmt='bgr')
+            self.overlay_texture.flip_vertical()
+
+        self.overlay_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        self.update_overlay_rectangle()
+
+    def play_ar_sound(self):
+
+        if ARlayout.AR_VOICE_PROMPT_PLAYED is False:
+            self.voice_prompt_queue.produce_ar_status(self.cv_voice, "AR_HUMAN")
+            ARlayout.AR_VOICE_PROMPT_PLAYED = True
+
+    def update_overlay_rectangle(self):
+        if not self.overlay_texture:
+            return
+
+        # Disable the Camera widget's visibility while updating the AR overlay
+        self.camera.opacity = 0
+
+        # Convert the position to be relative to the parent widget
+        pos_x, pos_y = self.to_widget(0, 0)
+
+        # Avoid negative or zero size values
+        if self.size[0] <= 0 or self.size[1] <= 0:
+            return
+
+        # Check if the overlay has been added, and add it only once
+        if not self.overlay_added:
+            self.ar_overlay_rectangle.texture = self.overlay_texture
+            self.ar_overlay_group.add(self.ar_overlay_rectangle)
+            self.overlay_added = True
+
+        # Update the position and size of the Rectangle
+        self.ar_overlay_rectangle.pos = (pos_x, pos_y)
+        self.ar_overlay_rectangle.size = self.size
+
+    def callback_return(self, instance):
+        self.sm.current = 'Operative'
+
+    def callback_camera(self, instance):
+        if self.camera.play is False:
+            self.camera.play = True
+            self.camerabutton.text = "STOP"
+        else:
+            self.voice_prompt_queue.clear_arqueue(self.cv_voice)
+            if not self.g.camera_in_progress():
+                self.g.update_speed_camera("FREEFLOW")
+            self.camera.play = False
+            self.camerabutton.text = "START"
 
 
 class Poilayout(GridLayout):
@@ -898,6 +1074,15 @@ class Gpslayout(BoxLayout):
         self.camera.color = (1, .9, 0, 2)
         self.camera.texture_update()
 
+    def callback_ar_human(self, instance):
+        self.camera.source = 'images/human.jpg'
+        self.camera.color = (1, .9, 0, 2)
+        self.camera.texture_update()
+
+    def camera_in_progress(self):
+        return self.camera.source != 'images/human.jpg' \
+                and self.camera.source != 'images/freeflow.png'
+
     def update_speed_camera(self, camera='fix'):
         if camera == 'fix':
             Clock.schedule_once(self.callback_fix_camera)
@@ -911,6 +1096,10 @@ class Gpslayout(BoxLayout):
             Clock.schedule_once(self.callback_freeflow_camera)
         else:
             Clock.schedule_once(self.callback_camera_ahead)
+
+    def update_ar(self, m_type='human'):
+        if m_type == 'human':
+            Clock.schedule_once(self.callback_ar_human)
 
 
 class Speedlayout(FloatLayout):
@@ -1843,10 +2032,10 @@ class Maplayout(RelativeLayout):
         self.returnbutton_main = Button(pos_hint={'x': 0, 'y': 0}, text='<<<', font_size=100,
                                         bold=True, background_color=(.5, .5, .5, .5))
         self.returnbutton_main.bind(on_press=self.callback_return)
-        self.center_button = Button(pos_hint ={'right': 1, 'top': 1}, text='Center', font_size=100,
-                                        bold=True, background_color=(.5, .5, .5, .5))
+        self.center_button = Button(pos_hint={'right': 1, 'top': 1}, text='Center', font_size=100,
+                                    bold=True, background_color=(.5, .5, .5, .5))
         self.center_button.bind(on_press=self.callback_center)
-        top_bar = Toolbar(pos_hint ={'right': 1, 'top': 1})
+        top_bar = Toolbar(pos_hint={'right': 1, 'top': 1})
         top_bar.add_widget(self.center_button)
         bottom_bar = Toolbar()
         bottom_bar.add_widget(self.returnbutton_main)
@@ -1915,7 +2104,7 @@ class MainView(FloatLayout):
         self.poi_number = Label(text='0', pos=(0, 1653), size_hint=(1.8, .10),
                                 font_size=50, bold=True)
         self.img_poi = UIXImage(source='images/poi.png', pos=(0, 1650),
-                             size_hint=(.4, .10))
+                                size_hint=(.4, .10))
         self.returnbutton_main = Button(pos=(0, 0), size_hint=(1, .20), text='<<<', font_size=500,
                                         bold=True, background_color=(.5, .5, .5, .5))
         self.returnbutton_main.bind(on_press=self.callback_return)
@@ -2034,7 +2223,7 @@ class MainTApp(App):
 
         request_permissions([Permission.ACCESS_COARSE_LOCATION,
                              Permission.ACCESS_FINE_LOCATION, Permission.WRITE_EXTERNAL_STORAGE,
-                             Permission.READ_EXTERNAL_STORAGE], callback)
+                             Permission.READ_EXTERNAL_STORAGE, Permission.CAMERA], callback)
 
     def build(self):
         self.gps_status = None
@@ -2160,6 +2349,8 @@ class MainTApp(App):
                                 size_hint=(.5, .5), background_color=(.65, .65, .65, .65))
         self.poibutton = Button(text='POIS', bold=True, font_size=80, pos_hint={"right": 1},
                                 size_hint=(.5, .5), background_color=(.62, .62, .62, .62))
+        self.camerabutton = Button(text='Cam', bold=True, font_size=80, pos_hint={"right": 1},
+                                   size_hint=(.5, .5), background_color=(.62, .62, .62, .62))
         self.startbutton = Button(text='Start', bold=True, font_size=200,
                                   background_color=(.7, .7, .7, .7))
         self.stopbutton = Button(text='Stop', bold=True, font_size=200,
@@ -2173,6 +2364,7 @@ class MainTApp(App):
         self.infobutton.bind(on_press=self.callback_info)
         self.mapbutton.bind(on_press=self.callback_map)
         self.poibutton.bind(on_press=self.callback_poi)
+        self.camerabutton.bind(on_press=self.callback_camera)
         self.returnbutton.bind(on_press=self.callback_return)
 
         self.startbutton.bind(on_press=self.callback_start)
@@ -2203,11 +2395,13 @@ class MainTApp(App):
         self.map_layout = Maplayout(self.sm)
         self.osm_wrapper = Maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
                                 self.cv_map_cloud, self.cv_map_db, self.map_queue)
+        self.ar_layout = ARlayout(self.sm, self.g, self.voice_prompt_queue, self.cv_voice)
 
         self.b.add_widget(self.menubutton)
         self.b.add_widget(self.infobutton)
         self.b.add_widget(self.mapbutton)
         self.b.add_widget(self.poibutton)
+        self.b.add_widget(self.camerabutton)
         self.b.add_widget(self.nightbutton)
 
         self.root.add_widget(self.g)
@@ -2223,12 +2417,14 @@ class MainTApp(App):
         s4 = Screen(name='Add')
         s5 = Screen(name='Poi')
         s6 = Screen(name='Map')
+        s7 = Screen(name='Camera')
         s1.add_widget(self.root)
         s2.add_widget(root_action)
         s3.add_widget(root_main)
         s4.add_widget(self.root_add)
         s5.add_widget(self.root_table)
         s6.add_widget(self.map_layout)
+        s7.add_widget(self.ar_layout)
 
         self.sm.add_widget(s1)
         self.sm.add_widget(s2)
@@ -2236,6 +2432,7 @@ class MainTApp(App):
         self.sm.add_widget(s4)
         self.sm.add_widget(s5)
         self.sm.add_widget(s6)
+        self.sm.add_widget(s7)
 
         self.callback_menu(self)
         return self.sm
@@ -2248,7 +2445,8 @@ class MainTApp(App):
 
     def init_osm_thread(self, main_app, resume, osm_wrapper, calculator_thread,
                         cv_map, cv_poi, map_queue, poi_queue, gps_producer, voice_consumer, cond):
-        self.osm_thread = OSMThread(main_app, resume, osm_wrapper, calculator_thread, cv_map, cv_poi,
+        self.osm_thread = OSMThread(main_app, resume, osm_wrapper, calculator_thread, cv_map,
+                                    cv_poi,
                                     map_queue, poi_queue, gps_producer, voice_consumer, cond)
         self.threads.append(self.osm_thread)
         logger.print_log_line(" Start osm thread")
@@ -2313,7 +2511,8 @@ class MainTApp(App):
         self.gps_consumer.daemon = True
         self.gps_consumer.start()
 
-    def init_voice_consumer(self, main_app, resume, cv_voice, voice_prompt_queue, calculator, cond):
+    def init_voice_consumer(self, main_app, resume, cv_voice, voice_prompt_queue, calculator,
+                            cond):
         self.voice_consumer = VoicePromptThread(main_app, resume, cv_voice, voice_prompt_queue,
                                                 calculator, cond)
         self.threads.append(self.voice_consumer)
@@ -2322,7 +2521,8 @@ class MainTApp(App):
         self.voice_consumer.start()
         return self.voice_consumer
 
-    def init_deviation_checker(self, main_app, resume, cv_average_angle, cv_interrupt, average_angle_queue,
+    def init_deviation_checker(self, main_app, resume, cv_average_angle, cv_interrupt,
+                               average_angle_queue,
                                interruptqueue, av_bearing_value, cond):
         self.deviation_checker = DeviationCheckerThread(main_app,
                                                         resume,
@@ -2399,9 +2599,10 @@ class MainTApp(App):
 
     def init_speed_cam_warner(self, main_app, resume, cv_voice, cv_speedcam,
                               gpssignalqueue, speedcamqueue,
-                              cv_overspeed, overspeed_queue, osm_wrapper, calculator, ms, g,
-                              cond):
-        self.speedwarner = SpeedCamWarnerThread(main_app, resume, cv_voice, cv_speedcam, gpssignalqueue,
+                              cv_overspeed, overspeed_queue, osm_wrapper, calculator,
+                              ms, g, cond):
+        self.speedwarner = SpeedCamWarnerThread(main_app, resume, cv_voice, cv_speedcam,
+                                                gpssignalqueue,
                                                 speedcamqueue, cv_overspeed, overspeed_queue,
                                                 osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
@@ -2421,6 +2622,9 @@ class MainTApp(App):
 
     def callback_info(self, instance):
         self.sm.current = 'Info'
+
+    def callback_camera(self, instance):
+        self.sm.current = 'Camera'
 
     def callback_poi(self, instance):
         if isinstance(self.gps_producer, GPSThread) and isinstance(self.calculator,
@@ -2480,6 +2684,8 @@ class MainTApp(App):
             gps.stop()
         self.q.set_terminate_state(True)
         self.root_table.stop_thread = True
+        self._update_event.cancel()
+        ARlayout.AR_VOICE_PROMPT_PLAYED = False
 
         self.osc_server.stop()  # Stop the default socket
         self.osc_server.stop_all()  # Stop all sockets
@@ -2611,6 +2817,8 @@ class MainTApp(App):
             self.maxspeed.color = (1, .9, 0, 2)
             self.maxspeed.font_size = 130
             Clock.schedule_once(self.maxspeed.texture_update)
+            ARlayout.AR_VOICE_PROMPT_PLAYED = False
+            self._update_event.cancel()
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'
@@ -2738,6 +2946,9 @@ class MainTApp(App):
                                        self.cv_map,
                                        self.cv_map_cloud,
                                        self.cv_map_db)
+            # Schedule the update function to be called periodically
+            self._update_event = Clock.schedule_interval(
+                lambda *x: self.ar_layout.update_ar_overlay(), 1 / 30)  # 30 FPS update rate
             self.started = True
             self.stopped = False
 
@@ -2791,6 +3002,8 @@ class MainTApp(App):
             self.root_table.label_h.texture_update()
             self.root_table.label_g.color = (.5, 0, .8, 1)
             self.root_table.label_g.texture_update()
+            self.ar_layout.camerabutton.color = (.5, 0, .8, 1)
+            self.ar_layout.camerabutton.texture_update()
         else:
             self.nightbutton.text = 'Night'
             self.nightbutton.texture_update()
@@ -2840,6 +3053,8 @@ class MainTApp(App):
             self.root_table.label_h.texture_update()
             self.root_table.label_g.color = (1, 1, 1, 1)
             self.root_table.label_g.texture_update()
+            self.ar_layout.camerabutton.color = (1, 1, 1, 1)
+            self.ar_layout.camerabutton.texture_update()
         self.day_update_done = True
         self.night_update_done = True
 
@@ -2892,6 +3107,8 @@ class MainTApp(App):
         self.root_table.label_h.texture_update()
         self.root_table.label_g.color = (.5, 0, .8, 1)
         self.root_table.label_g.texture_update()
+        self.ar_layout.camerabutton.color = (.5, 0, .8, 1)
+        self.ar_layout.camerabutton.texture_update()
 
     def callback_day_auto(self, instance):
         self.nightbutton.text = 'Night'
@@ -2942,6 +3159,8 @@ class MainTApp(App):
         self.root_table.label_h.texture_update()
         self.root_table.label_g.color = (1, 1, 1, 1)
         self.root_table.label_g.texture_update()
+        self.ar_layout.camerabutton.color = (1, 1, 1, 1)
+        self.ar_layout.camerabutton.texture_update()
 
     def check_night_mode(self):
         time_array = time.ctime().split()

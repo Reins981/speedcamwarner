@@ -548,6 +548,7 @@ class VoicePromptQueue(object):
         self.POIQUEUE = deque()
         self.CAMERAQUEUE = deque()
         self.INFOQUEUE = deque()
+        self.ARQUEUE = deque()
 
     def an_item_is_available_gpssignal(self):
         return bool(self.GPSSIGNALQUEUE)
@@ -560,6 +561,9 @@ class VoicePromptQueue(object):
 
     def an_item_is_available_poi(self):
         return bool(self.POIQUEUE)
+
+    def an_item_is_available_ar(self):
+        return bool(self.ARQUEUE)
 
     def an_item_is_available_info(self):
         return bool(self.INFOQUEUE)
@@ -578,6 +582,9 @@ class VoicePromptQueue(object):
 
     def get_an_available_item_poi(self):
         return self.POIQUEUE.pop()
+
+    def get_an_available_item_ar(self):
+        return self.ARQUEUE.pop()
 
     def get_an_available_item_camera(self):
         return self.CAMERAQUEUE.pop()
@@ -603,9 +610,18 @@ class VoicePromptQueue(object):
     def make_an_item_available_poi(self, item):
         self.POIQUEUE.append(item)
 
+    def make_an_item_available_ar(self, item):
+        self.ARQUEUE.append(item)
+
     def clear_gpssignalqueue(self, cv):
         cv.acquire()
         self.GPSSIGNALQUEUE.clear()
+        cv.notify()
+        cv.release()
+
+    def clear_arqueue(self, cv):
+        cv.acquire()
+        self.ARQUEUE.clear()
         cv.notify()
         cv.release()
 
@@ -640,6 +656,7 @@ class VoicePromptQueue(object):
                 and not self.an_item_is_available_online() \
                 and not self.an_item_is_available_poi() \
                 and not self.an_item_is_available_camera() \
+                and not self.an_item_is_available_ar() \
                 and not self.an_item_is_available_info():
             cv.wait()
 
@@ -661,7 +678,11 @@ class VoicePromptQueue(object):
                                   f"-> Prefer voice prompt (CAMERA)")
             return self.get_an_available_item_camera()
 
-        if self.an_item_is_available_gpssignal() \
+        if self.an_item_is_available_camera():
+            return self.get_an_available_item_camera()
+        elif self.an_item_is_available_ar():
+            return self.get_an_available_item_ar()
+        elif self.an_item_is_available_gpssignal() \
                 and self.an_item_is_available_maxspeed_exceeded() \
                 and self.an_item_is_available_online():
             unusedItem1 = self.get_an_available_item_gpssignal()
@@ -693,8 +714,6 @@ class VoicePromptQueue(object):
             return self.get_an_available_item_online()
         elif self.an_item_is_available_poi():
             return self.get_an_available_item_poi()
-        elif self.an_item_is_available_camera():
-            return self.get_an_available_item_camera()
         elif self.an_item_is_available_info():
             return self.get_an_available_item_info()
         else:
@@ -727,6 +746,12 @@ class VoicePromptQueue(object):
     def produce_poi_status(self, cv, item):
         cv.acquire(blocking=False)
         self.make_an_item_available_poi(item)
+        cv.notify()
+        cv.release()
+
+    def produce_ar_status(self, cv, item):
+        cv.acquire(blocking=False)
+        self.make_an_item_available_ar(item)
         cv.notify()
         cv.release()
 
