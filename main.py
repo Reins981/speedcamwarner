@@ -555,7 +555,6 @@ class MaxSpeedlayout(FloatLayout):
 
 
 class ARlayout(RelativeLayout):
-
     AR_VOICE_PROMPT_PLAYED = False
 
     def __init__(self, *args, **kwargs):
@@ -586,7 +585,7 @@ class ARlayout(RelativeLayout):
         self.add_widget(self.returnbutton_main)
 
         self.camerabutton = Button(text='STOP', bold=True, font_size=60,
-                                        background_color=(.5, .5, .5, .5))
+                                   background_color=(.5, .5, .5, .5))
         self.add_widget(self.camerabutton)
 
         # Position the camera widget to occupy most of the layout's space
@@ -668,7 +667,7 @@ class ARlayout(RelativeLayout):
             for (x, y, w, h) in result:
                 self.logger.print_log_line(f" AR detection at {x}, {y}, {w}, {h}")
                 # Draw a red rectangle around each detected face
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 5)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 5)
 
         # Convert the frame back to Kivy texture and update the camera feed
         buf = frame.tobytes()
@@ -777,23 +776,6 @@ class Poilayout(GridLayout):
         if not RectangleCalculatorThread.thread_lock:
             self.sm.current = 'Operative'
 
-    '''def callback_stop(self, instance):
-        if self.main_app.osm_thread is None:
-            self.sm.current = 'Operative'
-            return
-
-        OSMThread.route_calc = True
-        if self.route_providers:
-            self.stop_thread = True
-            for route_provider in self.route_providers:
-                self.route_providers.remove(route_provider)
-                route_provider.join()
-            self.logger.print_log_line("Route calculation stopped!")
-            self.voice_prompt_queue.produce_poi_status(self.cv_voice, "ROUTE_STOPPED")
-        else:
-            self.voice_prompt_queue.produce_poi_status(self.cv_voice, "NO_ROUTE")
-        self.sm.current = 'Operative'
-    '''
 
     def callback_poi(self, instance):
         if RectangleCalculatorThread.thread_lock:
@@ -1085,7 +1067,7 @@ class Gpslayout(BoxLayout):
 
     def camera_in_progress(self):
         return self.camera.source != 'images/human.jpg' \
-                and self.camera.source != 'images/freeflow.png'
+            and self.camera.source != 'images/freeflow.png'
 
     def update_speed_camera(self, camera='fix'):
         if camera == 'fix':
@@ -2773,6 +2755,7 @@ class MainTApp(App):
             self.map_queue.clear_map_update(self.cv_map)
             self.currentspeed_queue.clear(self.cv_currentspeed)
             self.voice_prompt_queue.clear_arqueue(self.cv_voice)
+            self.voice_consumer._lock = False
 
             for thread in self.root_table.route_providers:
                 self.root_table.route_providers.remove(thread)
@@ -2807,6 +2790,7 @@ class MainTApp(App):
                     self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
                     self.vdata.set_vector_data(self.cv_vector, 'vector_data', float(0.0),
                                                float(0.0), float(0.0), float(0.0), '-', 'EXIT', 0)
+                    self.voice_consumer._lock = False
 
             self.threads = []
             self.gps_data_queue.clear(self.cv_gps_data)
@@ -2908,8 +2892,9 @@ class MainTApp(App):
                                    self.s,
                                    self.cl,
                                    self.q)
-            voice_consumer = self.init_voice_consumer(self, self.resume, self.cv_voice,
-                                                      self.voice_prompt_queue, calculator, self.q)
+            self.voice_consumer = self.init_voice_consumer(self, self.resume, self.cv_voice,
+                                                           self.voice_prompt_queue, calculator,
+                                                           self.q)
             self.init_osm_thread(self,
                                  self.resume,
                                  self.osm_wrapper,
@@ -2919,7 +2904,7 @@ class MainTApp(App):
                                  self.map_queue,
                                  self.poi_queue,
                                  self.gps_producer,
-                                 voice_consumer,
+                                 self.voice_consumer,
                                  self.q)
             self.init_speed_cam_warner(self,
                                        self.resume,
