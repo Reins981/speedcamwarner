@@ -563,8 +563,9 @@ class ARlayout(RelativeLayout):
         self.logger = Logger(self.__class__.__name__)
         self.sm = args[0]
         self.g = args[1]
-        self.voice_prompt_queue = args[2]
-        self.cv_voice = args[3]
+        self.main_app = args[2]
+        self.voice_prompt_queue = args[3]
+        self.cv_voice = args[4]
         # Create an additional texture for AR overlay
         self.overlay_texture = None
         # Create the InstructionGroup for AR overlay Rectangle
@@ -714,12 +715,15 @@ class ARlayout(RelativeLayout):
 
     def callback_camera(self, instance):
         if self.camera.play is False:
+            self.main_app.update_ar_event = Clock.schedule_interval(
+                lambda *x: self.update_ar_overlay(), 1 / 30)  # 30 FPS update rate
             self.camera.play = True
             self.camerabutton.text = "STOP"
         else:
             self.voice_prompt_queue.clear_arqueue(self.cv_voice)
             if not self.g.camera_in_progress():
                 self.g.update_speed_camera("FREEFLOW")
+            self.main_app.update_ar_event.cancel()
             self.camera.play = False
             self.camerabutton.text = "START"
 
@@ -2395,7 +2399,7 @@ class MainTApp(App):
         self.map_layout = Maplayout(self.sm)
         self.osm_wrapper = Maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
                                 self.cv_map_cloud, self.cv_map_db, self.map_queue)
-        self.ar_layout = ARlayout(self.sm, self.g, self.voice_prompt_queue, self.cv_voice)
+        self.ar_layout = ARlayout(self.sm, self.g, self, self.voice_prompt_queue, self.cv_voice)
 
         self.b.add_widget(self.menubutton)
         self.b.add_widget(self.infobutton)
@@ -2684,7 +2688,7 @@ class MainTApp(App):
             gps.stop()
         self.q.set_terminate_state(True)
         self.root_table.stop_thread = True
-        self._update_event.cancel()
+        self.update_ar_event.cancel()
         ARlayout.AR_VOICE_PROMPT_PLAYED = False
 
         self.osc_server.stop()  # Stop the default socket
@@ -2820,7 +2824,7 @@ class MainTApp(App):
             self.maxspeed.font_size = 130
             Clock.schedule_once(self.maxspeed.texture_update)
             ARlayout.AR_VOICE_PROMPT_PLAYED = False
-            self._update_event.cancel()
+            self.update_ar_event.cancel()
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'
@@ -2949,7 +2953,7 @@ class MainTApp(App):
                                        self.cv_map_cloud,
                                        self.cv_map_db)
             # Schedule the update function to be called periodically
-            self._update_event = Clock.schedule_interval(
+            self.update_ar_event = Clock.schedule_interval(
                 lambda *x: self.ar_layout.update_ar_overlay(), 1 / 30)  # 30 FPS update rate
             self.started = True
             self.stopped = False
