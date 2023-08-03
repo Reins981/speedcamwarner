@@ -38,7 +38,7 @@ class DeviationCheckerThread(StoppableThread, Logger):
 
         self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)
         self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
-        self.print_log_line("Deviation Checker terminating")
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 
     def cleanup(self):

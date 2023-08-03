@@ -38,7 +38,7 @@ from OverspeedThread import OverspeedCheckerThread
 from SQL import POIReader
 from ThreadBase import ThreadCondition, InterruptQueue, VectorDataPoolQueue, \
     GPSQueue, VoicePromptQueue, AverageAngleQueue, MapQueue, SpeedCamQueue, \
-    OverspeedQueue, CurrentSpeedQueue, BorderQueue, BorderQueueReverse, PoiQueue, GpsDataQueue
+    OverspeedQueue, CurrentSpeedQueue, PoiQueue, GpsDataQueue
 from OSMWrapper import Maps, OSMThread
 from Logger import Logger
 from kivy.uix.checkbox import CheckBox
@@ -2485,7 +2485,7 @@ class MainTApp(App):
                                       calculator,
                                       cond)
         self.threads.append(self.gps_producer)
-        logger.print_log_line(" Start gps producer thread")
+        logger.print_log_line(" Start GPS Producer thread")
         self.gps_producer.daemon = True
         self.gps_producer.start()
 
@@ -2493,7 +2493,7 @@ class MainTApp(App):
         self.gps_consumer = GPSConsumerThread(main_app, resume, cv, curspeed, bearing, gpsqueue, s,
                                               cl, cond)
         self.threads.append(self.gps_consumer)
-        logger.print_log_line(" Start gps consumer thread")
+        logger.print_log_line(" Start GPS Consumer thread")
         self.gps_consumer.daemon = True
         self.gps_consumer.start()
 
@@ -2502,7 +2502,7 @@ class MainTApp(App):
         self.voice_consumer = VoicePromptThread(main_app, resume, cv_voice, voice_prompt_queue,
                                                 calculator, cond)
         self.threads.append(self.voice_consumer)
-        logger.print_log_line(" Start accustic voice thread")
+        logger.print_log_line(" Start Accustic Voice thread")
         self.voice_consumer.daemon = True
         self.voice_consumer.start()
         return self.voice_consumer
@@ -2519,7 +2519,7 @@ class MainTApp(App):
                                                         av_bearing_value,
                                                         cond)
         self.threads.append(self.deviation_checker)
-        logger.print_log_line(" Start deviation thread")
+        logger.print_log_line(" Start Deviation Checker thread")
         self.deviation_checker.daemon = True
         self.deviation_checker.start()
 
@@ -2577,7 +2577,7 @@ class MainTApp(App):
                                                     osm_wrapper,
                                                     cond)
         self.threads.append(self.calculator)
-        logger.print_log_line(" Start calculator thread")
+        logger.print_log_line(" Start Calculator thread")
         self.calculator.daemon = True
         self.calculator.start()
 
@@ -2592,7 +2592,7 @@ class MainTApp(App):
                                                 speedcamqueue, cv_overspeed, overspeed_queue,
                                                 osm_wrapper, calculator, ms, g, cond)
         self.threads.append(self.speedwarner)
-        logger.print_log_line(" Start speed warner thread")
+        logger.print_log_line(" Start Speed Warner thread")
         self.speedwarner.daemon = True
         self.speedwarner.start()
 
@@ -2602,7 +2602,7 @@ class MainTApp(App):
                                                         overspeed_queue, cv_currentspeed,
                                                         currentspeed_queue, s, cond)
         self.threads.append(self.overspeed_checker)
-        logger.print_log_line(" Start overspeed checker thread")
+        logger.print_log_line(" Start Overspeed Checker thread")
         self.overspeed_checker.daemon = True
         self.overspeed_checker.start()
 
@@ -2672,6 +2672,7 @@ class MainTApp(App):
         self.root_table.stop_thread = True
         self.update_ar_event.cancel()
         ARlayout.AR_VOICE_PROMPT_PLAYED = False
+        self.voice_consumer._lock = False
 
         self.osc_server.stop()  # Stop the default socket
         self.osc_server.stop_all()  # Stop all sockets

@@ -50,7 +50,7 @@ class GPSConsumerThread(StoppableThread, Logger):
             else:
                 self.process()
 
-        self.print_log_line("Terminating")
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.gpsqueue.clear_gpsqueue(self.cv)
         self.stop()
 
@@ -235,7 +235,7 @@ class GPSThread(StoppableThread, Logger):
         self.gps_test_data = False
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__), "gpx",
-                                     "Ronde_van_Nederland_reverse_aug_2021.gpx")
+                                     "LF9.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 40
         # Max GPS inaccuracy treshold after which the App will go into OFF mode.
@@ -262,9 +262,9 @@ class GPSThread(StoppableThread, Logger):
                                    float(0.0), float(0.0), '-', 'EXIT', 0)
         self.produce_bearing_set(0.002)
         self.map_queue.produce(self.cv_map, "EXIT")
-        self.print_log_line("Terminated")
         self.startup = True
         self.first_offline_call = True
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 
     def process(self):

@@ -109,7 +109,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             status = self.process()
             if status == 'EXIT':
                 break
-        self.print_log_line("Terminated")
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 
     def process(self):

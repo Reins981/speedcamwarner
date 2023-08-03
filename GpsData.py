@@ -18,7 +18,7 @@ class GpsTestDataGenerator(Logger):
             self._fill_events(max_num)
 
     def _fill_events_from_gpx(self, gpx_f):
-        self.print_log_line("Generating Test GPS Data from %s...." % gpx_f)
+        self.print_log_line(" Generating Test GPS Data from %s...." % gpx_f)
         gpx_f_handle = open(gpx_f, 'r')
 
         gpx = gpxpy.parse(gpx_f_handle)

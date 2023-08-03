@@ -577,7 +577,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         # construction area lookahead distance in km
         # Use the radius with CAUTION! Do not provide a huge radius due to performance
         # reasons
-        self.construction_area_lookahead_distance = 50
+        self.construction_area_lookahead_distance = 30
         # Trigger construction area lookups after this counter has passed during the startup
         # phase. This ensures the overall performance during the startup phase.
         self.construction_area_startup_trigger_max = 60
@@ -1030,7 +1030,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
         self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
         self.cleanup()
-        self.print_log_line(" Terminating")
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 
     def update_speed_cams(self, speed_cams):

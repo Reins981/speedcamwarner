@@ -46,7 +46,7 @@ class VoicePromptThread(StoppableThread, Logger):
         self.voice_prompt_queue.clear_gpssignalqueue(self.cv_voice)
         self.voice_prompt_queue.clear_maxspeedexceededqueue(self.cv_voice)
         self.voice_prompt_queue.clear_onlinequeue(self.cv_voice)
-        self.print_log_line("VoicePromptThreadThread terminating")
+        self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 
     def play_sound(self, *args):

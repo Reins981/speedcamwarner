@@ -149,66 +149,6 @@ class PoiQueue(object):
         return self.POIQUEUE.qsize()
 
 
-class BorderQueue(object):
-    def __init__(self):
-        self.BORDERQUEUE = Queue()
-
-    def get_an_available_item(self):
-        return self.BORDERQUEUE.get(block=False)
-
-    def make_an_item_available(self, item):
-        self.BORDERQUEUE.put(item, block=False)
-
-    def clear(self, cv):
-        pass
-
-    def consume(self, cv):
-        cv.acquire()
-        try:
-            return self.get_an_available_item()
-        except Empty:
-            return None
-
-    def produce(self, cv, item):
-        cv.acquire()
-        self.make_an_item_available(item)
-        cv.notify()
-        cv.release()
-
-    def size(self):
-        return self.BORDERQUEUE.qsize()
-
-
-class BorderQueueReverse(object):
-    def __init__(self):
-        self.BORDERQUEUEREV = Queue()
-
-    def get_an_available_item(self):
-        return self.BORDERQUEUEREV.get(block=False)
-
-    def make_an_item_available(self, item):
-        self.BORDERQUEUEREV.put(item, block=False)
-
-    def clear(self, cv):
-        pass
-
-    def consume(self, cv):
-        cv.acquire()
-        try:
-            return self.get_an_available_item()
-        except Empty:
-            return None
-
-    def produce(self, cv, item):
-        cv.acquire()
-        self.make_an_item_available(item)
-        cv.notify()
-        cv.release()
-
-    def size(self):
-        return self.BORDERQUEUEREV.qsize()
-
-
 class GpsDataQueue(object):
     def __init__(self):
         self.GPS = deque()
@@ -815,8 +755,18 @@ class CyclicThread(threading.Thread, Logger):
 
     def run(self):
         while not self._stop_event.is_set():
-            time.sleep(self.cycle_time)
+            for _ in range(int(self.cycle_time)):
+                # Check the stop event each second
+                if self._stop_event.is_set():
+                    break
+                time.sleep(1)
+
+            if self._stop_event.is_set():
+                break
+
             self.task(*self.args, **self.kwargs)
+
+        self.print_log_line(f"{self.__class__.__name__} terminating")
 
     def set_time(self, m_time):
         self.cycle_time = m_time
