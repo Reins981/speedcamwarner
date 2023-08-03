@@ -555,7 +555,6 @@ class MaxSpeedlayout(FloatLayout):
 
 
 class ARlayout(RelativeLayout):
-    AR_VOICE_PROMPT_PLAYED = False
 
     def __init__(self, *args, **kwargs):
         super(ARlayout, self).__init__(**kwargs)
@@ -658,7 +657,6 @@ class ARlayout(RelativeLayout):
                 self.g.update_ar()
         else:
             # Reset to trigger a new voice prompt
-            ARlayout.AR_VOICE_PROMPT_PLAYED = False
             if not self.g.camera_in_progress():
                 self.g.update_speed_camera("FREEFLOW")
 
@@ -680,10 +678,7 @@ class ARlayout(RelativeLayout):
         self.update_overlay_rectangle()
 
     def play_ar_sound(self):
-
-        if ARlayout.AR_VOICE_PROMPT_PLAYED is False:
-            self.voice_prompt_queue.produce_ar_status(self.cv_voice, "AR_HUMAN")
-            ARlayout.AR_VOICE_PROMPT_PLAYED = True
+        self.voice_prompt_queue.produce_ar_status(self.cv_voice, "AR_HUMAN")
 
     def update_overlay_rectangle(self):
         if not self.overlay_texture:
@@ -2610,7 +2605,13 @@ class MainTApp(App):
         self.sm.current = 'Info'
 
     def callback_camera(self, instance):
-        self.sm.current = 'Camera'
+        if not isinstance(self.gps_producer, GPSThread):
+            popup = Popup(title='Attention',
+                          content=Label(text='Please start App first!'),
+                          size_hint=(None, None), size=(600, 600))
+            popup.open()
+        else:
+            self.sm.current = 'Camera'
 
     def callback_poi(self, instance):
         if isinstance(self.gps_producer, GPSThread) and isinstance(self.calculator,
@@ -2671,7 +2672,6 @@ class MainTApp(App):
         self.q.set_terminate_state(True)
         self.root_table.stop_thread = True
         self.update_ar_event.cancel()
-        ARlayout.AR_VOICE_PROMPT_PLAYED = False
         self.voice_consumer._lock = False
 
         self.osc_server.stop()  # Stop the default socket
@@ -2808,7 +2808,6 @@ class MainTApp(App):
             self.maxspeed.color = (1, .9, 0, 2)
             self.maxspeed.font_size = 130
             Clock.schedule_once(self.maxspeed.texture_update)
-            ARlayout.AR_VOICE_PROMPT_PLAYED = False
             self.update_ar_event.cancel()
 
     def callback_start(self, instance):
