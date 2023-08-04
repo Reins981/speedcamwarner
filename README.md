@@ -68,6 +68,9 @@ Upload your sources and then run the build.
 !pip install cython==0.29.33
 !sudo apt-get update
 !sudo apt-get install -y \
+    autoconf 
+    automake 
+    libtool
     python3-pip \
     build-essential \
     git \
