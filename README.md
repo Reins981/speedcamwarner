@@ -93,8 +93,8 @@ Upload your sources and then run the build.
 
 Build in debug or release mode:
 ```
-!buildozer -v android debug
 !buildozer android clean
+!buildozer -v android debug
 ```
 
 
