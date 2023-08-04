@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_a
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 27.0
+version = 27.3
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -37,7 +37,7 @@ version = 27.0
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3==3.10.11,kivy==2.1.0rc3,google-api-python-client,cachetools,certifi,uritemplate,google,google-api-core,google-auth,google-auth-httplib2,google-cloud-core,google-cloud-firestore,google-cloud-storage,google-crc32c,google-resumable-media,googleapis-common-protos,httplib2,pyparsing,pyasn1,pyasn1-modules,pycparser,six,rsa,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna,opencv-python,opencv-python-headless,numpy
+requirements = python3==3.10.11,kivy==2.1.0rc3,opencv,opencv-python,opencv-python-headless,google-api-python-client,cachetools,certifi,uritemplate,google,google-api-core,google-auth,google-auth-httplib2,google-cloud-core,google-cloud-firestore,google-cloud-storage,google-crc32c,google-resumable-media,googleapis-common-protos,httplib2,pyparsing,pyasn1,pyasn1-modules,pycparser,six,rsa,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna,numpy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -93,10 +93,10 @@ fullscreen = 0
 #icon.adaptive_background.filename = %(source.dir)s/data/icon_bg.png
 
 # (list) Permissions
-android.permissions = INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,ACCESS_BACKGROUND_LOCATION,ACCESS_MEDIA_LOCATION,READ_EXTERNAL_STORAGE,WAKE_LOCK,CAMERA
+android.permissions = CAMERA,INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,ACCESS_BACKGROUND_LOCATION,ACCESS_MEDIA_LOCATION,READ_EXTERNAL_STORAGE,WAKE_LOCK
 
 # (list) features (adds uses-feature -tags to manifest)
-#android.features = android.hardware.usb.host
+# android.features = android.hardware.camera
 
 # (int) Target Android API, should be as high as possible.
 android.api = 31

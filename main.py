@@ -55,13 +55,13 @@ if platform == "android":
     from LocationManager import LocationManager, \
         LocationReceiverBackground, GPSAndroidBackground, context, IntentFilter
 
-    request_permissions([Permission.ACCESS_COARSE_LOCATION,
+    request_permissions([Permission.CAMERA,
+                         Permission.ACCESS_COARSE_LOCATION,
                          Permission.ACCESS_FINE_LOCATION,
                          Permission.ACCESS_BACKGROUND_LOCATION,
                          Permission.WRITE_EXTERNAL_STORAGE,
                          Permission.READ_EXTERNAL_STORAGE,
-                         Permission.WAKE_LOCK,
-                         Permission.CAMERA])
+                         Permission.WAKE_LOCK])
 
 logger = Logger("Main")
 
@@ -575,7 +575,7 @@ class ARlayout(RelativeLayout):
         self.backup_people = None
 
         # Create the Camera widget and add it to the layout
-        self.camera = Camera(resolution=(640, 480), play=True)
+        self.camera = Camera(resolution=(-1, -1), play=False)
         self.add_widget(self.camera)
 
         # Create the return button and add it to the layout
@@ -636,6 +636,11 @@ class ARlayout(RelativeLayout):
 
     def update_ar_overlay(self):
         if self.camera.play is False:
+            self.camera.play = True
+
+        if not self.camera.texture:
+            self.logger.print_log_line(f" AR update failed, camera not ready yet",
+                                       log_level="WARNING")
             return
 
         # Capture a frame from the camera
@@ -2202,9 +2207,9 @@ class MainTApp(App):
             else:
                 print("callback. Some permissions refused.")
 
-        request_permissions([Permission.ACCESS_COARSE_LOCATION,
+        request_permissions([Permission.CAMERA, Permission.ACCESS_COARSE_LOCATION,
                              Permission.ACCESS_FINE_LOCATION, Permission.WRITE_EXTERNAL_STORAGE,
-                             Permission.READ_EXTERNAL_STORAGE, Permission.CAMERA], callback)
+                             Permission.READ_EXTERNAL_STORAGE], callback)
 
     def build(self):
         self.gps_status = None
