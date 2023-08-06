@@ -1,4 +1,4 @@
-# A simple speedcam warner based on OpenStreetMap (OSM)
+# A simple speedcamera warner based on OpenStreetMap (OSM)
 
 This App is designed to run on Android. iOS is not supported.
 The sources also include a ready to go buildozer.spec file for the arm64-v8a platform.
@@ -10,6 +10,15 @@ This can be adapted to your needs.
 **Preconditions:**
 - Internet
 - GPS
+- Camera
+
+**Features:**
+- Augmented reality face and people detection with warnings
+- Detection of Fix, Mobile, Traffic and Distance Cameras with voice prompt warnings based on distance
+- Map Display of cameras and live GPS position updates
+- Graphical User interface with various driving information data
+- Histogram showing driving mode
+- Compass
 
 ## Build process using a devkit environment
 
@@ -68,9 +77,10 @@ Upload your sources and then run the build.
 !pip install cython==0.29.33
 !sudo apt-get update
 !sudo apt-get install -y \
-    autoconf 
-    automake 
-    libtool
+    libatlas-base-dev \
+    autoconf \
+    automake \
+    libtool \
     python3-pip \
     build-essential \
     git \

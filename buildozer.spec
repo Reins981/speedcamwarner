@@ -16,7 +16,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,js,css,wav,html,gpx,json
 
 # (list) List of inclusions using pattern matching
-source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_account/*.json
+source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_account/*.json,camera_icons/*.png,camerax_provider/*.py,camerax_provider/camerax_src/org/kivy/camerax/*.java
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_a
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 27.4
+version = 28.1
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -37,7 +37,7 @@ version = 27.4
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3==3.10.11,kivy==2.1.0rc3,opencv,google-api-python-client,cachetools,certifi,uritemplate,google,google-api-core,google-auth,google-auth-httplib2,google-cloud-core,google-cloud-firestore,google-cloud-storage,google-crc32c,google-resumable-media,googleapis-common-protos,httplib2,pyparsing,pyasn1,pyasn1-modules,pycparser,six,rsa,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna,numpy
+requirements = python3==3.10.11,kivy==2.1.0rc3,opencv,camera4kivy,gestures4kivy,google-api-python-client,cachetools,certifi,uritemplate,google,google-api-core,google-auth,google-auth-httplib2,google-cloud-core,google-cloud-firestore,google-cloud-storage,google-crc32c,google-resumable-media,googleapis-common-protos,httplib2,pyparsing,pyasn1,pyasn1-modules,pycparser,six,rsa,oauth2client,oscpy,sqlite3,gpxpy,requests,chardet,geopy,plyer,pyjnius,ffpyplayer,android,openssl,futures3,mapview==1.0.6,urllib3,charset-normalizer,idna,numpy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -99,7 +99,7 @@ android.permissions = CAMERA,INTERNET,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATIO
 # android.features = android.hardware.camera
 
 # (int) Target Android API, should be as high as possible.
-android.api = 31
+android.api = 33
 
 # (int) Minimum API your APK / AAB will support.
 #android.minapi = 21
@@ -236,7 +236,7 @@ android.api = 31
 
 # (bool) Indicate whether the screen should stay on
 # Don't forget to add the WAKE_LOCK permission if you set this to True
-#android.wakelock = False
+android.wakelock = True
 
 # (list) Android application meta-data to set (key=value format)
 #android.meta_data =
@@ -312,7 +312,7 @@ android.release_artifact = aab
 #p4a.local_recipes =
 
 # (str) Filename to the hook for p4a
-#p4a.hook =
+p4a.hook = camerax_provider/gradle_options.py
 
 # (str) Bootstrap to use for android builds
 # p4a.bootstrap = sdl2
