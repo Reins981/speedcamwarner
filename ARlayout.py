@@ -25,9 +25,11 @@ class ButtonsLayout(RelativeLayout):
         if platform == 'android':
             self.normal = 'camera_icons/cellphone-screenshot_white.png'
             self.down = 'camera_icons/cellphone-screenshot_red.png'
+            self.s_capture = 'camera_icons/screenshot.png'
         else:
             self.normal = 'camera_icons/monitor-screenshot_white.png'
             self.down = 'camera_icons/monitor-screenshot_red.png'
+            self.s_capture = 'camera_icons/screenshot.png'
 
     def on_size(self, layout, size):
         if platform == 'android':
@@ -41,6 +43,8 @@ class ButtonsLayout(RelativeLayout):
             self.ids.other.size_hint = (.2, None)
             self.ids.screen.pos_hint = {'center_x': .7, 'center_y': .5}
             self.ids.screen.size_hint = (.2, None)
+            self.ids.connect.pos_hint = {'center_x': .9, 'center_y': .7}
+            self.ids.connect.size_hint = (.2, None)
         else:
             self.pos = (Window.width * 0.8, 0)
             self.size_hint = (0.2, 1)
@@ -48,6 +52,8 @@ class ButtonsLayout(RelativeLayout):
             self.ids.other.size_hint = (None, .2)
             self.ids.screen.pos_hint = {'center_x': .5, 'center_y': .3}
             self.ids.screen.size_hint = (None, .2)
+            self.ids.connect.pos_hint = {'center_x': .5, 'center_y': .1}
+            self.ids.connect.size_hint = (None, .2)
 
     def callback_return(self):
         self.parent.callback_return()
@@ -86,13 +92,21 @@ Builder.load_string("""
 <ButtonsLayout>:
     normal:
     down:
+    s_capture:
     Button:
-        id:screen
+        id:connect
         on_press: root.connect_camera()
         height: self.width
         width: self.height
         background_normal: root.normal
         background_down: root.down
+    Button:
+        id:screen
+        on_press: root.screenshot()
+        height: self.width
+        width: self.height
+        background_normal: root.s_capture
+        background_down: root.s_capture
     Button:
         id:other
         on_press: root.callback_return()
