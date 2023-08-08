@@ -1,8 +1,9 @@
+import cv2
+import os
 from kivy.clock import mainthread
 from kivy.graphics.texture import Texture
 from kivy.graphics import Color, Rectangle
 import numpy as np
-import cv2
 from camera4kivy import Preview
 from Logger import Logger
 
@@ -13,6 +14,9 @@ class EdgeDetect(Preview):
     main_app = None
     voice_prompt_queue = None
     cv_voice = None
+    DEFAULT_HAARCASCADE_MODEL = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                             "data_models",
+                                             "haarcascade_frontalface_default.xml")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -38,8 +42,7 @@ class EdgeDetect(Preview):
         cls.cv_voice = cv_voice
 
     def init_ar_detection(self):
-        self.face_cascade = (
-            cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'))
+        self.face_cascade = cv2.CascadeClassifier(EdgeDetect.DEFAULT_HAARCASCADE_MODEL)
 
         # Load the pre-trained HOG detector for pedestrian detection
         self.hog = cv2.HOGDescriptor()

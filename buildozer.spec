@@ -16,7 +16,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,js,css,wav,html,gpx,json
 
 # (list) List of inclusions using pattern matching
-source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_account/*.json,camera_icons/*.png,camerax_provider/*.py,camerax_provider/camerax_src/org/kivy/camerax/*.java
+source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_account/*.json,camera_icons/*.png,camerax_provider/*.py,camerax_provider/camerax_src/org/kivy/camerax/*.java,data_models/*.xml
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -29,7 +29,7 @@ source.include_patterns = assets/*,images/*.png,sounds/*.wav,gpx/*.gpx,service_a
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 28.2
+version = 28.4
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
