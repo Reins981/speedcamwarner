@@ -84,7 +84,7 @@ class Logger:
         """
         self.__module_name = module_name
         self.log_viewer = log_viewer
-        self.always_log_to_stdout = True
+        self.always_log_to_stdout = False
 
     def set_log_viewer(self, log_viewer):
         self.log_viewer = log_viewer
@@ -94,7 +94,7 @@ class Logger:
         Call this method explicitly from another module if you want to disable logs to stdout
         """
         # Log to stdout event if a log viewer is used
-        self.always_log_to_stdout = True
+        self.always_log_to_stdout = False
 
     def create_log_line_prefix(self, log_level):
         """

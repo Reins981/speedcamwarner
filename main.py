@@ -558,7 +558,7 @@ class MaxSpeedlayout(FloatLayout):
 
 class LogViewer(FloatLayout):
 
-    LOG_BUFFER = 1
+    MAX_LOG_BUFFER = 100
     cv_log = Condition()
 
     def __init__(self, *args, **kwargs):
@@ -567,7 +567,7 @@ class LogViewer(FloatLayout):
         self.orientation = 'vertical'
         self.logs = []
         # ... (other initialization code)
-        self.log_queue = deque(maxlen=self.LOG_BUFFER)  # Use deque for efficient rotation
+        self.log_queue = deque(maxlen=self.MAX_LOG_BUFFER)  # Use deque for efficient rotation
 
         self.scroll_view = ScrollView(do_scroll_x=False, size_hint=(1, 0.65),
                                       pos_hint={'top': 0.95})
@@ -602,9 +602,10 @@ class LogViewer(FloatLayout):
 
     def add_log(self, log):
         LogViewer.cv_log.acquire()
-        if len(self.log_queue) == self.log_queue.maxlen:
-            self.update_display()
         self.log_queue.append(log)
+        self.update_display()
+        if len(self.log_queue) == self.log_queue.maxlen:
+            self.log_queue.clear()
         LogViewer.cv_log.notify()
         LogViewer.cv_log.release()
 
