@@ -52,8 +52,9 @@ class POIReader(Logger):
                  map_queue,
                  cv_map,
                  cv_map_cloud,
-                 cv_map_db):
-        Logger.__init__(self, self.__class__.__name__)
+                 cv_map_db,
+                 log_viewer):
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.cv_speedcam = cv_speedcam
         self.speed_cam_queue = speedcamqueue
         self.gps_producer = gps_producer
@@ -63,6 +64,8 @@ class POIReader(Logger):
         self.cv_map = cv_map
         self.cv_map_cloud = cv_map_cloud
         self.cv_map_db = cv_map_db
+        self.log_viewer = log_viewer
+
         # global members
         self.connection = None
         self.poi_raw_data = None
@@ -120,7 +123,8 @@ class POIReader(Logger):
         self.timer_1.start()
 
         self.timer_2 = CyclicThread(self.init_time_from_cloud,
-                                    self.update_pois_from_cloud)
+                                    self.update_pois_from_cloud,
+                                    self.log_viewer)
         self.timer_2.daemon = True
         self.timer_2.start()
         self.timer_2.set_time(self.u_time_from_cloud)

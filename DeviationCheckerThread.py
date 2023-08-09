@@ -14,9 +14,9 @@ from Logger import Logger
 
 class DeviationCheckerThread(StoppableThread, Logger):
     def __init__(self, main_app, resume, cv_average_angle, cv_interrupt, average_angle_queue,
-                 interruptqueue, av_bearing_value, cond):
+                 interruptqueue, av_bearing_value, cond, cond_ar, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.resume = resume
         self.cv_average_angle = cv_average_angle
@@ -25,19 +25,25 @@ class DeviationCheckerThread(StoppableThread, Logger):
         self.interruptqueue = interruptqueue
         self.av_bearing_value = av_bearing_value
         self.cond = cond
+        self.cond_ar = cond_ar
         self.av_bearing = float(0.0)
         self.av_bearing_current = 0
         self.av_bearing_prev = 0
         self.first_bearing_set_available = False
 
     def run(self):
-        while not self.cond.terminate:
+        while not self.cond.terminate and not self.cond_ar.terminate:
             if self.main_app.run_in_back_ground:
                 self.main_app.main_event.wait()
             self.process()
 
         self.average_angle_queue.clear_average_angle_data(self.cv_average_angle)
-        self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
+        # Do not trigger termination of the calculator and speed camera warner thread in case it is
+        # AR related
+        if self.cond.terminate:
+            self.interruptqueue.produce(self.cv_interrupt, 'TERMINATE')
+        if self.cond_ar.terminate:
+            self.interruptqueue.clear_interruptqueue(self.cv_interrupt)
         self.print_log_line(f"{self.__class__.__name__} terminating")
         self.stop()
 

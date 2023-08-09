@@ -17,9 +17,10 @@ from Logger import Logger
 
 
 class GPSConsumerThread(StoppableThread, Logger):
-    def __init__(self, main_app, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
+    def __init__(self, main_app, resume, cv, curspeed, bearing,
+                 gpsqueue, s, cl, cond, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.resume = resume
         self.cv = cv
@@ -175,10 +176,9 @@ class GPSThread(StoppableThread, Logger):
     def __init__(self, main_app, g, cv, cv_vector, cv_voice, cv_average_angle, voice_prompt_queue,
                  ms, vdata, gpsqueue, average_angle_queue, cv_map, map_queue,
                  osm_wrapper, cv_currentspeed, currentspeed_queue, cv_gps_data, gps_data_queue,
-                 cv_speedcam, speed_cam_queue, calculator, cond):
+                 cv_speedcam, speed_cam_queue, calculator, cond, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
-        self.main_app = main_app
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.g = g
         self.cv = cv
@@ -235,7 +235,7 @@ class GPSThread(StoppableThread, Logger):
         self.gps_test_data = False
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__), "gpx",
-                                     "LF9.gpx")
+                                     "Fortaleza.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 40
         # Max GPS inaccuracy treshold after which the App will go into OFF mode.

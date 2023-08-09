@@ -26,9 +26,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
     def __init__(self, main_app, resume, cv_voice, cv_speedcam, voice_prompt_queue,
                  speedcamqueue, cv_overspeed, overspeed_queue,
-                 osm_wrapper, calculator, ms, g, cond):
+                 osm_wrapper, calculator, ms, g, cond, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.resume = resume
         self.cv_voice = cv_voice

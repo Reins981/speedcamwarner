@@ -737,9 +737,9 @@ class ResultMapper(Logger):
 
 
 class CyclicThread(threading.Thread, Logger):
-    def __init__(self, cycle_time, task, *args, **kwargs):
+    def __init__(self, cycle_time, task, log_viewer, *args, **kwargs):
         threading.Thread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self._stop_event = threading.Event()
         self.cycle_time = cycle_time
         self.task = task
@@ -774,9 +774,15 @@ class CyclicThread(threading.Thread, Logger):
 
 class Worker(StoppableThread, Logger):
     # executing tasks from a given tasks queue
-    def __init__(self, tasks, mcond=None, task_counter=None, result_map=None, action='NETWORK'):
+    def __init__(self,
+                 tasks,
+                 mcond=None,
+                 task_counter=None,
+                 result_map=None,
+                 action='NETWORK',
+                 log_viewer=None):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.tasks = tasks
         self.Mcond = mcond
         self.TaskCounter = task_counter
@@ -878,8 +884,9 @@ class ThreadPool(Logger):
                  internal_error='',
                  current_rect='',
                  extrapolated=False,
-                 action='NETWORK'):
-        Logger.__init__(self, self.__class__.__name__)
+                 action='NETWORK',
+                 log_viewer=None):
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
 
         self.num_threads = num_threads
         self.action = action
@@ -902,7 +909,8 @@ class ThreadPool(Logger):
                 mcond=Mcond,
                 task_counter=self.taskCounter,
                 result_map=self.resultMap,
-                action=self.action
+                action=self.action,
+                log_viewer=log_viewer
             )
 
     def add_task(self, func, *args, **kwargs):

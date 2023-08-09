@@ -90,9 +90,9 @@ class OSMThread(StoppableThread, Logger):
     trigger = "DRAW_POIS"
 
     def __init__(self, main_app, resume, osm_wrapper, calculator_thread, cv_map, cv_poi, map_queue,
-                 poi_queue, gps_producer, voice_consumer, cond):
+                 poi_queue, gps_producer, voice_consumer, cond, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.resume = resume
         self.osm_wrapper = osm_wrapper
@@ -161,8 +161,8 @@ class Maps(Logger):
     TRIGGER_RECT_DRAW_EXTRAPOLATED = False
 
     def __init__(self, map_layout, cv_map_osm, cv_map_construction,
-                 cv_map_cloud, cv_map_db, map_queue):
-        Logger.__init__(self, self.__class__.__name__)
+                 cv_map_cloud, cv_map_db, map_queue, log_viewer):
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.map_layout = map_layout
         self.cv_map_osm = cv_map_osm
         self.cv_map_construction = cv_map_construction

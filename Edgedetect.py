@@ -1,5 +1,6 @@
 import cv2
 import os
+import time
 from kivy.clock import mainthread
 from kivy.graphics.texture import Texture
 from kivy.graphics import Color, Rectangle
@@ -14,9 +15,11 @@ class EdgeDetect(Preview):
     main_app = None
     voice_prompt_queue = None
     cv_voice = None
+    log_viewer = None
     DEFAULT_HAARCASCADE_MODEL = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                              "data_models",
                                              "haarcascade_frontalface_default.xml")
+    TRIGGER_TIME_AR_SOUND_MAX = 10
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -27,6 +30,8 @@ class EdgeDetect(Preview):
         self.overlay_texture = None
         self.backup_faces = None
         self.backup_people = None
+        self.freeflow = False
+        self.last_ar_sound_time = 0
 
         self.init_ar_detection()
 
@@ -41,12 +46,16 @@ class EdgeDetect(Preview):
         cls.voice_prompt_queue = voice_queue
         cls.cv_voice = cv_voice
 
+    def set_log_viewer(self, log_viewer):
+        EdgeDetect.log_viewer = log_viewer
+
     def init_ar_detection(self):
         self.face_cascade = cv2.CascadeClassifier(EdgeDetect.DEFAULT_HAARCASCADE_MODEL)
 
         # Load the pre-trained HOG detector for pedestrian detection
         self.hog = cv2.HOGDescriptor()
         self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+        self.freeflow = False
 
     def analyze_pixels_callback(self, pixels, image_size, image_pos, scale, mirror):
         # pixels : analyze pixels (bytes)
@@ -74,20 +83,30 @@ class EdgeDetect(Preview):
         results_found = self.update_results(faces, people)
 
         if results_found:
-            self.play_ar_sound()
+            current_time = time.time()
+            # Avoid frequent updates due to performance
+            if current_time - self.last_ar_sound_time >= EdgeDetect.TRIGGER_TIME_AR_SOUND_MAX:
+                self.logger.print_log_line("AR detection successful",
+                                           log_viewer=EdgeDetect.log_viewer)
+                self.play_ar_sound()
+                self.last_ar_sound_time = current_time
+
             if not self.g.camera_in_progress():
-                self.g.update_ar()
+                if not self.g.camera_is_ar_human():
+                    self.g.update_ar()
+            self.freeflow = False
         else:
             # Reset to trigger a new voice prompt
-            if not self.g.camera_in_progress():
+            if not self.g.camera_in_progress() and not self.freeflow:
                 self.g.update_speed_camera("FREEFLOW")
+                self.freeflow = True
 
-        results = [faces, people]
-        for result in results:
-            for (x, y, w, h) in result:
-                self.logger.print_log_line(f" AR detection at {x}, {y}, {w}, {h}")
-                # Draw a red rectangle around each detected face
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 5)
+        if results_found:
+            results = [faces, people]
+            for result in results:
+                for (x, y, w, h) in result:
+                    # Draw a red rectangle around each detected face
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 5)
 
         self.make_thread_safe(pixels, frame, image_size)
 

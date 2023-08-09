@@ -53,6 +53,24 @@
                     "longitude": 6.748457998037338
                 }
             ]
+        },
+        {
+            "name": "Hertog Willem-pad",
+            "coordinates": [
+                {
+                    "latitude": 52.477458,
+                    "longitude": 6.072848
+                }
+            ]
+        },
+        {
+            "name": "Eijerdijk",
+            "coordinates": [
+                {
+                    "latitude": 52.472692,
+                    "longitude": 6.062593
+                }
+            ]
         }
     ]
 }

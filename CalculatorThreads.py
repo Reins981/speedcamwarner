@@ -403,6 +403,7 @@ class Rect(object):
 
 class RectangleCalculatorThread(StoppableThread, Logger):
     thread_lock = False
+    log_viewer = None
 
     def __init__(self,
                  main_app,
@@ -433,7 +434,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                  cond):
 
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, RectangleCalculatorThread.log_viewer)
         self.main_app = main_app
         self.cv_vector = cv_vector
         self.cv_voice = cv_voice
@@ -1647,8 +1648,11 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         RectangleCalculatorThread.thread_lock = False
 
     def processInterrupts(self):
-        self.isCcpStable = self.interruptqueue.consume(self.cv_interrupt)
-        self.cv_interrupt.release()
+        if self.main_app.is_deviation_checker_thread_alive():
+            self.isCcpStable = self.interruptqueue.consume(self.cv_interrupt)
+            self.cv_interrupt.release()
+        else:
+            self.isCcpStable = None
 
         if self.isCcpStable == 'TERMINATE':
             self.print_log_line(' Calculator thread interrupt termination')
@@ -2144,7 +2148,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                           data=data,
                           internal_error=internal_error,
                           current_rect=current_rect,
-                          extrapolated=extrapolated)
+                          extrapolated=extrapolated,
+                          log_viewer=RectangleCalculatorThread.log_viewer)
 
         for i in range(0, len(lookup_properties)):
             pool.add_task(func,
@@ -2165,7 +2170,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                          wait_till_completed=True):
         # get matched street data immediately after building our tree and list structure.
 
-        pool = ThreadPool(num_threads=worker_threads, action='CACHE')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='CACHE',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         for task, data_list in server_responses.items():
             pool.add_task(func, dataset=data_list[2], rect_preferred=data_list[4])
 
@@ -2182,21 +2189,27 @@ class RectangleCalculatorThread(StoppableThread, Logger):
     def start_thread_pool_speed_cam_structure(func, worker_threads=1, linkedList=None, tree=None):
         # get speed cam data immediately after building our tree and list structure.
 
-        pool = ThreadPool(num_threads=worker_threads, action='SPEED')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='SPEED',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func, linkedList, tree)
 
     @staticmethod
     def start_thread_pool_speed_camera(func, worker_threads, xtile, ytile, ccp_lon, ccp_lat):
         # get speed cam data immediately with a look ahead.
 
-        pool = ThreadPool(num_threads=worker_threads, action='SPEED')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='SPEED',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func, xtile, ytile, ccp_lon, ccp_lat)
 
     @staticmethod
     def start_thread_pool_construction_areas(func, worker_threads, xtile, ytile, ccp_lon, ccp_lat):
         # get speed cam data immediately with a look ahead.
 
-        pool = ThreadPool(num_threads=worker_threads, action='CONSTRUCTIONS')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='CONSTRUCTIONS',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func, xtile, ytile, ccp_lon, ccp_lat)
 
     @staticmethod
@@ -2204,14 +2217,18 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                                        name, latitude, longitude):
         # upload a camera to google drive
 
-        pool = ThreadPool(num_threads=worker_threads, action='UPLOAD')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='UPLOAD',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func, name, latitude, longitude)
 
     @staticmethod
     def start_thread_pool_process_look_ahead_interrupts(func, worker_threads=1):
         while RectangleCalculatorThread.thread_lock:
             pass
-        pool = ThreadPool(num_threads=worker_threads, action='DISABLE')
+        pool = ThreadPool(num_threads=worker_threads,
+                          action='DISABLE',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func)
         # _ = pool.wait_completion()
 
@@ -2224,7 +2241,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                                       c_rect=None,
                                       wait_till_completed=True):
 
-        pool = ThreadPool(num_threads=1, action='LOOKUP')
+        pool = ThreadPool(num_threads=1,
+                          action='LOOKUP',
+                          log_viewer=RectangleCalculatorThread.log_viewer)
         pool.add_task(func, lat, lon, linkedList, tree, c_rect)
 
         if wait_till_completed:

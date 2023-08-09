@@ -5,8 +5,10 @@ __version__ = '0.1'
 # qpy:2
 # ts=4:sw=4:expandtab
 import os
+import logging
 from kivy.app import App
 from kivy_garden.mapview import MapView
+from kivy.uix.textinput import TextInput
 from kivy.properties import ObjectProperty
 from kivy.uix.button import Button
 from kivy.graphics import Color, Rectangle, Line
@@ -14,6 +16,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.image import Image as UIXImage
+from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 from ARlayout import ARLayout
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
@@ -43,6 +46,7 @@ from kivy.utils import platform
 from functools import partial
 from socket import gaierror
 from urllib3.exceptions import NewConnectionError
+from collections import deque
 
 URL = os.path.join(os.path.abspath(os.path.dirname(__file__)), "assets", "leaf.html")
 
@@ -74,7 +78,7 @@ def some_api_callback(message, *args):
 
 class OSM_INIT(Logger):
     def __init__(self, *args, **kwargs):
-        super().__init__(self.__class__.__name__)
+        super().__init__(self.__class__.__name__, args[5])
         self.gps_thread = args[0]
         self.calculator_thread = args[1]
         self.osm_wrapper = args[2]
@@ -552,6 +556,73 @@ class MaxSpeedlayout(FloatLayout):
         self.rect.pos = instance.pos
 
 
+class LogViewer(FloatLayout):
+
+    LOG_BUFFER = 200
+    cv_log = Condition()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self.sm = args[0]
+        self.orientation = 'vertical'
+        self.logs = []
+        # ... (other initialization code)
+        self.log_queue = deque(maxlen=self.LOG_BUFFER)  # Use deque for efficient rotation
+
+        self.scroll_view = ScrollView(do_scroll_x=False, size_hint=(1, 0.65),
+                                      pos_hint={'top': 0.95})
+        self.grid_layout = GridLayout(cols=1, spacing=5, size_hint_y=None)
+        self.scroll_view.add_widget(self.grid_layout)
+        self.add_widget(self.scroll_view)
+
+        self.returnbutton_main = Button(text='<<<', font_size=50, bold=True,
+                                        background_color=(.5, .5, .5, .5),
+                                        size_hint=(None, None),
+                                        size=(100, 100),
+                                        pos_hint={'x': 0.45, 'y': 0})
+        self.add_widget(self.returnbutton_main)
+
+        self.search_input = TextInput(hint_text='Search logs...', multiline=False,
+                                      size_hint=(1, None), height=30,
+                                      pos_hint={'top': 0.95})
+        self.search_input.bind(text=self.on_search_text)
+        self.add_widget(self.search_input)
+
+        self.returnbutton_main.bind(on_press=self.callback_return)
+
+    def on_search_text(self, instance, value):
+        LogViewer.cv_log.acquire()
+        # Filter and update the display based on the search query
+        filtered_logs = [log for log in self.log_queue if value.lower() in log.lower()]
+        self.update_display(filtered_logs)
+        LogViewer.cv_log.notify()
+        LogViewer.cv_log.release()
+
+    def add_log(self, log):
+        LogViewer.cv_log.acquire()
+        if len(self.log_queue) == self.log_queue.maxlen:
+            self.update_display()
+            self.log_queue.clear()
+        self.log_queue.append(log)
+        LogViewer.cv_log.notify()
+        LogViewer.cv_log.release()
+
+    def update_display(self, logs=None):
+        self.grid_layout.clear_widgets()
+        logs = logs or self.log_queue
+        for log in logs:
+            label = self.create_label(log)
+            self.grid_layout.add_widget(label)
+        self.grid_layout.height = self.grid_layout.minimum_height
+
+    @staticmethod
+    def create_label(text):
+        return Label(text=text, size_hint_y=None, height=40)
+
+    def callback_return(self, instance):
+        self.sm.current = 'Operative'
+
+
 class Poilayout(GridLayout):
 
     def __init__(self, *args, **kwargs):
@@ -570,8 +641,6 @@ class Poilayout(GridLayout):
 
         self.poibutton = Button(text='SEARCH', bold=True, font_size=60,
                                 background_color=(.35, .35, .35, .35))
-        '''self.stopbutton = Button(text='STOP ROUTE', bold=True, font_size=60,
-                                 background_color=(.35, .35, .35, .35))'''
         self.add_widget(self.poibutton)
         self.hospital = CheckBox(active=True, color=[3, 3, 3, 3], size_hint_x=0.4)
         self.hospital.bind(active=self.on_checkbox_active)
@@ -609,14 +678,6 @@ class Poilayout(GridLayout):
 
         self.logger.print_log_line("POI lookup started!!")
 
-        # First stop any open route providers
-        '''if self.route_providers:
-            self.stop_thread = True
-            OSMThread.route_calc = True
-            for route_provider in self.route_providers:
-                self.route_providers.remove(route_provider)
-                route_provider.join()'''
-        # OSMThread.route_calc = True
         self.stop_thread = False
         self.main_app.map_layout.map_view.re_center = False
 
@@ -698,35 +759,10 @@ class Poilayout(GridLayout):
                                            self.main_app.calculator,
                                            self.main_app.osm_wrapper,
                                            self.main_app.cv_map,
-                                           self.main_app.map_queue)
+                                           self.main_app.map_queue,
+                                           self.main_app.log_viewer)
                 # Calculate smallest distance to POIS
                 self.sm.current = 'Map'
-                '''self.logger.print_log_line("Calculate smallest distance to POIS..")
-
-                pois = []
-                # update ccp
-                lon, lat = gps_producer.get_lon_lat_bot()
-                for element in data:
-                    try:
-                        poi = (element['lat'], element['lon'])
-                    except KeyError:
-                        continue
-                    distance = speedwarner.check_distance_between_two_points((poi[1], poi[0]),
-                                                                             (lon, lat))
-                    pois.append((poi, distance))
-                poi = speedwarner.sort_pois(pois)
-                if poi is not None:
-                    poi_tuple = (poi, (lat, lon))
-                    self.logger.print_log_line("Nearest POI is %s" % str(poi))
-                    self.main_app.poi_queue.produce(self.main_app.cv_poi, poi_tuple)
-                    self.main_app.poi_queue.produce(self.main_app.cv_poi, data)
-                    self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_SUCCESS")
-                    route_provider = threading.Thread(target=self.prepare_route, args=(poi,))
-                    self.route_providers.append(route_provider)
-                    route_provider.start()
-                else:
-                    self.ml.update_pois(0)
-                    self.voice_prompt_queue.produce_poi_status(self.cv_voice, "POI_FAILED")'''
             else:
                 self.logger.print_log_line("POI lookup finished without results!")
                 self.ml.update_pois(0)
@@ -759,22 +795,47 @@ class Cameralayout(BoxLayout):
     def __init__(self, *args, **kwargs):
         super(Cameralayout, self).__init__(**kwargs)
         self.sm = args[0]
-        self.main_app = args[1]
-        self.voice_prompt_queue = args[2]
-        self.cv_voice = args[3]
+        self.ar_layout = args[1]
+        self.main_app = args[2]
+        self.voice_prompt_queue = args[3]
+        self.cv_voice = args[4]
+        self.log_viewer = args[5]
 
-        self.policebutton = Button(text='POLICE', font_size=300, bold=True,
+        self.policebutton = Button(text='POLICE', font_size=200, bold=True,
                                    background_color=(.35, .35, .35, .35))
         self.add_widget(self.policebutton)
-        self.returnbutton_main = Button(text='<<<', font_size=600, bold=True,
+        self.c_button = Button(text='ARF', font_size=200, bold=True,
+                                   background_color=(.35, .35, .35, .35))
+        self.add_widget(self.c_button)
+        self.logbutton = Button(text='LOG', bold=True, font_size=200,
+                                background_color=(.35, .35, .35, .35))
+        self.add_widget(self.logbutton)
+        self.returnbutton_main = Button(text='<<<', font_size=500, bold=True,
                                         background_color=(.5, .5, .5, .5))
         self.add_widget(self.returnbutton_main)
 
         self.returnbutton_main.bind(on_press=self.callback_return)
         self.policebutton.bind(on_press=self.callback_police)
+        self.c_button.bind(on_press=self.callback_camera)
+        self.logbutton.bind(on_press=self.callback_log)
 
     def callback_return(self, instance):
         self.sm.current = 'Operative'
+
+    def callback_log(self, instance):
+        self.sm.current = 'Log'
+
+    def callback_camera(self, instance):
+        self.main_app.stop_deviation_checker_thread()
+        Clock.schedule_once(self.connect_camera)
+        self.sm.current = 'Camera'
+
+    def connect_camera(self, dt):
+        if not self.ar_layout.edge_detect.camera_connected:
+            self.ar_layout.set_log_viewer(self.log_viewer)
+            self.ar_layout.edge_detect.connect_camera(analyze_pixels_resolution=720,
+                                                      enable_analyze_pixels=True,
+                                                      enable_video=False)
 
     def callback_police(self, instance):
         gps_producer, calculator, _, poi_reader = self.main_app.pass_bot_objects()
@@ -892,6 +953,9 @@ class Gpslayout(BoxLayout):
     def camera_in_progress(self):
         return self.camera.source != 'images/human.jpg' \
             and self.camera.source != 'images/freeflow.png'
+
+    def camera_is_ar_human(self):
+        return self.camera.source == 'images/human.jpg'
 
     def update_speed_camera(self, camera='fix'):
         if camera == 'fix':
@@ -2076,6 +2140,22 @@ class MainTApp(App):
         self.gps_status_type = str(stype)
         self.gps_data_queue.produce(self.cv_gps_data, {'status': self.gps_status})
 
+    def setup_logging(self):
+        formatter = logging.Formatter('%(levelname)s - %(message)s')
+        handler = logging.StreamHandler()
+        handler.emit = self.handle_log  # Override emit method to handle logs
+        handler.setFormatter(formatter)
+        logging.root.addHandler(handler)
+        logging.root.setLevel(logging.DEBUG)
+
+    def handle_log(self, record):
+        log_message = self.log_format(record)
+        Clock.schedule_once(lambda dt: self.log_viewer.add_log(log_message), 0)
+
+    @staticmethod
+    def log_format(record):
+        return f"{record.levelname} - {record.getMessage()}"
+
     def init(self):
 
         # set config items
@@ -2118,6 +2198,7 @@ class MainTApp(App):
 
         ## Stuff used by more than one Thread
         self.q = ThreadCondition(False)
+        self.q_ar = ThreadCondition(False)
         self.cv = Condition()
         self.cv_voice = Condition()
         self.cv_vector = Condition()
@@ -2160,8 +2241,6 @@ class MainTApp(App):
                                 size_hint=(.5, .5), background_color=(.65, .65, .65, .65))
         self.poibutton = Button(text='POIS', bold=True, font_size=80, pos_hint={"right": 1},
                                 size_hint=(.5, .5), background_color=(.62, .62, .62, .62))
-        self.camerabutton = Button(text='Cam', bold=True, font_size=80, pos_hint={"right": 1},
-                                   size_hint=(.5, .5), background_color=(.62, .62, .62, .62))
         self.startbutton = Button(text='Start', bold=True, font_size=200,
                                   background_color=(.7, .7, .7, .7))
         self.stopbutton = Button(text='Stop', bold=True, font_size=200,
@@ -2175,7 +2254,6 @@ class MainTApp(App):
         self.infobutton.bind(on_press=self.callback_info)
         self.mapbutton.bind(on_press=self.callback_map)
         self.poibutton.bind(on_press=self.callback_poi)
-        self.camerabutton.bind(on_press=self.callback_camera)
         self.returnbutton.bind(on_press=self.callback_return)
 
         self.startbutton.bind(on_press=self.callback_start)
@@ -2191,11 +2269,26 @@ class MainTApp(App):
         root_action.add_widget(self.stopbutton)
         root_action.add_widget(self.exitbutton)
         root_action.add_widget(self.returnbutton)
+
         root_main = BoxLayout(orientation='vertical')
-        self.root_add = Cameralayout(self.sm, self, self.voice_prompt_queue, self.cv_voice,
+        self.g = Gpslayout(self.sm, self)
+        self.ar_layout = ARLayout(self.sm,
+                                  self.g,
+                                  self,
+                                  self.voice_prompt_queue,
+                                  self.cv_voice)
+        self.log_viewer = LogViewer(self.sm)
+        self.setup_logging()
+        logger.log_viewer = self.log_viewer
+
+        self.root_add = Cameralayout(self.sm,
+                                     self.ar_layout,
+                                     self,
+                                     self.voice_prompt_queue,
+                                     self.cv_voice,
+                                     self.log_viewer,
                                      orientation='vertical')
 
-        self.g = Gpslayout(self.sm, self)
         self.ms = MaxSpeedlayout(self.g)
         self.maxspeed = self.ms.get_maxspeed_label()
         self.s = Speedlayout()
@@ -2205,15 +2298,12 @@ class MainTApp(App):
         self.root_table = Poilayout(self.sm, self.ml, self, self.voice_prompt_queue, self.cv_voice)
         self.map_layout = Maplayout(self.sm)
         self.osm_wrapper = Maps(self.map_layout, self.cv_map_osm, self.cv_map_construction,
-                                self.cv_map_cloud, self.cv_map_db, self.map_queue)
-        # AR layout specific
-        self.ar_layout = ARLayout(self.sm, self.g, self, self.voice_prompt_queue, self.cv_voice)
+                                self.cv_map_cloud, self.cv_map_db, self.map_queue, self.log_viewer)
 
         self.b.add_widget(self.menubutton)
         self.b.add_widget(self.infobutton)
         self.b.add_widget(self.mapbutton)
         self.b.add_widget(self.poibutton)
-        self.b.add_widget(self.camerabutton)
         self.b.add_widget(self.nightbutton)
 
         self.root.add_widget(self.g)
@@ -2230,6 +2320,7 @@ class MainTApp(App):
         s5 = Screen(name='Poi')
         s6 = Screen(name='Map')
         s7 = Screen(name='Camera')
+        s8 = Screen(name='Log')
         s1.add_widget(self.root)
         s2.add_widget(root_action)
         s3.add_widget(root_main)
@@ -2237,6 +2328,7 @@ class MainTApp(App):
         s5.add_widget(self.root_table)
         s6.add_widget(self.map_layout)
         s7.add_widget(self.ar_layout)
+        s8.add_widget(self.log_viewer)
 
         self.sm.add_widget(s1)
         self.sm.add_widget(s2)
@@ -2245,6 +2337,7 @@ class MainTApp(App):
         self.sm.add_widget(s5)
         self.sm.add_widget(s6)
         self.sm.add_widget(s7)
+        self.sm.add_widget(s8)
 
         self.callback_menu(self)
         return self.sm
@@ -2252,14 +2345,28 @@ class MainTApp(App):
     def pass_bot_objects(self):
         return self.gps_producer, self.calculator, self.speedwarner, self.poireader
 
-    def init_osm(self, gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue):
-        self.osm_init = OSM_INIT(gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue)
+    def init_osm(self, gps_thread, calculator_thread, osm_wrapper, cv_map, map_queue, log_viewer):
+        self.osm_init = OSM_INIT(gps_thread,
+                                 calculator_thread,
+                                 osm_wrapper,
+                                 cv_map,
+                                 map_queue,
+                                 log_viewer)
 
     def init_osm_thread(self, main_app, resume, osm_wrapper, calculator_thread,
-                        cv_map, cv_poi, map_queue, poi_queue, gps_producer, voice_consumer, cond):
-        self.osm_thread = OSMThread(main_app, resume, osm_wrapper, calculator_thread, cv_map,
+                        cv_map, cv_poi, map_queue, poi_queue,
+                        gps_producer, voice_consumer, cond, log_viewer):
+        self.osm_thread = OSMThread(main_app,
+                                    resume,
+                                    osm_wrapper,
+                                    calculator_thread,
+                                    cv_map,
                                     cv_poi,
-                                    map_queue, poi_queue, gps_producer, voice_consumer, cond)
+                                    map_queue,
+                                    poi_queue,
+                                    gps_producer,
+                                    voice_consumer,
+                                    cond, log_viewer)
         self.threads.append(self.osm_thread)
         logger.print_log_line(" Start osm thread")
         self.osm_thread.daemon = True
@@ -2287,7 +2394,8 @@ class MainTApp(App):
                           cv_speedcam,
                           speed_cam_queue,
                           calculator,
-                          cond):
+                          cond,
+                          log_viewer):
         self.gps_producer = GPSThread(main_app,
                                       g,
                                       cv,
@@ -2309,24 +2417,39 @@ class MainTApp(App):
                                       cv_speedcam,
                                       speed_cam_queue,
                                       calculator,
-                                      cond)
+                                      cond,
+                                      log_viewer)
         self.threads.append(self.gps_producer)
         logger.print_log_line(" Start GPS Producer thread")
         self.gps_producer.daemon = True
         self.gps_producer.start()
 
-    def init_gps_consumer(self, main_app, resume, cv, curspeed, bearing, gpsqueue, s, cl, cond):
-        self.gps_consumer = GPSConsumerThread(main_app, resume, cv, curspeed, bearing, gpsqueue, s,
-                                              cl, cond)
+    def init_gps_consumer(self, main_app, resume, cv, curspeed,
+                          bearing, gpsqueue, s, cl, cond, log_viewer):
+        self.gps_consumer = GPSConsumerThread(main_app,
+                                              resume,
+                                              cv,
+                                              curspeed,
+                                              bearing,
+                                              gpsqueue,
+                                              s,
+                                              cl,
+                                              cond,
+                                              log_viewer)
         self.threads.append(self.gps_consumer)
         logger.print_log_line(" Start GPS Consumer thread")
         self.gps_consumer.daemon = True
         self.gps_consumer.start()
 
     def init_voice_consumer(self, main_app, resume, cv_voice, voice_prompt_queue, calculator,
-                            cond):
-        self.voice_consumer = VoicePromptThread(main_app, resume, cv_voice, voice_prompt_queue,
-                                                calculator, cond)
+                            cond, log_viewer):
+        self.voice_consumer = VoicePromptThread(main_app,
+                                                resume,
+                                                cv_voice,
+                                                voice_prompt_queue,
+                                                calculator,
+                                                cond,
+                                                log_viewer)
         self.threads.append(self.voice_consumer)
         logger.print_log_line(" Start Accustic Voice thread")
         self.voice_consumer.daemon = True
@@ -2335,7 +2458,7 @@ class MainTApp(App):
 
     def init_deviation_checker(self, main_app, resume, cv_average_angle, cv_interrupt,
                                average_angle_queue,
-                               interruptqueue, av_bearing_value, cond):
+                               interruptqueue, av_bearing_value, cond, cond_ar, log_viewer):
         self.deviation_checker = DeviationCheckerThread(main_app,
                                                         resume,
                                                         cv_average_angle,
@@ -2343,10 +2466,13 @@ class MainTApp(App):
                                                         average_angle_queue,
                                                         interruptqueue,
                                                         av_bearing_value,
-                                                        cond)
+                                                        cond,
+                                                        cond_ar,
+                                                        log_viewer)
         self.threads.append(self.deviation_checker)
         logger.print_log_line(" Start Deviation Checker thread")
         self.deviation_checker.daemon = True
+        self.deviation_checker.name = "DeviationCheckerThread"
         self.deviation_checker.start()
 
     def init_calculator(self,
@@ -2376,6 +2502,7 @@ class MainTApp(App):
                         vdata,
                         osm_wrapper,
                         cond):
+        RectangleCalculatorThread.log_viewer = self.log_viewer
         self.calculator = RectangleCalculatorThread(main_app,
                                                     cv_vector,
                                                     cv_voice,
@@ -2412,21 +2539,37 @@ class MainTApp(App):
     def init_speed_cam_warner(self, main_app, resume, cv_voice, cv_speedcam,
                               gpssignalqueue, speedcamqueue,
                               cv_overspeed, overspeed_queue, osm_wrapper, calculator,
-                              ms, g, cond):
-        self.speedwarner = SpeedCamWarnerThread(main_app, resume, cv_voice, cv_speedcam,
+                              ms, g, cond, log_viewer):
+        self.speedwarner = SpeedCamWarnerThread(main_app,
+                                                resume,
+                                                cv_voice,
+                                                cv_speedcam,
                                                 gpssignalqueue,
-                                                speedcamqueue, cv_overspeed, overspeed_queue,
-                                                osm_wrapper, calculator, ms, g, cond)
+                                                speedcamqueue,
+                                                cv_overspeed,
+                                                overspeed_queue,
+                                                osm_wrapper,
+                                                calculator,
+                                                ms,
+                                                g,
+                                                cond,
+                                                log_viewer)
         self.threads.append(self.speedwarner)
         logger.print_log_line(" Start Speed Warner thread")
         self.speedwarner.daemon = True
         self.speedwarner.start()
 
     def init_overspeed_checker(self, main_app, resume, cv_overspeed, overspeed_queue,
-                               cv_currentspeed, currentspeed_queue, s, cond):
-        self.overspeed_checker = OverspeedCheckerThread(main_app, resume, cv_overspeed,
-                                                        overspeed_queue, cv_currentspeed,
-                                                        currentspeed_queue, s, cond)
+                               cv_currentspeed, currentspeed_queue, s, cond, log_viewer):
+        self.overspeed_checker = OverspeedCheckerThread(main_app,
+                                                        resume,
+                                                        cv_overspeed,
+                                                        overspeed_queue,
+                                                        cv_currentspeed,
+                                                        currentspeed_queue,
+                                                        s,
+                                                        cond,
+                                                        log_viewer)
         self.threads.append(self.overspeed_checker)
         logger.print_log_line(" Start Overspeed Checker thread")
         self.overspeed_checker.daemon = True
@@ -2434,15 +2577,6 @@ class MainTApp(App):
 
     def callback_info(self, instance):
         self.sm.current = 'Info'
-
-    def callback_camera(self, instance):
-        if not isinstance(self.gps_producer, GPSThread):
-            popup = Popup(title='Attention',
-                          content=Label(text='Please start App first!'),
-                          size_hint=(None, None), size=(600, 600))
-            popup.open()
-        else:
-            self.sm.current = 'Camera'
 
     def callback_poi(self, instance):
         if isinstance(self.gps_producer, GPSThread) and isinstance(self.calculator,
@@ -2476,7 +2610,7 @@ class MainTApp(App):
             popup.open()
         else:
             self.init_osm(self.gps_producer, self.calculator, self.osm_wrapper, self.cv_map,
-                          self.map_queue)
+                          self.map_queue, self.log_viewer)
             if self.osm_init.is_online():
                 self.sm.current = 'Map'
             else:
@@ -2503,7 +2637,6 @@ class MainTApp(App):
         self.q.set_terminate_state(True)
         self.root_table.stop_thread = True
         Clock.schedule_once(self.disconnect_camera)
-        # self.update_ar_event.cancel()
         self.voice_consumer._lock = False
 
         self.osc_server.stop()  # Stop the default socket
@@ -2641,7 +2774,46 @@ class MainTApp(App):
             self.maxspeed.font_size = 130
             Clock.schedule_once(self.maxspeed.texture_update)
             Clock.schedule_once(self.disconnect_camera)
-            # self.update_ar_event.cancel()
+
+    def is_deviation_checker_thread_alive(self):
+        return any(thread.name == "DeviationCheckerThread" and thread.is_alive()
+                   for thread in self.threads)
+
+    def start_deviation_checker_thread(self):
+        self.q_ar.set_terminate_state(False)
+        for thread in self.threads:
+            if thread.name == "DeviationCheckerThread" and thread.is_alive():
+                logger.print_log_line(f"{thread.name} is already started, skip start",
+                                      log_level="WARNING")
+                return
+
+        self.init_deviation_checker(self,
+                                    self.resume,
+                                    self.cv_average_angle,
+                                    self.cv_interrupt,
+                                    self.average_angle_queue,
+                                    self.interruptqueue,
+                                    self.s.av_bearing_value,
+                                    self.q,
+                                    self.q_ar,
+                                    self.log_viewer)
+
+    def stop_deviation_checker_thread(self):
+        self.q_ar.set_terminate_state(True)
+        self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
+        max_counter = 10
+        counter = 0
+        for thread in self.threads:
+            if thread.name == "DeviationCheckerThread":
+                while thread.is_alive() and counter < max_counter:
+                    logger.print_log_line(f'Try Counter {counter}: {thread.name} still alive!')
+                    self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
+                    thread.join()
+                    counter += 1
+                self.threads.remove(thread)
+
+        self.s.av_bearing_value.text = '-'
+        Clock.schedule_once(self.s.av_bearing_value.texture_update)
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'
@@ -2693,7 +2865,9 @@ class MainTApp(App):
                                         self.average_angle_queue,
                                         self.interruptqueue,
                                         self.s.av_bearing_value,
-                                        self.q)
+                                        self.q,
+                                        self.q_ar,
+                                        self.log_viewer)
             self.init_gps_producer(self,
                                    self.g,
                                    self.cv,
@@ -2715,7 +2889,8 @@ class MainTApp(App):
                                    self.cv_speedcam,
                                    self.speed_cam_queue,
                                    calculator,
-                                   self.q)
+                                   self.q,
+                                   self.log_viewer)
             self.init_gps_consumer(self,
                                    self.resume,
                                    self.cv,
@@ -2724,10 +2899,12 @@ class MainTApp(App):
                                    self.gpsqueue,
                                    self.s,
                                    self.cl,
-                                   self.q)
+                                   self.q,
+                                   self.log_viewer)
             self.voice_consumer = self.init_voice_consumer(self, self.resume, self.cv_voice,
                                                            self.voice_prompt_queue, calculator,
-                                                           self.q)
+                                                           self.q,
+                                                           self.log_viewer)
             self.init_osm_thread(self,
                                  self.resume,
                                  self.osm_wrapper,
@@ -2738,7 +2915,8 @@ class MainTApp(App):
                                  self.poi_queue,
                                  self.gps_producer,
                                  self.voice_consumer,
-                                 self.q)
+                                 self.q,
+                                 self.log_viewer)
             self.init_speed_cam_warner(self,
                                        self.resume,
                                        self.cv_voice,
@@ -2751,7 +2929,8 @@ class MainTApp(App):
                                        calculator,
                                        self.ms,
                                        self.g,
-                                       self.q)
+                                       self.q,
+                                       self.log_viewer)
             self.init_overspeed_checker(self,
                                         self.resume,
                                         self.cv_overspeed,
@@ -2759,7 +2938,8 @@ class MainTApp(App):
                                         self.cv_currentspeed,
                                         self.currentspeed_queue,
                                         self.s,
-                                        self.q)
+                                        self.q,
+                                        self.log_viewer)
 
             self.poireader = POIReader(self.cv_speedcam,
                                        self.speed_cam_queue,
@@ -2769,9 +2949,8 @@ class MainTApp(App):
                                        self.map_queue,
                                        self.cv_map,
                                        self.cv_map_cloud,
-                                       self.cv_map_db)
-            # Connect the Camera
-            Clock.schedule_once(self.connect_camera)
+                                       self.cv_map_db,
+                                       self.log_viewer)
             self.started = True
             self.stopped = False
 
@@ -2825,6 +3004,10 @@ class MainTApp(App):
             self.root_table.label_h.texture_update()
             self.root_table.label_g.color = (.5, 0, .8, 1)
             self.root_table.label_g.texture_update()
+            self.root_add.c_button.color = (.5, 0, .8, 1)
+            self.root_add.c_button.texture_update()
+            self.root_add.logbutton.color = (.5, 0, .8, 1)
+            self.root_add.logbutton.texture_update()
         else:
             self.nightbutton.text = 'Night'
             self.nightbutton.texture_update()
@@ -2874,6 +3057,10 @@ class MainTApp(App):
             self.root_table.label_h.texture_update()
             self.root_table.label_g.color = (1, 1, 1, 1)
             self.root_table.label_g.texture_update()
+            self.root_add.c_button.color = (1, 1, 1, 1)
+            self.root_add.c_button.texture_update()
+            self.root_add.logbutton.color = (1, 1, 1, 1)
+            self.root_add.logbutton.texture_update()
         self.day_update_done = True
         self.night_update_done = True
 
@@ -2926,6 +3113,10 @@ class MainTApp(App):
         self.root_table.label_h.texture_update()
         self.root_table.label_g.color = (.5, 0, .8, 1)
         self.root_table.label_g.texture_update()
+        self.root_add.c_button.color = (.5, 0, .8, 1)
+        self.root_add.c_button.texture_update()
+        self.root_add.logbutton.color = (.5, 0, .8, 1)
+        self.root_add.logbutton.texture_update()
 
     def callback_day_auto(self, instance):
         self.nightbutton.text = 'Night'
@@ -2976,6 +3167,10 @@ class MainTApp(App):
         self.root_table.label_h.texture_update()
         self.root_table.label_g.color = (1, 1, 1, 1)
         self.root_table.label_g.texture_update()
+        self.root_add.c_button.color = (1, 1, 1, 1)
+        self.root_add.c_button.texture_update()
+        self.root_add.logbutton.color = (1, 1, 1, 1)
+        self.root_add.logbutton.texture_update()
 
     def check_night_mode(self):
         time_array = time.ctime().split()
@@ -2992,14 +3187,9 @@ class MainTApp(App):
             self.day_update_done = False
             self.night_update_done = True
 
-    def connect_camera(self, dt):
-        self.ar_layout.camera_connected = True
-        self.ar_layout.edge_detect.connect_camera(analyze_pixels_resolution=720,
-                                                  enable_analyze_pixels=True,
-                                                  enable_video=False)
-
     def disconnect_camera(self, dt):
-        self.ar_layout.edge_detect.disconnect_camera()
+        if self.ar_layout.edge_detect.camera_connected:
+            self.ar_layout.edge_detect.disconnect_camera()
 
     def clear_voice_queue(self, cv):
         self.voice_prompt_queue.clear_gpssignalqueue(cv)

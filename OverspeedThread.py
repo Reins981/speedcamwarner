@@ -19,9 +19,9 @@ class OverspeedCheckerThread(StoppableThread, Logger):
                  cv_currentspeed,
                  currentspeed_queue,
                  s,
-                 cond):
+                 cond, log_viewer):
         StoppableThread.__init__(self)
-        Logger.__init__(self, self.__class__.__name__)
+        Logger.__init__(self, self.__class__.__name__, log_viewer)
         self.main_app = main_app
         self.resume = resume
         self.cv_overspeed = cv_overspeed

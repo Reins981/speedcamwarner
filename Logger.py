@@ -11,6 +11,7 @@ Created on 20.02.2018
 """
 
 from __future__ import division
+from kivy.clock import Clock
 
 import time
 
@@ -27,6 +28,16 @@ class Bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def add_log_line_to_log_viewer(log_line, log_viewer):
+    """
+        add a log line to a log viewer
+        @param log_line: log line to print (string)
+        @param log_viewer: log viewer
+        @return: None
+    """
+    Clock.schedule_once(lambda dt: log_viewer.add_log(log_line), 0)
 
 
 def print_log_line_to_stdout(log_line, color=None):
@@ -61,8 +72,23 @@ def print_log_line_to_stdout(log_line, color=None):
 
 
 class Logger:
-    def __init__(self, module_name):
+    def __init__(self, module_name, log_viewer=None):
+        """
+        Logger that logs either to stdout or to log_viewer widget
+        """
         self.__module_name = module_name
+        self.log_viewer = log_viewer
+        self.always_log_to_stdout = False
+
+    def set_log_viewer(self, log_viewer):
+        self.log_viewer = log_viewer
+
+    def set_configs(self):
+        """
+        Call this method explicitly from another module if you want to disable logs to stdout
+        """
+        # Log to stdout event if a log viewer is used
+        self.always_log_to_stdout = False
 
     def create_log_line_prefix(self, log_level):
         """
@@ -97,15 +123,26 @@ class Logger:
 
         return formatted_log_line
 
-    def print_log_line(self, log_string, log_level="INFO", color=None):
+    def print_log_line(self, log_string, log_level="INFO", color=None, log_viewer=None):
         """
             main function to print a logline to a file and to stdout
             @param log_string: log string to print (string)
             @param log_level: log level (string)
             @param color: choose a color if your terminal supports color output (string)
                         (see class Bcolors for list of available colors)
+            @param log_viewer: explicit log viewer,
+                overrides instance log viewer if both are defined
             @return: None
         """
+
+        log_viewer = log_viewer or self.log_viewer
+
         log_line = self.create_formatted_log_line(log_string, log_level)
 
-        print_log_line_to_stdout(log_line, color)
+        if log_viewer is None:
+            print_log_line_to_stdout(log_line, color)
+        else:
+            add_log_line_to_log_viewer(log_line, log_viewer)
+
+        if log_viewer is not None and self.always_log_to_stdout:
+            print_log_line_to_stdout(log_line, color)
