@@ -18,9 +18,6 @@ class EdgeDetect(Preview):
     cv_voice = None
     log_viewer = None
     speed_l = None
-    DEFAULT_HAARCASCADE_MODEL = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                                             "data_models",
-                                             "haarcascade_frontalface_default.xml")
     TRIGGER_TIME_AR_SOUND_MAX = 2
 
     def __init__(self, **kwargs):
@@ -53,7 +50,11 @@ class EdgeDetect(Preview):
         EdgeDetect.log_viewer = log_viewer
 
     def init_ar_detection(self):
-        self.face_cascade = cv2.CascadeClassifier(EdgeDetect.DEFAULT_HAARCASCADE_MODEL)
+        BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data_models")
+        CASCADE_FILE = os.path.join(BASE_PATH, 'haarcascade_frontalface_default.xml')
+
+        self.face_cascade = cv2.CascadeClassifier()
+        self.face_cascade.load(CASCADE_FILE)
 
         # Load the pre-trained HOG detector for pedestrian detection
         self.hog = cv2.HOGDescriptor()
@@ -76,6 +77,10 @@ class EdgeDetect(Preview):
         pixels = rgba.tostring()
 
         frame = cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
+
+        if np.size(frame) == 0:
+            self.logger.print_log_line("AR Frame is empty!", log_level="ERROR")
+            return
 
         # Detect faces in the frame
         faces = self.detect_faces(frame)

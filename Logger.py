@@ -12,7 +12,7 @@ Created on 20.02.2018
 
 from __future__ import division
 from kivy.clock import Clock
-
+from enum import Enum
 import time
 
 
@@ -30,6 +30,11 @@ class Bcolors:
     UNDERLINE = '\033[4m'
 
 
+class LogLevel(Enum):
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
 def add_log_line_to_log_viewer(log_line, log_viewer):
     """
         add a log line to a log viewer
@@ -37,7 +42,8 @@ def add_log_line_to_log_viewer(log_line, log_viewer):
         @param log_viewer: log viewer
         @return: None
     """
-    Clock.schedule_once(lambda dt: log_viewer.add_log(log_line), 0)
+    if LogLevel.WARNING.value in log_line or LogLevel.ERROR.value in log_line:
+        Clock.schedule_once(lambda dt: log_viewer.add_log(log_line), 0)
 
 
 def print_log_line_to_stdout(log_line, color=None):
@@ -78,7 +84,7 @@ class Logger:
         """
         self.__module_name = module_name
         self.log_viewer = log_viewer
-        self.always_log_to_stdout = False
+        self.always_log_to_stdout = True
 
     def set_log_viewer(self, log_viewer):
         self.log_viewer = log_viewer
@@ -88,7 +94,7 @@ class Logger:
         Call this method explicitly from another module if you want to disable logs to stdout
         """
         # Log to stdout event if a log viewer is used
-        self.always_log_to_stdout = False
+        self.always_log_to_stdout = True
 
     def create_log_line_prefix(self, log_level):
         """

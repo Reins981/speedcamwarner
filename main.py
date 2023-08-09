@@ -40,7 +40,7 @@ from ThreadBase import ThreadCondition, InterruptQueue, VectorDataPoolQueue, \
     GPSQueue, VoicePromptQueue, AverageAngleQueue, MapQueue, SpeedCamQueue, \
     OverspeedQueue, CurrentSpeedQueue, PoiQueue, GpsDataQueue
 from OSMWrapper import Maps, OSMThread
-from Logger import Logger
+from Logger import Logger, LogLevel
 from kivy.uix.checkbox import CheckBox
 from kivy.utils import platform
 from functools import partial
@@ -558,7 +558,7 @@ class MaxSpeedlayout(FloatLayout):
 
 class LogViewer(FloatLayout):
 
-    LOG_BUFFER = 200
+    LOG_BUFFER = 1
     cv_log = Condition()
 
     def __init__(self, *args, **kwargs):
@@ -575,20 +575,22 @@ class LogViewer(FloatLayout):
         self.scroll_view.add_widget(self.grid_layout)
         self.add_widget(self.scroll_view)
 
-        self.returnbutton_main = Button(text='<<<', font_size=50, bold=True,
+        self.returnbutton_main = Button(text='<<<', font_size=100, bold=True,
                                         background_color=(.5, .5, .5, .5),
-                                        size_hint=(None, None),
-                                        size=(100, 100),
-                                        pos_hint={'x': 0.45, 'y': 0})
+                                        size_hint=(1, 0.3),
+                                        pos_hint={'x': 0, 'y': 0})
         self.add_widget(self.returnbutton_main)
 
         self.search_input = TextInput(hint_text='Search logs...', multiline=False,
-                                      size_hint=(1, None), height=30,
-                                      pos_hint={'top': 0.95})
+                                      size_hint=(1, None), height=90,
+                                      pos_hint={'top': 1})
         self.search_input.bind(text=self.on_search_text)
         self.add_widget(self.search_input)
 
         self.returnbutton_main.bind(on_press=self.callback_return)
+
+    def clear_log_queue(self):
+        self.log_queue.clear()
 
     def on_search_text(self, instance, value):
         LogViewer.cv_log.acquire()
@@ -602,7 +604,6 @@ class LogViewer(FloatLayout):
         LogViewer.cv_log.acquire()
         if len(self.log_queue) == self.log_queue.maxlen:
             self.update_display()
-            self.log_queue.clear()
         self.log_queue.append(log)
         LogViewer.cv_log.notify()
         LogViewer.cv_log.release()
@@ -2162,8 +2163,10 @@ class MainTApp(App):
         logging.root.setLevel(logging.DEBUG)
 
     def handle_log(self, record):
-        log_message = self.log_format(record)
-        Clock.schedule_once(lambda dt: self.log_viewer.add_log(log_message), 0)
+        if (LogLevel.WARNING.value in record.getMessage() or
+                LogLevel.ERROR.value in record.getMessage()):
+            log_message = self.log_format(record)
+            Clock.schedule_once(lambda dt: self.log_viewer.add_log(log_message), 0)
 
     @staticmethod
     def log_format(record):
@@ -2666,6 +2669,7 @@ class MainTApp(App):
         self.interruptqueue.clear_interruptqueue(self.cv_interrupt)
         self.speed_cam_queue.clear_camqueue(self.cv_speedcam)
         self.voice_prompt_queue.clear_arqueue(self.cv_voice)
+        self.log_viewer.clear_log_queue()
 
         for thread in self.root_table.route_providers:
             self.root_table.route_providers.remove(thread)
@@ -2735,6 +2739,7 @@ class MainTApp(App):
             self.map_queue.clear_map_update(self.cv_map)
             self.currentspeed_queue.clear(self.cv_currentspeed)
             self.voice_prompt_queue.clear_arqueue(self.cv_voice)
+            self.log_viewer.clear_log_queue()
             self.voice_consumer._lock = False
 
             for thread in self.root_table.route_providers:
