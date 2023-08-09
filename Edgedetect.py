@@ -19,7 +19,7 @@ class EdgeDetect(Preview):
     DEFAULT_HAARCASCADE_MODEL = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                              "data_models",
                                              "haarcascade_frontalface_default.xml")
-    TRIGGER_TIME_AR_SOUND_MAX = 10
+    TRIGGER_TIME_AR_SOUND_MAX = 5
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
