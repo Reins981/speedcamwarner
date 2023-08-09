@@ -1275,6 +1275,19 @@ class Speedlayout(FloatLayout):
             self.av_bearing_value.text = "---.-"
             Clock.schedule_once(self.av_bearing_value.texture_update)
 
+    def update_ar(self, value):
+        if self.av_bearing_value.text != value:
+            self.av_bearing_value.text = value
+            if value == "!!!":
+                self.av_bearing_value.color = (1, 0, 0, 3)
+            else:
+                self.av_bearing_value.color = (0, 1, 0, 1)
+            self.av_bearing_value.texture_update()
+
+    def update_ar_label(self, m_label):
+        self.s.av_bearing.text = m_label
+        self.s.av_bearing.texture_update()
+
     def update_accel_layout(self, cur_speed=0, accel=True, gps_status='OFFLINE'):
         if gps_status == 'ONLINE':
             self.cur_speed = cur_speed
@@ -2272,11 +2285,13 @@ class MainTApp(App):
 
         root_main = BoxLayout(orientation='vertical')
         self.g = Gpslayout(self.sm, self)
+        self.s = Speedlayout()
         self.ar_layout = ARLayout(self.sm,
                                   self.g,
                                   self,
                                   self.voice_prompt_queue,
-                                  self.cv_voice)
+                                  self.cv_voice,
+                                  self.s)
         self.log_viewer = LogViewer(self.sm)
         self.setup_logging()
         logger.log_viewer = self.log_viewer
@@ -2291,7 +2306,6 @@ class MainTApp(App):
 
         self.ms = MaxSpeedlayout(self.g)
         self.maxspeed = self.ms.get_maxspeed_label()
-        self.s = Speedlayout()
         self.cl = CurveLayout()
         self.b = Buttonlayout()
         self.ml = MainView(self.sm)
@@ -2798,6 +2812,8 @@ class MainTApp(App):
                                     self.q_ar,
                                     self.log_viewer)
 
+        Clock.schedule_once(lambda dt: self.s.update_ar("---.-"), 0)
+
     def stop_deviation_checker_thread(self):
         self.q_ar.set_terminate_state(True)
         self.average_angle_queue.produce(self.cv_average_angle, 'TERMINATE')
@@ -2812,8 +2828,7 @@ class MainTApp(App):
                     counter += 1
                 self.threads.remove(thread)
 
-        self.s.av_bearing_value.text = '-'
-        Clock.schedule_once(self.s.av_bearing_value.texture_update)
+        Clock.schedule_once(lambda dt: self.s.update_ar("-"), 0)
 
     def callback_start(self, instance):
         self.sm.current = 'Operative'

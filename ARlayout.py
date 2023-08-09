@@ -14,7 +14,7 @@ class ARLayout(FloatLayout):
         super().__init__(**kwargs)
         self.sm = args[0]
         self.main_app = args[2]
-        ARLayout.edge_detect.init(args[1], args[2], args[3], args[4])
+        ARLayout.edge_detect.init(args[1], args[2], args[3], args[4], args[5])
 
     def set_log_viewer(self, log_viewer):
         ARLayout.edge_detect.set_log_viewer(log_viewer)

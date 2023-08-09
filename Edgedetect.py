@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 from kivy.clock import mainthread
+from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.graphics import Color, Rectangle
 import numpy as np
@@ -16,10 +17,11 @@ class EdgeDetect(Preview):
     voice_prompt_queue = None
     cv_voice = None
     log_viewer = None
+    speed_l = None
     DEFAULT_HAARCASCADE_MODEL = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                              "data_models",
                                              "haarcascade_frontalface_default.xml")
-    TRIGGER_TIME_AR_SOUND_MAX = 5
+    TRIGGER_TIME_AR_SOUND_MAX = 2
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -40,11 +42,12 @@ class EdgeDetect(Preview):
     ####################################
 
     @classmethod
-    def init(cls, gps, main_app, voice_queue, cv_voice):
+    def init(cls, gps, main_app, voice_queue, cv_voice, speed_l):
         cls.g = gps
         cls.main_app = main_app
         cls.voice_prompt_queue = voice_queue
         cls.cv_voice = cv_voice
+        cls.speed_l = speed_l
 
     def set_log_viewer(self, log_viewer):
         EdgeDetect.log_viewer = log_viewer
@@ -83,6 +86,8 @@ class EdgeDetect(Preview):
         results_found = self.update_results(faces, people)
 
         if results_found:
+            self.freeflow = False
+            Clock.schedule_once(lambda dt: self.speed_l.update_ar("!!!"), 0)
             current_time = time.time()
             # Avoid frequent updates due to performance
             if current_time - self.last_ar_sound_time >= EdgeDetect.TRIGGER_TIME_AR_SOUND_MAX:
@@ -94,8 +99,8 @@ class EdgeDetect(Preview):
             if not self.g.camera_in_progress():
                 if not self.g.camera_is_ar_human():
                     self.g.update_ar()
-            self.freeflow = False
         else:
+            Clock.schedule_once(lambda dt: self.speed_l.update_ar("OK"), 0)
             # Reset to trigger a new voice prompt
             if not self.g.camera_in_progress() and not self.freeflow:
                 self.g.update_speed_camera("FREEFLOW")
