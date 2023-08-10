@@ -51,10 +51,12 @@ class EdgeDetect(Preview):
 
     def init_ar_detection(self):
         BASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data_models")
-        CASCADE_FILE = os.path.join(BASE_PATH, 'haarcascade_frontalface_default.xml')
+        CASCADE_FILE_FACE = os.path.join(BASE_PATH, 'haarcascade_frontalface_alt_tree.xml')
+        CASCADE_FILE_FULL_BODY = os.path.join(BASE_PATH, 'haarcascade_fullbody.xml')
 
         self.face_cascade = cv2.CascadeClassifier()
-        self.face_cascade.load(CASCADE_FILE)
+        self.face_cascade.load(CASCADE_FILE_FACE)
+        self.face_cascade.load(CASCADE_FILE_FULL_BODY)
 
         # Load the pre-trained HOG detector for pedestrian detection
         self.hog = cv2.HOGDescriptor()
