@@ -619,7 +619,7 @@ class LogViewer(FloatLayout):
 
     @staticmethod
     def create_label(text):
-        return Label(text=text, size_hint_y=None, height=40)
+        return Label(text=text, size_hint_y=None, height=50)
 
     def callback_return(self, instance):
         self.sm.current = 'Operative'
