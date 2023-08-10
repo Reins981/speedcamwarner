@@ -46,24 +46,24 @@ class ButtonsLayout(RelativeLayout):
         if Window.width < Window.height:
             self.pos = (0, 0)
             self.size_hint = (1, 0.2)
-            self.ids.other.pos_hint = {'center_x': .1, 'center_y': .5}
+            self.ids.other.pos_hint = {'center_x': .2, 'center_y': .5}
             self.ids.other.size_hint = (.2, None)
-            self.ids.screen.pos_hint = {'center_x': .3, 'center_y': .5}
+            self.ids.screen.pos_hint = {'center_x': .4, 'center_y': .5}
             self.ids.screen.size_hint = (.2, None)
-            self.ids.connect.pos_hint = {'center_x': .5, 'center_y': .5}
+            self.ids.connect.pos_hint = {'center_x': .6, 'center_y': .5}
             self.ids.connect.size_hint = (.2, None)
-            self.ids.flip.pos_hint = {'center_x': .7, 'center_y': .5}
+            self.ids.flip.pos_hint = {'center_x': .8, 'center_y': .5}
             self.ids.flip.size_hint = (.2, None)
         else:
             self.pos = (Window.width * 0.8, 0)
             self.size_hint = (0.2, 1)
-            self.ids.flip.pos_hint = {'center_x': .5, 'center_y': .7}
+            self.ids.flip.pos_hint = {'center_x': .5, 'center_y': .8}
             self.ids.flip.size_hint = (None, .2)
-            self.ids.other.pos_hint = {'center_x': .5, 'center_y': .5}
+            self.ids.other.pos_hint = {'center_x': .5, 'center_y': .6}
             self.ids.other.size_hint = (None, .2)
-            self.ids.screen.pos_hint = {'center_x': .5, 'center_y': .3}
+            self.ids.screen.pos_hint = {'center_x': .5, 'center_y': .4}
             self.ids.screen.size_hint = (None, .2)
-            self.ids.connect.pos_hint = {'center_x': .5, 'center_y': .1}
+            self.ids.connect.pos_hint = {'center_x': .5, 'center_y': .2}
             self.ids.connect.size_hint = (None, .2)
 
     def callback_return(self):

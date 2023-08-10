@@ -601,21 +601,21 @@ class VoicePromptQueue(object):
             cv.wait()
 
         if self.an_item_is_available_camera() and self.an_item_is_available_gpssignal():
-            unusedItem1 = self.get_an_available_item_gpssignal()
+            _ = self.get_an_available_item_gpssignal()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
-                                  f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)", log_level="WARNING")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_camera() and self.an_item_is_available_info():
-            unusedItem1 = self.get_an_available_item_info()
+            _ = self.get_an_available_item_info()
             logger.print_log_line(f"Dismiss voice prompt(s) (INFO) "
-                                  f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)", log_level="WARNING")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_camera() and self.an_item_is_available_online():
-            unusedItem1 = self.get_an_available_item_online()
+            _ = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                  f"-> Prefer voice prompt (CAMERA)")
+                                  f"-> Prefer voice prompt (CAMERA)", log_level="WARNING")
             return self.get_an_available_item_camera()
 
         if self.an_item_is_available_camera():
@@ -625,26 +625,29 @@ class VoicePromptQueue(object):
         elif self.an_item_is_available_gpssignal() \
                 and self.an_item_is_available_maxspeed_exceeded() \
                 and self.an_item_is_available_online():
-            unusedItem1 = self.get_an_available_item_gpssignal()
-            unusedItem2 = self.get_an_available_item_online()
+            _ = self.get_an_available_item_gpssignal()
+            _ = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS, ONLINE) "
-                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)",
+                                  log_level="WARNING")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_gpssignal() \
                 and self.an_item_is_available_maxspeed_exceeded():
-            unusedItem1 = self.get_an_available_item_gpssignal()
+            _ = self.get_an_available_item_gpssignal()
             logger.print_log_line(f"Dismiss voice prompt(s) (GPS) "
-                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)",
+                                  log_level="WARNING")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_gpssignal() and self.an_item_is_available_online():
-            unusedItem1 = self.get_an_available_item_online()
+            _ = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                  f"-> Prefer voice prompt (GPS)")
+                                  f"-> Prefer voice prompt (GPS)", log_level="WARNING")
             return self.get_an_available_item_gpssignal()
         elif self.an_item_is_available_maxspeed_exceeded() and self.an_item_is_available_online():
-            unusedItem1 = self.get_an_available_item_online()
+            _ = self.get_an_available_item_online()
             logger.print_log_line(f"Dismiss voice prompt(s) (ONLINE) "
-                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)")
+                                  f"-> Prefer voice prompt (MAXSPEED_EXCEEDED)",
+                                  log_level="WARNING")
             return self.get_an_available_item_maxspeed_exceeded()
         elif self.an_item_is_available_maxspeed_exceeded():
             return self.get_an_available_item_maxspeed_exceeded()

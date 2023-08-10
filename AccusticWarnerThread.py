@@ -8,7 +8,6 @@ Created on 01.07.2014
 '''
 
 import os
-import time
 from Logger import Logger
 from ThreadBase import StoppableThread
 from kivy.core.audio import SoundLoader

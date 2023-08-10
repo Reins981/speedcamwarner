@@ -153,7 +153,7 @@ class POIReader(Logger):
                 catids)
             self.poi_raw_data = self.connection.fetchall()
         else:
-            self.print_log_line('Could not open database poidata.db3')
+            self.print_log_line('Could not open database poidata.db3', log_level="WARNING")
             self.poi_raw_data = None
 
     def convert_cam_morton_codes(self):
@@ -256,7 +256,8 @@ class POIReader(Logger):
         for camera_list in cameras:
             if len(camera_list) >= 100:
                 self.print_log_line(" Limit of speed camera list (100) reached! "
-                                    "Deleting all speed cameras from source list")
+                                    "Deleting all speed cameras from source list",
+                                    log_level="WARNING")
                 del camera_list[:]
 
     def update_map_queue(self):

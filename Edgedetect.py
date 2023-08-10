@@ -18,7 +18,7 @@ class EdgeDetect(Preview):
     cv_voice = None
     log_viewer = None
     speed_l = None
-    TRIGGER_TIME_AR_SOUND_MAX = 2
+    TRIGGER_TIME_AR_SOUND_MAX = 3
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

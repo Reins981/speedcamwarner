@@ -319,7 +319,7 @@ class GPSThread(StoppableThread, Logger):
                         success_coords = True
                     if speed is None or success_coords is False:
                         self.print_log_line("Could not retrieve speed or coordinates from event!. "
-                                            "Skipping..")
+                                            "Skipping..", log_level="WARNING")
                         return None
 
                     self.callback_gps(lon, lat)
@@ -334,7 +334,7 @@ class GPSThread(StoppableThread, Logger):
                     direction, bearing = self.calculate_direction(event)
                     if direction is None:
                         self.print_log_line("Could not calculate direction from event!. "
-                                            "Skipping..")
+                                            "Skipping..", log_level="WARNING")
                         return None
 
                     # trigger calculation only if speed >= 0 km/h and
@@ -533,7 +533,8 @@ class GPSThread(StoppableThread, Logger):
                 direction = 'TOP-N'
                 self.last_bearing = bearing
             else:
-                self.print_log_line('Something bad happened here, direction = -')
+                self.print_log_line('Something bad happened here, direction = -',
+                                    log_level="ERROR")
                 # this should not happen,
                 # but currently it occurs for bearing values in range 45 - 70
                 direction = self.calculate_bearing_deviation(bearing, self.last_bearing)

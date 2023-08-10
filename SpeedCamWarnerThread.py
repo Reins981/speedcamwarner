@@ -396,8 +396,7 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         self.current_cam_pointer = cam
         # Nothing to sort
         if cam is None:
-            self.print_log_line("Sorting speed cameras failed -> "
-                                "No cameras available. Abort processing..")
+            self.print_log_line(" No cameras available. Abort sorting process")
             self.update_cam_road(reset=True)
             return False
         # Sort the follow up cameras based on the list of cameras - the actual camera

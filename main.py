@@ -602,10 +602,10 @@ class LogViewer(FloatLayout):
 
     def add_log(self, log):
         LogViewer.cv_log.acquire()
-        self.log_queue.append(log)
-        self.update_display()
         if len(self.log_queue) == self.log_queue.maxlen:
             self.log_queue.clear()
+        self.log_queue.append(log)
+        self.update_display()
         LogViewer.cv_log.notify()
         LogViewer.cv_log.release()
 
@@ -1282,8 +1282,10 @@ class Speedlayout(FloatLayout):
             self.av_bearing_value.text = value
             if value == "!!!":
                 self.av_bearing_value.color = (1, 0, 0, 3)
-            else:
+            elif value == "OK":
                 self.av_bearing_value.color = (0, 1, 0, 1)
+            else:
+                self.av_bearing_value.color = (1, 1, 1, 1)
             self.av_bearing_value.texture_update()
 
     def update_ar_label(self, m_label):

@@ -1530,7 +1530,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 (abs(ytile) + (rectangle_periphery['SSO'][0] / 0.9)),
                 zoom)
         else:
-            self.print_log_line(' Invalid direction! %s' % direction)
+            self.print_log_line(' Invalid direction! %s' % direction, log_level="ERROR")
             return (0, 0, 0, 0)
 
         return self.XTILE_MIN, self.YTILE_MIN, self.XTILE_MAX, self.YTILE_MAX
@@ -2698,11 +2698,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         self.process(update_ccp_only=True)
 
         if self.matching_rect is None or self.previous_rect is None:
-            self.print_log_line(" Extrapolation criteria not fulfilled -> no matching rect")
+            self.print_log_line(" Extrapolation criteria not fulfilled -> no matching rect",
+                                log_level="WARNING")
             return False
 
         if self.matching_rect == 'NOTSET':
-            self.print_log_line(" Extrapolation criteria not fulfilled -> no matching rect")
+            self.print_log_line(" Extrapolation criteria not fulfilled -> no matching rect",
+                                log_level="WARNING")
             return False
 
         if int(self.cspeed) == 0:
@@ -2721,7 +2723,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.print_log_line(" Extrapolating new Rects...")
         else:
             if not self.internet_available() and self.failed_rect == 'EXTRAPOLATED':
-                self.print_log_line(" Retry network link for extrapolated rects")
+                self.print_log_line(" Retry network link for extrapolated rects",
+                                    log_level="WARNING")
             else:
                 self.print_log_line(" Extrapolation criteria not fulfilled -> not close to border")
                 return False
@@ -2982,7 +2985,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             delete_rects = True
                             # get out immediately of empty rects
                             self.print_log_line(
-                                ' Leaving rect %s immediately!' % rect)
+                                ' Leaving rect %s immediately!' % rect, log_level="ERROR")
                             return attributes[0], True, delete_rects
 
                         close_to_border = attributes[0].points_close_to_border(xtile, ytile)
@@ -3013,7 +3016,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     if self.empty_dataset_received and rect == self.empty_dataset_rect:
                         # get out immediately of empty rects
                         self.print_log_line(
-                            ' Leaving rect %s immediately!' % rect)
+                            ' Leaving rect %s immediately!' % rect, log_level="ERROR")
                         return attributes[0], True, delete_rects
 
                     close_to_border = attributes[0].points_close_to_border(
@@ -3042,7 +3045,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                             delete_rects = True
                             # get out immediately of empty rects
                             self.print_log_line(
-                                ' Leaving rect %s immediately!' % rect)
+                                ' Leaving rect %s immediately!' % rect, log_level="ERROR")
                             return attributes[0], True, delete_rects
 
                         close_to_border = attributes[0].points_close_to_border(
@@ -3068,7 +3071,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                         return attributes[0], close_to_border, delete_rects
 
             self.print_log_line(' CCP lon: %f lat: %f is '
-                                'outside ALL rectangle borders\n' % (longitude, latitude))
+                                'outside ALL rectangle borders\n' % (longitude, latitude),
+                                log_level="WARNING")
             self.new_rectangle = True
             self.border_reached = True
 
@@ -3143,7 +3147,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             else:
                 self.print_log_line(
                     " Linked list and Binary Search tree not yet "
-                    "created for rect %s\n" % rect)
+                    "created for rect %s\n" % rect, log_level="WARNING")
 
     def resolve_dangers_on_the_road(self, way, treeGenerator):
         # any dangers on the road?
@@ -3571,7 +3575,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :return:
         """
         if self.latitude is None or self.longitude is None:
-            self.print_log_line(f" Could not resolve Road Name -> No valid coordinates given!")
+            self.print_log_line(f" Could not resolve Road Name -> No valid coordinates given!",
+                                log_level="ERROR")
             return None
 
         try:
@@ -4297,7 +4302,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         else:
             error = True
             self.empty_dataset_received = True
-            self.print_log_line(f' Empty dataset from server {self.baseurl} received!')
+            self.print_log_line(f' Empty dataset from server {self.baseurl} received!',
+                                log_level="ERROR")
             self.voice_prompt_queue.produce_info(self.cv_voice, 'EMPTY_DATASET_FROM_SERVER')
         if not error:
             if isinstance(linkedListGenerator, DoubleLinkedListNodes):
@@ -4504,7 +4510,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             data_json = json.loads(data)
             response.close()
         except HTTPError as e:
-            self.print_log_line(f" The server {osm_url} couldn't fulfill the request")
+            self.print_log_line(f" The server {osm_url} couldn't fulfill the request",
+                                log_level="ERROR")
             self.print_log_line(str(e))
             internal_error = str(e)
             self.internet_connection = False
@@ -4514,7 +4521,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return False, 'ERROR', None, internal_error, current_rect
 
         except URLError as e:
-            self.print_log_line(f' We failed to reach the server {self.baseurl}')
+            self.print_log_line(f' We failed to reach the server {self.baseurl}', log_level="ERROR")
             self.print_log_line(str(e))
             self.internet_connection = False
             self.failed_rect = current_rect
@@ -4525,7 +4532,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             return False, 'NOINET', None, internal_error, current_rect
 
         except Exception as e:
-            self.print_log_line(f' Read failed from server {self.baseurl}')
+            self.print_log_line(f' Read failed from server {self.baseurl}', log_level="ERROR")
             self.print_log_line(str(e))
             self.internet_connection = False
             self.failed_rect = current_rect
