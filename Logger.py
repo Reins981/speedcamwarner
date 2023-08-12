@@ -108,11 +108,11 @@ class Logger:
         log_time = log_time + ml_sec
         log_time += "0" * (23 - len(log_time))  # fill logtime with spaces to get fixed length of chars
         log_line_prefix = log_time + " - [SPEEDMASTER] - "
-        log_level += " " * (8 - len(log_level))  # fill level with spaces to get fixed length of chars
+        log_level += " " * (2 - len(log_level))  # fill level with spaces to get fixed length of chars
         log_line_prefix = log_line_prefix + log_level + " - "
 
         self.__module_name += " " * (
-                    50 - len(self.__module_name))  # fill module_name with spaces to get fixed length of chars
+                    40 - len(self.__module_name))  # fill module_name with spaces to get fixed length of chars
         log_line_prefix = log_line_prefix + self.__module_name + " - "
 
         return log_line_prefix
