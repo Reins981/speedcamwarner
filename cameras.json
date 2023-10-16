@@ -1,0 +1,85 @@
+{
+    "cameras": [
+        {
+            "name": "Kievitslandenpad",
+            "coordinates": [
+                {
+                    "latitude": 52.3961,
+                    "longitude": 5.640563
+                }
+            ]
+        },
+        {
+            "name": "Spaarnelaan",
+            "coordinates": [
+                {
+                    "latitude": 51.626176,
+                    "longitude": 4.917522
+                }
+            ]
+        },
+        {
+            "name": "Hof ter Eekterweg",
+            "coordinates": [
+                {
+                    "latitude": 52.458789,
+                    "longitude": 5.8714
+                }
+            ]
+        },
+        {
+            "name": "Oostendorperstraatweg",
+            "coordinates": [
+                {
+                    "latitude": 52.455812,
+                    "longitude": 5.869025
+                }
+            ]
+        },
+        {
+            "name": "Gro\u00dfe-Leege-Stra\u00dfe",
+            "coordinates": [
+                {
+                    "latitude": 52.54720926,
+                    "longitude": 13.50055597
+                }
+            ]
+        },
+        {
+            "name": "Pont du Saut de Brot",
+            "coordinates": [
+                {
+                    "latitude": 46.94959698244929,
+                    "longitude": 6.748457998037338
+                }
+            ]
+        },
+        {
+            "name": "Hertog Willem-pad",
+            "coordinates": [
+                {
+                    "latitude": 52.477458,
+                    "longitude": 6.072848
+                }
+            ]
+        },
+        {
+            "name": "Eijerdijk",
+            "coordinates": [
+                {
+                    "latitude": 52.472692,
+                    "longitude": 6.062593
+                }
+            ]
+        },
+        {
+            "name": "Goethestra\u00dfe",
+            "coordinates": [
+                {
+                    "latitude": 52.3748717297229,
+                    "longitude": 9.730383811330029
+                }
+            ]
+        }
+    ]
+}

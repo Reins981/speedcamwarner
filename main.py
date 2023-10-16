@@ -2923,8 +2923,6 @@ class MainTApp(App):
             self.root_table.label_g.texture_update()
             self.root_add.c_button.color = (.5, 0, .8, 1)
             self.root_add.c_button.texture_update()
-            self.root_add.logbutton.color = (.5, 0, .8, 1)
-            self.root_add.logbutton.texture_update()
         else:
             self.nightbutton.text = 'Night'
             self.nightbutton.texture_update()
@@ -2976,8 +2974,6 @@ class MainTApp(App):
             self.root_table.label_g.texture_update()
             self.root_add.c_button.color = (1, 1, 1, 1)
             self.root_add.c_button.texture_update()
-            self.root_add.logbutton.color = (1, 1, 1, 1)
-            self.root_add.logbutton.texture_update()
         self.day_update_done = True
         self.night_update_done = True
 
@@ -3032,8 +3028,6 @@ class MainTApp(App):
         self.root_table.label_g.texture_update()
         self.root_add.c_button.color = (.5, 0, .8, 1)
         self.root_add.c_button.texture_update()
-        self.root_add.logbutton.color = (.5, 0, .8, 1)
-        self.root_add.logbutton.texture_update()
 
     def callback_day_auto(self, instance):
         self.nightbutton.text = 'Night'
@@ -3086,8 +3080,6 @@ class MainTApp(App):
         self.root_table.label_g.texture_update()
         self.root_add.c_button.color = (1, 1, 1, 1)
         self.root_add.c_button.texture_update()
-        self.root_add.logbutton.color = (1, 1, 1, 1)
-        self.root_add.logbutton.texture_update()
 
     def check_night_mode(self):
         time_array = time.ctime().split()
