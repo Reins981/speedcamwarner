@@ -387,11 +387,14 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
 
         # Delete obsolete cameras
         self.delete_cameras(cams_to_delete)
+
         # Sort cameras based on distance
         cam, cam_entry = self.sort_pois(cam_list)
+
         # Reset the camera dismiss counter
         if cam != self.current_cam_pointer:
             self.dismiss_counter = 0
+
         # Point to the current camera
         self.current_cam_pointer = cam
         # Nothing to sort
@@ -399,10 +402,12 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             self.print_log_line(" No cameras available. Abort sorting process")
             self.update_cam_road(reset=True)
             return False
-        # Sort the follow up cameras based on the list of cameras - the actual camera
+
+        # Sort the follow-up cameras based on the list of cameras - the actual camera
         cam_list_followup = cam_list.copy()
         cam_list_followup.remove(cam_entry)
         next_cam, next_cam_entry = self.sort_pois(cam_list_followup)
+
         # Set up the road name and the distance for the next camera
         next_cam_road = ""
         next_cam_distance = ""
@@ -411,9 +416,11 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
         if next_cam is not None and next_cam in self.ITEMQUEUE:
             try:
                 next_cam_road = self.ITEMQUEUE[next_cam][7]
+                if len(next_cam_road) > 8:
+                    next_cam_road = next_cam_road[:8] + "."
             except KeyError:
                 pass
-            next_cam_distance = str(next_cam_entry[1]) + "m"
+            next_cam_distance = str(int(round(next_cam_entry[1]))) + "m"
             next_cam_distance_as_int = next_cam_entry[1]
             process_next_cam = True
 
