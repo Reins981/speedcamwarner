@@ -1564,19 +1564,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.cache_tiles(self.xtile, self.ytile)
             return
 
-        if self.gpsstatus == 'CALCULATE':
-            # update the SpeedWarner Thread
-            self.speed_cam_queue.produce(self.cv_speedcam, {
-                'ccp': (self.longitude, self.latitude),
-                'fix_cam': (False, 0, 0),
-                'traffic_cam': (False, 0, 0),
-                'distance_cam': (False, 0, 0),
-                'mobile_cam': (False, 0, 0),
-                'ccp_node': (None, None),
-                'list_tree': (None, None),
-                'stable_ccp': self.isCcpStable,
-                'bearing': self.bearing})
-        elif self.gpsstatus == 'OFFLINE':
+        if self.gpsstatus == 'OFFLINE':
             # update the SpeedWarner Thread
             self.calculate_extrapolated_position(self.longitude_cached,
                                                  self.latitude_cached,
@@ -1599,9 +1587,6 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             # clear any overhead leading to performance bottlenecks
             self.currentspeed_queue.produce(self.cv_currentspeed, None)
             self.overspeed_queue.clear_overspeedqueue(self.cv_overspeed)
-
-        else:
-            pass
 
         # offline.
         if self.gpsstatus == 'OFFLINE':
@@ -1872,6 +1857,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
         :return:
         """
         counter = 80000
+        ccp_outdated = False
         for element in data:
             speed_cam_dict = dict()
             name = None
@@ -1879,6 +1865,9 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             maxspeed = None
             maxspeed_conditional = None
             description = None
+
+            ccp_lon = 'IGNORE' if ccp_outdated else ccp_lon
+            ccp_lat = 'IGNORE' if ccp_outdated else ccp_lat
             try:
                 lat = element['lat']
                 lon = element['lon']
@@ -1977,6 +1966,10 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                 self.update_speed_cams(speed_l)
                 self.update_map_queue()
                 self.cleanup_map_content()
+
+            # After one camera is propagated, the original ccp is already outdated
+            if not ccp_outdated:
+                ccp_outdated = True
 
     def speed_cam_lookup_ahead(self, xtile, ytile, ccp_lon, ccp_lat):
         """

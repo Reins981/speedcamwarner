@@ -52,7 +52,8 @@ if platform == "android":
     from LocationManager import LocationManager, \
         LocationReceiverBackground, GPSAndroidBackground, context, IntentFilter
 
-    request_permissions([Permission.CAMERA,
+    request_permissions([Permission.INTERNET,
+                         Permission.CAMERA,
                          Permission.RECORD_AUDIO,
                          Permission.ACCESS_COARSE_LOCATION,
                          Permission.ACCESS_FINE_LOCATION,
@@ -2031,7 +2032,8 @@ class MainTApp(App):
             else:
                 print("callback. Some permissions refused.")
 
-        request_permissions([Permission.CAMERA, Permission.ACCESS_COARSE_LOCATION,
+        request_permissions([Permission.INTERNET,
+                             Permission.CAMERA, Permission.ACCESS_COARSE_LOCATION,
                              Permission.ACCESS_FINE_LOCATION, Permission.WRITE_EXTERNAL_STORAGE,
                              Permission.READ_EXTERNAL_STORAGE, Permission.WAKE_LOCK,
                              Permission.RECORD_AUDIO], callback)

@@ -123,8 +123,9 @@ class SpeedCamWarnerThread(StoppableThread, Logger):
             return 'EXIT'
 
         if item['ccp'][0] == 'IGNORE' or item['ccp'][1] == 'IGNORE':
-            self.print_log_line(' Got a camera from the POI Reader ')
+            self.print_log_line(' Ignore CCP update')
         else:
+            self.print_log_line(' Received new CCP update')
             # back the updated ccp in case cameras originating from the POI Reader arrive
             self.longitude = item['ccp'][0]
             self.latitude = item['ccp'][1]

@@ -73,11 +73,20 @@
             ]
         },
         {
-            "name": "Goethestra\u00dfe",
+            "name": "Draschitz",
             "coordinates": [
                 {
-                    "latitude": 52.3748717297229,
-                    "longitude": 9.730383811330029
+                    "latitude": 46.55802,
+                    "longitude": 13.63333
+                }
+            ]
+        },
+        {
+            "name": "Draschitz",
+            "coordinates": [
+                {
+                    "latitude": 46.55885,
+                    "longitude": 13.63283
                 }
             ]
         }
